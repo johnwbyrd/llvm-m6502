@@ -225,6 +225,7 @@ set(LLVM_ALL_TARGETS
   BPF
   Hexagon
   Mips
+  Mos6502
   MSP430
   NVPTX
   PowerPC
