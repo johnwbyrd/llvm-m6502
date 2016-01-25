@@ -329,6 +329,7 @@ set(LLVM_ALL_TARGETS
   Hexagon
   Lanai
   Mips
+  Mos6502
   MSP430
   NVPTX
   PowerPC

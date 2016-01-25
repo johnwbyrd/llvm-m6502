@@ -28,6 +28,7 @@ subdirectories =
  Hexagon
  MSP430
  NVPTX
+ Mos6502
  Mips
  PowerPC
  RISCV
