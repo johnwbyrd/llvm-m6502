@@ -19,5 +19,5 @@
 type = Library
 name = Mos6502Desc
 parent = Mos6502
-required_libraries = MC Support Mos6502Info
+required_libraries = MC Support Mos6502AsmPrinter Mos6502Info
 add_to_library_groups = Mos6502

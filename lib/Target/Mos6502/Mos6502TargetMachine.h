@@ -13,6 +13,8 @@ public:
   Mos6502TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options, Reloc::Model RM,
                        CodeModel::Model CM, CodeGenOpt::Level OL);
+
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 };
 
 } // end namespace llvm
