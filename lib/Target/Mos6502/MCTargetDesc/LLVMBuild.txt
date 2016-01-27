@@ -1,4 +1,4 @@
-;===- ./lib/Target/Mos6502/LLVMBuild.txt -----------------------*- Conf -*--===;
+;===- ./lib/Target/Mos6502/MCTargetDesc/LLVMBuild.txt ----------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -15,17 +15,9 @@
 ;
 ;===------------------------------------------------------------------------===;
 
-[common]
-subdirectories = MCTargetDesc TargetInfo
-
 [component_0]
-type = TargetGroup
-name = Mos6502
-parent = Target
-
-[component_1]
 type = Library
-name = Mos6502CodeGen
+name = Mos6502Desc
 parent = Mos6502
-required_libraries = Analysis AsmPrinter CodeGen Core MC SelectionDAG Support Target TransformUtils Mos6502Desc Mos6502Info
+required_libraries = MC Support Mos6502Info
 add_to_library_groups = Mos6502
