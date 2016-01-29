@@ -13,4 +13,7 @@ extern Target TheMos6502Target;
 #define GET_REGINFO_ENUM
 #include "Mos6502GenRegisterInfo.inc"
 
+#define GET_INSTRINFO_ENUM
+#include "Mos6502GenInstrInfo.inc"
+
 #endif

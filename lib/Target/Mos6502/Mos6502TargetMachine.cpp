@@ -1,6 +1,7 @@
 // TODO: license stuff
 
 #include "Mos6502TargetMachine.h"
+#include "Mos6502.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/ADT/StringRef.h"
@@ -46,7 +47,6 @@ TargetPassConfig *Mos6502TargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 bool Mos6502PassConfig::addInstSelector() {
-  // TODO
-  //addPass(createMos6502ISelDag(getMos6502TargetMachine()));
+  addPass(createMos6502ISelDag(getMos6502TargetMachine(), getOptLevel()));
   return false;
 }

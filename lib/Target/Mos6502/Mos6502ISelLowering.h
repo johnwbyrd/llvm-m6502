@@ -12,6 +12,17 @@ class Mos6502TargetLowering : public TargetLowering {
 public:
   Mos6502TargetLowering(const TargetMachine &TM,
                         const Mos6502Subtarget &Subtarget);
+
+  SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
+                               bool isVarArg,
+                               const SmallVectorImpl<ISD::InputArg> &Ins,
+                               SDLoc dl, SelectionDAG &DAG,
+                               SmallVectorImpl<SDValue> &InVals) const override;
+
+  SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+                      const SmallVectorImpl<ISD::OutputArg> &Outs,
+                      const SmallVectorImpl<SDValue> &OutVals,
+                      SDLoc dl, SelectionDAG &DAG) const override;
 };
 
 } // end namespace llvm
