@@ -19,6 +19,23 @@ using namespace llvm;
 #define GET_REGINFO_MC_DESC
 #include "Mos6502GenRegisterInfo.inc"
 
+static MCInstrInfo *createMos6502MCInstrInfo() {
+  MCInstrInfo *X = new MCInstrInfo();
+  InitMos6502MCInstrInfo(X);
+  return X;
+}
+
+static MCRegisterInfo *createMos6502MCRegisterInfo(const Triple &TT) {
+  MCRegisterInfo *X = new MCRegisterInfo();
+  InitMos6502MCRegisterInfo(X, 0); /* FIXME: what's second parameter? return address? */
+  return X;
+}
+
+static MCSubtargetInfo *
+createMos6502MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
+  return createMos6502MCSubtargetInfoImpl(TT, CPU, FS);
+}
+
 static MCAsmInfo *createMos6502MCAsmInfo(const MCRegisterInfo &MRI,
                                          const Triple &TT) {
   // TODO: Set up initial stack frame state
@@ -37,6 +54,18 @@ extern "C" void LLVMInitializeMos6502TargetMC() {
   // Register the MCAsmInfo.
   TargetRegistry::RegisterMCAsmInfo(TheMos6502Target,
                                     createMos6502MCAsmInfo);
+
+  // Register the MC instruction info.
+  TargetRegistry::RegisterMCInstrInfo(TheMos6502Target,
+                                      createMos6502MCInstrInfo);
+
+  // Register the MC register info.
+  TargetRegistry::RegisterMCRegInfo(TheMos6502Target,
+                                    createMos6502MCRegisterInfo);
+
+  // Register the MC subtarget info.
+  TargetRegistry::RegisterMCSubtargetInfo(TheMos6502Target,
+                                          createMos6502MCSubtargetInfo);
 
   // Register the MCInstPrinter
   TargetRegistry::RegisterMCInstPrinter(TheMos6502Target,
