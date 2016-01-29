@@ -10,4 +10,7 @@ extern Target TheMos6502Target;
 
 } // End llvm namespace
 
+#define GET_REGINFO_ENUM
+#include "Mos6502GenRegisterInfo.inc"
+
 #endif
