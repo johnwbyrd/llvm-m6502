@@ -3,6 +3,7 @@
 #include "Mos6502TargetMachine.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/ADT/StringRef.h"
 using namespace llvm;
 
 namespace llvm {
@@ -18,7 +19,9 @@ Mos6502TargetMachine::Mos6502TargetMachine(const Target &T, const Triple &TT,
                                            const TargetOptions &Options,
                                            Reloc::Model RM, CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "", TT, CPU, FS, Options, RM, CM, OL) {
+    : LLVMTargetMachine(T, "", TT, CPU, FS, Options, RM, CM, OL),
+      TLOF(std::make_unique<Mos6502TargetObjectFile>()),
+      Subtarget(TT, CPU, FS, *this) {
       // TODO: Data layout string
 
   initAsmInfo();
