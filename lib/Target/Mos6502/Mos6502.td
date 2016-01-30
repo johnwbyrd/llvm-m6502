@@ -17,19 +17,56 @@ def ARegs : RegisterClass<"Mos6502", [i8], 8,
 
 ///////////////////////////////////////////
 
+// "Return" custom SelectionDAG Node //////
+
+// FIXME: Really variadic? What for?
+def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
+                           [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+
+///////////////////////////////////////////
+
 // TODO: Move to Mos6502InstrInfo.td ///
 
-// XXX: sample from XCore
-//def NOT : _F2R<0b100010, (outs GRRegs:$dst), (ins GRRegs:$b),
-//                "not $dst, $b", [(set GRRegs:$dst, (not GRRegs:$b))]>;
-
-def NOT : Instruction {
+def LDA : Instruction {
   let Namespace = "Mos6502";
-  let OutOperandList = (outs ARegs:$dst);
-  let InOperandList = (ins ARegs:$b);
-  let AsmString = "NOT $dst, $b";
-  let Pattern = [(set ARegs:$dst, (not ARegs:$b))];
-  let Size = 3;
+  let Defs = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i8imm:$x);
+  let AsmString = "LDA $x";
+  let Pattern = [(set A, (i8 imm:$x))];
+  let Size = 2;
+}
+
+def LDX : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [X];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i8imm:$x);
+  let AsmString = "LDX $x";
+  let Pattern = [(set X, (i8 imm:$x))];
+  let Size = 2;
+}
+
+def LDY : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [Y];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i8imm:$x);
+  let AsmString = "LDY $x";
+  let Pattern = [(set Y, (i8 imm:$x))];
+  let Size = 2;
+}
+
+def RTS : Instruction {
+  let Namespace = "Mos6502";
+  let isReturn = 1; // This is a return instruction
+  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+  let isBarrier = 1; // Control flow cannot fall through this instruction
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let Pattern = [(Mos6502return)];
+  let AsmString = "RTS";
+  let Size = 1;
 }
 
 ////////////////////////////////////////

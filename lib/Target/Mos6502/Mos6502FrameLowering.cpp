@@ -14,11 +14,7 @@ Mos6502FrameLowering::Mos6502FrameLowering(const Mos6502Subtarget &STI)
 
 void Mos6502FrameLowering::emitPrologue(MachineFunction &MF,
                                         MachineBasicBlock &MBB) const {
-  // XXX: generate an instruction for testing
-  MachineBasicBlock::iterator MBBI = MBB.begin();
-  const Mos6502InstrInfo &TII = *MF.getSubtarget<Mos6502Subtarget>().getInstrInfo();
-  DebugLoc dl; // FIXME: what is this?
-  BuildMI(MBB, MBBI, dl, TII.get(Mos6502::NOT), Mos6502::A);
+  // TODO
 }
 
 void Mos6502FrameLowering::emitEpilogue(MachineFunction &MF,
