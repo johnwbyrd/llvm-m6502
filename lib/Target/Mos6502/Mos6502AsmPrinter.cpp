@@ -33,9 +33,42 @@ extern "C" void LLVMInitializeMos6502AsmPrinter() {
 }
 
 static void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
+  // TODO
+  // XXX: copied from BPFMCInstLower.cpp
   OutMI.setOpcode(MI->getOpcode());
 
-  // TODO: operands
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+
+    MCOperand MCOp;
+    switch (MO.getType()) {
+    default:
+      MI->dump();
+      llvm_unreachable("unknown operand type");
+    case MachineOperand::MO_Register:
+      // Ignore all implicit register operands.
+      if (MO.isImplicit())
+        continue;
+      MCOp = MCOperand::createReg(MO.getReg());
+      break;
+    case MachineOperand::MO_Immediate:
+      MCOp = MCOperand::createImm(MO.getImm());
+      break;
+    case MachineOperand::MO_MachineBasicBlock:
+      //MCOp = MCOperand::createExpr(
+      //    MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
+	  assert(false && "Mos6502 does not implement MO_MachineBasicBlock operands");
+      break;
+    case MachineOperand::MO_RegisterMask:
+      continue;
+    case MachineOperand::MO_GlobalAddress:
+      //MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
+	  assert(false && "Mos6502 does not implement MO_GlobalAddress operands");
+      break;
+    }
+
+    OutMI.addOperand(MCOp);
+  }
 }
 
 void Mos6502AsmPrinter::EmitInstruction(const MachineInstr *MI) {

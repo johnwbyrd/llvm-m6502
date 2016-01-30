@@ -19,16 +19,11 @@ void Mos6502InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
 
 void Mos6502InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                       raw_ostream &O) {
-#if 0
   const MCOperand &Op = MI->getOperand(OpNo);
-  if (Op.isReg()) {
-    O << getRegisterName(Op.getReg());
-  } else if (Op.isImm()) {
-    O << (int)Op.getImm();
+  if (Op.isImm()) {
+    O << '#' << Op.getImm();
   } else {
-    Op.getExpr()->print(O, &MAI);
+    // TODO: print other types of operands
+    O << "*TODO*";
   }
-#else
-  O << "TODO";
-#endif
 }
