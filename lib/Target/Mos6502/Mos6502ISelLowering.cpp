@@ -61,16 +61,13 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                    const SmallVectorImpl<SDValue> &OutVals,
                                    SDLoc dl, SelectionDAG &DAG) const {
   // TODO
-  // Flag is used to "glue" register assignments to the return instruction
-  SDValue Flag;
   // XXX: RetOps stuff comes from WEbAssemblyIselLowering and others
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
   if (Outs.size() == 1) {
     // FIXME: How do we know it's OutVals[0]?
     // This should generate instructions to copy OutVals[0] to register A.
-    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0], Flag);
-    Flag = Chain.getValue(1); // Update glue
+    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0]);
     RetOps.push_back(DAG.getRegister(Mos6502::A, OutVals[0].getValueType()));
   } else if (Outs.size() == 0) {
 	  // Do nothing
@@ -81,13 +78,6 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
   RetOps[0] = Chain; // Update chain.
 
-  // Add the flag if we have it.
-  if (Flag.getNode()) {
-	  RetOps.push_back(Flag);
-  }
-
-  // Generate return instruction
-  // FIXME
+  // Generate return instruction chained to output registers
   return DAG.getNode(Mos6502ISD::RETURN, dl, MVT::Other, RetOps);
-  //return Chain;
 }
