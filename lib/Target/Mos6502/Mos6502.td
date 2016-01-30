@@ -27,6 +27,18 @@ def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
 
 // TODO: Move to Mos6502InstrInfo.td ///
 
+// FIXME: There is no ADD instruction, only ADC
+def ADD : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [A];
+  let Uses = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i8imm:$x);
+  let AsmString = "ADD $x";
+  let Pattern = [(set A, (add A, (i8 imm:$x)))];
+  let Size = 2;
+}
+
 def LDA : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];

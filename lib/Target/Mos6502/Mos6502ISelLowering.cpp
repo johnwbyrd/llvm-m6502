@@ -4,6 +4,7 @@
 #include "Mos6502RegisterInfo.h"
 #include "Mos6502Subtarget.h"
 #include "MCTargetDesc/Mos6502MCTargetDesc.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 
 using namespace llvm;
@@ -41,6 +42,24 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
                                             SmallVectorImpl<SDValue> &InVals)
                                               const {
   // TODO
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineRegisterInfo &RegInfo = MF.getRegInfo();
+
+  // Apparently, this function should gather all arguments from registers,
+  // stack, etc. and push them into InVals.
+  if (Ins.size() == 1) {
+    // First argument is passed in A
+    // FIXME: Ensure first arg is type i8
+	unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+	RegInfo.addLiveIn(Mos6502::A, VReg);
+    InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[0].VT));
+  } else if (Ins.size() == 0) {
+    // Nothing to do
+  } else {
+    // TODO
+    assert(false && "Mos6502 doesn't support more than 1 argument");
+  }
+
   return Chain;
 }
 
