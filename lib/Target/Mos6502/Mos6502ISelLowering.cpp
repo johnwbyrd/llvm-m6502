@@ -3,6 +3,8 @@
 #include "Mos6502ISelLowering.h"
 #include "Mos6502RegisterInfo.h"
 #include "Mos6502Subtarget.h"
+#include "MCTargetDesc/Mos6502MCTargetDesc.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 
 using namespace llvm;
 
@@ -15,6 +17,18 @@ Mos6502TargetLowering::Mos6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i8, &Mos6502::ARegsRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
+}
+
+const char *
+Mos6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
+  switch (static_cast<Mos6502ISD::NodeType>(Opcode)) {
+    // TODO: Use .def to automate this like WebAssembly
+  case Mos6502ISD::FIRST_NUMBER:
+    break;
+  case Mos6502ISD::RETURN:
+    return "Mos6502ISD::RETURN";
+  }
+  return nullptr;
 }
 
 SDValue
@@ -30,6 +44,16 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
   return Chain;
 }
 
+bool
+Mos6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
+                                      MachineFunction &MF, bool isVarArg,
+                                    const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                      LLVMContext &Context) const {
+  // TODO
+  // Mos6502 can't currently handle returning tuples.
+  return Outs.size() <= 1;
+}
+
 SDValue
 Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                    bool isVarArg,
@@ -37,5 +61,33 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                    const SmallVectorImpl<SDValue> &OutVals,
                                    SDLoc dl, SelectionDAG &DAG) const {
   // TODO
-  return Chain;
+  // Flag is used to "glue" register assignments to the return instruction
+  SDValue Flag;
+  // XXX: RetOps stuff comes from WEbAssemblyIselLowering and others
+  SmallVector<SDValue, 4> RetOps(1, Chain);
+
+  if (Outs.size() == 1) {
+    // FIXME: How do we know it's OutVals[0]?
+    // This should generate instructions to copy OutVals[0] to register A.
+    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0], Flag);
+    Flag = Chain.getValue(1); // Update glue
+    RetOps.push_back(DAG.getRegister(Mos6502::A, OutVals[0].getValueType()));
+  } else if (Outs.size() == 0) {
+	  // Do nothing
+  } else {
+    // TODO
+    assert(false && "Mos6502 doesn't support more than 1 return value");
+  }
+
+  RetOps[0] = Chain; // Update chain.
+
+  // Add the flag if we have it.
+  if (Flag.getNode()) {
+	  RetOps.push_back(Flag);
+  }
+
+  // Generate return instruction
+  // FIXME
+  return DAG.getNode(Mos6502ISD::RETURN, dl, MVT::Other, RetOps);
+  //return Chain;
 }
