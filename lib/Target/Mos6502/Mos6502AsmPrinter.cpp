@@ -5,6 +5,7 @@
 
 #include "Mos6502.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
 
@@ -31,6 +32,15 @@ extern "C" void LLVMInitializeMos6502AsmPrinter() {
   RegisterAsmPrinter<Mos6502AsmPrinter> X(TheMos6502Target);
 }
 
+static void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
+  OutMI.setOpcode(MI->getOpcode());
+
+  // TODO: operands
+}
+
 void Mos6502AsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  OutStreamer->EmitRawText("TODO: EmitInstruction\n");
+  // TODO
+  MCInst TmpInst;
+  LowerMachineInstrToMCInst(MI, TmpInst);
+  EmitToStreamer(*OutStreamer, TmpInst);
 }
