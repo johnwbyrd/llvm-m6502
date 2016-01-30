@@ -7,16 +7,10 @@
 
 namespace llvm {
 
-class Mos6502TargetObjectFile : public TargetLoweringObjectFile {
-
+// FIXME: We don't actually know what kind of Object File to generate
+// The linker will take Object Files and generate a ROM or memory image.
+class Mos6502TargetObjectFile : public TargetLoweringObjectFileELF {
 public:
-  MCSection *getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
-                                      Mangler &Mang,
-                                      const TargetMachine &TM) const override;
-
-  MCSection *SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                                    Mangler &Mang,
-                                    const TargetMachine &TM) const override;
 };
 
 } // end namespace llvm
