@@ -81,6 +81,54 @@ def RTS : Instruction {
   let Size = 1;
 }
 
+// Transfer A to X
+def TAX : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [X];
+  let Uses = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "TAX";
+  let Pattern = [(set X, A)];
+  let Size = 1;
+}
+
+// Transfer A to Y
+def TAY : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [Y];
+  let Uses = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "TAY";
+  let Pattern = [(set Y, A)];
+  let Size = 1;
+}
+
+// Transfer X to A
+def TXA : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [A];
+  let Uses = [X];
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "TXA";
+  let Pattern = [(set A, X)];
+  let Size = 1;
+}
+
+// Transfer Y to A
+def TYA : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [A];
+  let Uses = [Y];
+  let OutOperandList = (outs);
+  let InOperandList = (ins);
+  let AsmString = "TYA";
+  let Pattern = [(set A, Y)];
+  let Size = 1;
+}
+
 ////////////////////////////////////////
 
 class Proc<string Name, list<SubtargetFeature> Features>

@@ -16,6 +16,10 @@ class Mos6502InstrInfo : public Mos6502GenInstrInfo {
 
 public:
   const TargetRegisterInfo &getRegisterInfo() const { return RI; }
+
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                   DebugLoc DL, unsigned DestReg, unsigned SrcReg,
+                   bool killSrc) const override;
 };
 
 } // end namespace llvm
