@@ -47,17 +47,30 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
 
   // Apparently, this function should gather all arguments from registers,
   // stack, etc. and push them into InVals.
-  if (Ins.size() == 1) {
+  if (Ins.size() >= 1) {
     // First argument is passed in A
     // FIXME: Ensure first arg is type i8
-	unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
-	RegInfo.addLiveIn(Mos6502::A, VReg);
+    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+    RegInfo.addLiveIn(Mos6502::A, VReg);
     InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[0].VT));
-  } else if (Ins.size() == 0) {
-    // Nothing to do
-  } else {
+  }
+  if (Ins.size() >= 2) {
+    // Second argument is passed in X
+    // FIXME: Ensure second arg is type i8
+    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+    RegInfo.addLiveIn(Mos6502::X, VReg);
+    InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[1].VT));
+  }
+  if (Ins.size() >= 3) {
+      // Second argument is passed in X
+      // FIXME: Ensure third arg is type i8
+      unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+      RegInfo.addLiveIn(Mos6502::Y, VReg);
+      InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[2].VT));
+  }
+  if (Ins.size() >= 4) {
     // TODO
-    assert(false && "Mos6502 doesn't support more than 1 argument");
+    assert(false && "Mos6502 doesn't support more than 3 i8 arguments");
   }
 
   return Chain;
