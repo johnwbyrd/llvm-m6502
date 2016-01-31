@@ -16,6 +16,7 @@ Mos6502TargetLowering::Mos6502TargetLowering(const TargetMachine &TM,
   // FIXME: It is not clear what is required here
 
   addRegisterClass(MVT::i8, &Mos6502::ARegsRegClass);
+  addRegisterClass(MVT::i16, &Mos6502::PtrRegRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 }
