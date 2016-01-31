@@ -12,8 +12,18 @@ def A : Mos6502Reg<"A">;
 def X : Mos6502Reg<"X">; // FIXME: X and Y are index registers
 def Y : Mos6502Reg<"Y">;
 
+// XXX: Fake register to support 16-bit pointer immediate operands in
+// instructions such as LDA, ADD, etc.
+// This register does not actually exist; there are no instructions for loading
+// from or storing to it.
+def XXXFake16 : Mos6502Reg<"XXXFake16">;
+
+// FIXME: Should A, X and Y be the same or different register classes?
 def ARegs : RegisterClass<"Mos6502", [i8], 8,
   (add A, X, Y)>;
+
+def PtrReg : RegisterClass<"Mos6502", [i16], 16,
+  (add XXXFake16)>;
 
 ///////////////////////////////////////////
 
@@ -28,25 +38,49 @@ def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
 // TODO: Move to Mos6502InstrInfo.td ///
 
 // FIXME: There is no ADD instruction, only ADC
-def ADD : Instruction {
+def ADD_imm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let Uses = [A];
   let OutOperandList = (outs);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "ADD $x";
+  let AsmString = "ADD #$x";
   let Pattern = [(set A, (add A, (i8 imm:$x)))];
   let Size = 2;
 }
 
-def LDA : Instruction {
+// FIXME: There is no add instruction, only ADC
+def ADD_abs : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [A];
+  let Uses = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr); // FIXME: addr is a 1-byte offset within the 0 page
+  let AsmString = "ADD $addr";
+  let Pattern = [(set A, (add A, (load imm:$addr)))];
+  let Size = 3;
+  let mayLoad = 1;
+}
+
+def LDA_imm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let OutOperandList = (outs);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDA $x";
+  let AsmString = "LDA #$x";
   let Pattern = [(set A, (i8 imm:$x))];
   let Size = 2;
+}
+
+def LDA_abs : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "LDA $addr";
+  let Pattern = [(set A, (load imm:$addr))];
+  let Size = 3;
+  let mayLoad = 1;
 }
 
 def LDX : Instruction {

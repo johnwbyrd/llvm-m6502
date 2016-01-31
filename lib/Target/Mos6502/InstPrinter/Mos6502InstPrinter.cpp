@@ -21,7 +21,7 @@ void Mos6502InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                       raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isImm()) {
-    O << '#' << Op.getImm();
+    O << Op.getImm();
   } else {
     // TODO: print other types of operands
     O << "*TODO*";

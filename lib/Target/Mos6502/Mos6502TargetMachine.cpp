@@ -20,10 +20,9 @@ Mos6502TargetMachine::Mos6502TargetMachine(const Target &T, const Triple &TT,
                                            const TargetOptions &Options,
                                            Reloc::Model RM, CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "", TT, CPU, FS, Options, RM, CM, OL),
+    : LLVMTargetMachine(T, "e-p:16:8", TT, CPU, FS, Options, RM, CM, OL),
       TLOF(std::make_unique<Mos6502TargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
-      // TODO: Data layout string
 
   initAsmInfo();
 }
