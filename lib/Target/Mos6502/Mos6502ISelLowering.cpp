@@ -15,8 +15,9 @@ Mos6502TargetLowering::Mos6502TargetLowering(const TargetMachine &TM,
 
   // FIXME: It is not clear what is required here
 
-  addRegisterClass(MVT::i8, &Mos6502::ARegsRegClass);
-  addRegisterClass(MVT::i16, &Mos6502::PtrRegRegClass);
+  addRegisterClass(MVT::i8, &Mos6502::AccRegClass);
+  addRegisterClass(MVT::i8, &Mos6502::IndexRegClass);
+  addRegisterClass(MVT::i16, &Mos6502::PtrRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 }
@@ -51,21 +52,21 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
   if (Ins.size() >= 1) {
     // First argument is passed in A
     // FIXME: Ensure first arg is type i8
-    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::AccRegClass);
     RegInfo.addLiveIn(Mos6502::A, VReg);
     InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[0].VT));
   }
   if (Ins.size() >= 2) {
     // Second argument is passed in X
     // FIXME: Ensure second arg is type i8
-    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::IndexRegClass);
     RegInfo.addLiveIn(Mos6502::X, VReg);
     InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[1].VT));
   }
   if (Ins.size() >= 3) {
-      // Second argument is passed in X
+      // Third argument is passed in Y
       // FIXME: Ensure third arg is type i8
-      unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::ARegsRegClass);
+      unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::IndexRegClass);
       RegInfo.addLiveIn(Mos6502::Y, VReg);
       InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[2].VT));
   }
@@ -95,12 +96,14 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                    SDLoc dl, SelectionDAG &DAG) const {
   // TODO
   // XXX: RetOps stuff comes from WEbAssemblyIselLowering and others
+  SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
   if (Outs.size() == 1) {
     // FIXME: How do we know it's OutVals[0]?
     // This should generate instructions to copy OutVals[0] to register A.
-    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0]);
+    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0], Glue);
+    Glue = Chain.getValue(1);
     RetOps.push_back(DAG.getRegister(Mos6502::A, OutVals[0].getValueType()));
   } else if (Outs.size() == 0) {
 	  // Do nothing
@@ -110,6 +113,10 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   }
 
   RetOps[0] = Chain; // Update chain.
+
+  if (Glue) {
+    RetOps.push_back(Glue);
+  }
 
   // Generate return instruction chained to output registers
   return DAG.getNode(Mos6502ISD::RETURN, dl, MVT::Other, RetOps);
