@@ -12,24 +12,26 @@ def A : Mos6502Reg<"A">;
 def X : Mos6502Reg<"X">; // FIXME: X and Y are index registers
 def Y : Mos6502Reg<"Y">;
 
-// XXX: Fake register to support 16-bit pointer immediate operands in
-// instructions such as LDA, ADD, etc.
+// XXX: Fake register to enable 16-bit pointer operands in instructions such as
+// LDA, ADD, etc.
 // This register does not actually exist; there are no instructions for loading
-// from or storing to it.
+// or storing it.
 def XXXFake16 : Mos6502Reg<"XXXFake16">;
 
 // FIXME: Should A, X and Y be the same or different register classes?
-def ARegs : RegisterClass<"Mos6502", [i8], 8,
-  (add A, X, Y)>;
+def Acc : RegisterClass<"Mos6502", [i8], 8,
+  (add A)>;
 
-def PtrReg : RegisterClass<"Mos6502", [i16], 16,
+def Index : RegisterClass<"Mos6502", [i8], 8,
+  (add X, Y)>;
+
+def Ptr : RegisterClass<"Mos6502", [i16], 16,
   (add XXXFake16)>;
 
 ///////////////////////////////////////////
 
 // "Return" custom SelectionDAG Node //////
 
-// FIXME: Really variadic? What for?
 def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 
@@ -38,7 +40,7 @@ def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
 // TODO: Move to Mos6502InstrInfo.td ///
 
 // FIXME: There is no ADD instruction, only ADC
-def ADD_imm : Instruction {
+def ADDimm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let Uses = [A];
@@ -50,19 +52,19 @@ def ADD_imm : Instruction {
 }
 
 // FIXME: There is no add instruction, only ADC
-def ADD_abs : Instruction {
+def ADDabs : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let Uses = [A];
   let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr); // FIXME: addr is a 1-byte offset within the 0 page
+  let InOperandList = (ins i16imm:$addr);
   let AsmString = "ADD $addr";
   let Pattern = [(set A, (add A, (load imm:$addr)))];
   let Size = 3;
   let mayLoad = 1;
 }
 
-def LDA_imm : Instruction {
+def LDAimm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let OutOperandList = (outs);
@@ -72,7 +74,7 @@ def LDA_imm : Instruction {
   let Size = 2;
 }
 
-def LDA_abs : Instruction {
+def LDAabs : Instruction {
   let Namespace = "Mos6502";
   let Defs = [A];
   let OutOperandList = (outs);
@@ -83,24 +85,46 @@ def LDA_abs : Instruction {
   let mayLoad = 1;
 }
 
-def LDX : Instruction {
+def LDXimm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [X];
   let OutOperandList = (outs);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDX $x";
+  let AsmString = "LDX #$x";
   let Pattern = [(set X, (i8 imm:$x))];
   let Size = 2;
 }
 
-def LDY : Instruction {
+def LDXabs : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [X];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "LDX $addr";
+  let Pattern = [(set X, (load imm:$addr))];
+  let Size = 3;
+  let mayLoad = 1;
+}
+
+def LDYimm : Instruction {
   let Namespace = "Mos6502";
   let Defs = [Y];
   let OutOperandList = (outs);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDY $x";
+  let AsmString = "LDY #$x";
   let Pattern = [(set Y, (i8 imm:$x))];
   let Size = 2;
+}
+
+def LDYabs : Instruction {
+  let Namespace = "Mos6502";
+  let Defs = [Y];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "LDY $addr";
+  let Pattern = [(set Y, (load imm:$addr))];
+  let Size = 3;
+  let mayLoad = 1;
 }
 
 def RTS : Instruction {
@@ -113,6 +137,39 @@ def RTS : Instruction {
   let Pattern = [(Mos6502return)];
   let AsmString = "RTS";
   let Size = 1;
+}
+
+def STAabs : Instruction {
+  let Namespace = "Mos6502";
+  let Uses = [A];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "STA $addr";
+  let Pattern = [(store A, imm:$addr)];
+  let Size = 3;
+  let mayStore = 1;
+}
+
+def STXabs : Instruction {
+  let Namespace = "Mos6502";
+  let Uses = [X];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "STX $addr";
+  let Pattern = [(store X, imm:$addr)];
+  let Size = 3;
+  let mayStore = 1;
+}
+
+def STYabs : Instruction {
+  let Namespace = "Mos6502";
+  let Uses = [Y];
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$addr);
+  let AsmString = "STY $addr";
+  let Pattern = [(store Y, imm:$addr)];
+  let Size = 3;
+  let mayStore = 1;
 }
 
 // Transfer A to X
