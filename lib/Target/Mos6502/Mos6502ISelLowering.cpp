@@ -17,6 +17,7 @@ Mos6502TargetLowering::Mos6502TargetLowering(const TargetMachine &TM,
 
   addRegisterClass(MVT::i8, &Mos6502::AccRegClass);
   addRegisterClass(MVT::i8, &Mos6502::IndexRegClass);
+  addRegisterClass(MVT::i8, &Mos6502::RegRegClass);
   addRegisterClass(MVT::i16, &Mos6502::PtrRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
@@ -45,29 +46,25 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
                                               const {
   // TODO
   MachineFunction &MF = DAG.getMachineFunction();
-  MachineRegisterInfo &RegInfo = MF.getRegInfo();
 
   // Apparently, this function should gather all arguments from registers,
   // stack, etc. and push them into InVals.
   if (Ins.size() >= 1) {
     // First argument is passed in A
     // FIXME: Ensure first arg is type i8
-    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::AccRegClass);
-    RegInfo.addLiveIn(Mos6502::A, VReg);
+    unsigned VReg = MF.addLiveIn(Mos6502::A, &Mos6502::AccRegClass);
     InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[0].VT));
   }
   if (Ins.size() >= 2) {
     // Second argument is passed in X
     // FIXME: Ensure second arg is type i8
-    unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::IndexRegClass);
-    RegInfo.addLiveIn(Mos6502::X, VReg);
+    unsigned VReg = MF.addLiveIn(Mos6502::X, &Mos6502::IndexRegClass);
     InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[1].VT));
   }
   if (Ins.size() >= 3) {
       // Third argument is passed in Y
       // FIXME: Ensure third arg is type i8
-      unsigned VReg = RegInfo.createVirtualRegister(&Mos6502::IndexRegClass);
-      RegInfo.addLiveIn(Mos6502::Y, VReg);
+      unsigned VReg = MF.addLiveIn(Mos6502::Y, &Mos6502::IndexRegClass);
       InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[2].VT));
   }
   if (Ins.size() >= 4) {
