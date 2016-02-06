@@ -39,6 +39,20 @@ def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
 
 ///////////////////////////////////////////
 
+// TODO: Move to Mos6502CallingConv.td ////
+
+def RetCC_Mos6502 : CallingConv<[
+  CCIfType<[i8], CCAssignToReg<[A, X, Y]>>,
+  CCAssignToStack<1, 1>
+]>;
+
+def CC_Mos6502 : CallingConv<[
+  CCIfType<[i8], CCAssignToReg<[A, X, Y]>>,
+  CCAssignToStack<1, 1>
+]>;
+
+///////////////////////////////////////////
+
 // TODO: Move to Mos6502InstrInfo.td ///
 
 // FIXME: There is no ADD instruction, only ADC
