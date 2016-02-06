@@ -4,10 +4,13 @@
 #include "Mos6502RegisterInfo.h"
 #include "Mos6502Subtarget.h"
 #include "MCTargetDesc/Mos6502MCTargetDesc.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 
 using namespace llvm;
+
+#include "Mos6502GenCallingConv.inc"
 
 Mos6502TargetLowering::Mos6502TargetLowering(const TargetMachine &TM,
                                              const Mos6502Subtarget &Subtarget)
@@ -47,29 +50,21 @@ Mos6502TargetLowering::LowerFormalArguments(SDValue Chain,
   // TODO
   MachineFunction &MF = DAG.getMachineFunction();
 
-  // Apparently, this function should gather all arguments from registers,
-  // stack, etc. and push them into InVals.
-  if (Ins.size() >= 1) {
-    // First argument is passed in A
-    // FIXME: Ensure first arg is type i8
-    unsigned VReg = MF.addLiveIn(Mos6502::A, &Mos6502::AccRegClass);
-    InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[0].VT));
-  }
-  if (Ins.size() >= 2) {
-    // Second argument is passed in X
-    // FIXME: Ensure second arg is type i8
-    unsigned VReg = MF.addLiveIn(Mos6502::X, &Mos6502::IndexRegClass);
-    InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[1].VT));
-  }
-  if (Ins.size() >= 3) {
-      // Third argument is passed in Y
-      // FIXME: Ensure third arg is type i8
-      unsigned VReg = MF.addLiveIn(Mos6502::Y, &Mos6502::IndexRegClass);
-      InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, Ins[2].VT));
-  }
-  if (Ins.size() >= 4) {
-    // TODO
-    assert(false && "Mos6502 doesn't support more than 3 i8 arguments");
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, ArgLocs, *DAG.getContext());
+
+  CCInfo.AnalyzeFormalArguments(Ins, CC_Mos6502);
+
+  for (unsigned i = 0; i < ArgLocs.size(); ++i) {
+    CCValAssign &VA = ArgLocs[i];
+
+    if (VA.isRegLoc()) {
+      unsigned VReg = MF.addLiveIn(VA.getLocReg(), getRegClassFor(VA.getLocVT()));
+      InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, VA.getLocVT()));
+    } else {
+      // TODO
+      llvm_unreachable("Stack-allocated arguments are not handled");
+    }
   }
 
   return Chain;
@@ -93,20 +88,23 @@ Mos6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                    SDLoc dl, SelectionDAG &DAG) const {
   // TODO
   // XXX: RetOps stuff comes from WEbAssemblyIselLowering and others
+  MachineFunction &MF = DAG.getMachineFunction();
+
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
+
+  CCInfo.AnalyzeReturn(Outs, RetCC_Mos6502);
+
   SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
-  if (Outs.size() == 1) {
-    // FIXME: How do we know it's OutVals[0]?
-    // This should generate instructions to copy OutVals[0] to register A.
-    Chain = DAG.getCopyToReg(Chain, dl, Mos6502::A, OutVals[0], Glue);
+  for (unsigned i = 0; i < RVLocs.size(); ++i) {
+    CCValAssign &VA = RVLocs[i];
+    assert(VA.isRegLoc() && "Can only return in registers");
+
+    Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Glue);
     Glue = Chain.getValue(1);
-    RetOps.push_back(DAG.getRegister(Mos6502::A, OutVals[0].getValueType()));
-  } else if (Outs.size() == 0) {
-	  // Do nothing
-  } else {
-    // TODO
-    assert(false && "Mos6502 doesn't support more than 1 return value");
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
 
   RetOps[0] = Chain; // Update chain.
