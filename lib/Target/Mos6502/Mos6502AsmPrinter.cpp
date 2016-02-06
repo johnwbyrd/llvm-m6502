@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 

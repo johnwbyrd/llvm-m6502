@@ -12,18 +12,20 @@ def A : Mos6502Reg<"A">;
 def X : Mos6502Reg<"X">; // FIXME: X and Y are index registers
 def Y : Mos6502Reg<"Y">;
 
-// XXX: Fake register to enable 16-bit pointer operands in instructions such as
-// LDA, ADD, etc.
+// XXX: This is a fake register definition to enable 16-bit pointers in
+// instructions such as LDA, ADD, etc.
 // This register does not actually exist; there are no instructions for loading
 // or storing it.
 def XXXFake16 : Mos6502Reg<"XXXFake16">;
 
-// FIXME: Should A, X and Y be the same or different register classes?
 def Acc : RegisterClass<"Mos6502", [i8], 8,
   (add A)>;
 
 def Index : RegisterClass<"Mos6502", [i8], 8,
   (add X, Y)>;
+
+def Reg : RegisterClass<"Mos6502", [i8], 8,
+  (add A, X, Y)>;
 
 def Ptr : RegisterClass<"Mos6502", [i16], 16,
   (add XXXFake16)>;
@@ -42,87 +44,44 @@ def Mos6502return : SDNode<"Mos6502ISD::RETURN", SDTNone,
 // FIXME: There is no ADD instruction, only ADC
 def ADDimm : Instruction {
   let Namespace = "Mos6502";
-  let Defs = [A];
-  let Uses = [A];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i8imm:$x);
-  let AsmString = "ADD #$x";
-  let Pattern = [(set A, (add A, (i8 imm:$x)))];
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  let AsmString = "ADD $ao, $ai, #$x";
+  let Pattern = [(set Acc:$ao, (add Acc:$ai, (i8 imm:$x)))];
   let Size = 2;
 }
 
 // FIXME: There is no add instruction, only ADC
 def ADDabs : Instruction {
   let Namespace = "Mos6502";
-  let Defs = [A];
-  let Uses = [A];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "ADD $addr";
-  let Pattern = [(set A, (add A, (load imm:$addr)))];
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i16imm:$addr);
+  let AsmString = "ADD $ao, $ai, $addr";
+  let Pattern = [(set Acc:$ao, (add Acc:$ai, (load imm:$addr)))];
   let Size = 3;
   let mayLoad = 1;
 }
 
-def LDAimm : Instruction {
+
+// LDA, LDX, LDY fall under this form
+// FIXME: Pseudo-instruction?
+def LDRimm : Instruction {
   let Namespace = "Mos6502";
-  let Defs = [A];
-  let OutOperandList = (outs);
+  let OutOperandList = (outs Reg:$r);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDA #$x";
-  let Pattern = [(set A, (i8 imm:$x))];
+  let AsmString = "LD_reg $r, #$x";
+  let Pattern = [(set Reg:$r, (i8 imm:$x))];
   let Size = 2;
 }
 
-def LDAabs : Instruction {
+// LDA, LDX, LDY fall under this form
+// FIXME: Pseudo-instruction?
+def LDRabs : Instruction {
   let Namespace = "Mos6502";
-  let Defs = [A];
-  let OutOperandList = (outs);
+  let OutOperandList = (outs Reg:$r);
   let InOperandList = (ins i16imm:$addr);
-  let AsmString = "LDA $addr";
-  let Pattern = [(set A, (load imm:$addr))];
-  let Size = 3;
-  let mayLoad = 1;
-}
-
-def LDXimm : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [X];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDX #$x";
-  let Pattern = [(set X, (i8 imm:$x))];
-  let Size = 2;
-}
-
-def LDXabs : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [X];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "LDX $addr";
-  let Pattern = [(set X, (load imm:$addr))];
-  let Size = 3;
-  let mayLoad = 1;
-}
-
-def LDYimm : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [Y];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDY #$x";
-  let Pattern = [(set Y, (i8 imm:$x))];
-  let Size = 2;
-}
-
-def LDYabs : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [Y];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "LDY $addr";
-  let Pattern = [(set Y, (load imm:$addr))];
+  let AsmString = "LD_reg $r, $addr";
+  let Pattern = [(set Reg:$r, (load imm:$addr))];
   let Size = 3;
   let mayLoad = 1;
 }
@@ -139,84 +98,37 @@ def RTS : Instruction {
   let Size = 1;
 }
 
-def STAabs : Instruction {
+// STA, STX, STY all use this form
+// FIXME: This ought to be a pseudo-instruction, eh?
+def STRabs : Instruction {
   let Namespace = "Mos6502";
-  let Uses = [A];
   let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "STA $addr";
-  let Pattern = [(store A, imm:$addr)];
+  let InOperandList = (ins Reg:$r, i16imm:$addr);
+  let AsmString = "ST_reg $r, $addr";
+  let Pattern = [(store Reg:$r, imm:$addr)];
   let Size = 3;
   let mayStore = 1;
 }
 
-def STXabs : Instruction {
+// Transfer X/Y to A
+// FIXME: pseudo-instruction?
+def TIA : Instruction {
   let Namespace = "Mos6502";
-  let Uses = [X];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "STX $addr";
-  let Pattern = [(store X, imm:$addr)];
-  let Size = 3;
-  let mayStore = 1;
-}
-
-def STYabs : Instruction {
-  let Namespace = "Mos6502";
-  let Uses = [Y];
-  let OutOperandList = (outs);
-  let InOperandList = (ins i16imm:$addr);
-  let AsmString = "STY $addr";
-  let Pattern = [(store Y, imm:$addr)];
-  let Size = 3;
-  let mayStore = 1;
-}
-
-// Transfer A to X
-def TAX : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [X];
-  let Uses = [A];
-  let OutOperandList = (outs);
-  let InOperandList = (ins);
-  let AsmString = "TAX";
-  let Pattern = [(set X, A)];
+  let OutOperandList = (outs Acc:$a); // Must be A
+  let InOperandList = (ins Index:$i);
+  let AsmString = "TIA $i, $a";
+  let Pattern = [(set Acc:$a, Index:$i)];
   let Size = 1;
 }
 
-// Transfer A to Y
-def TAY : Instruction {
+// Transfer A to X/Y
+// FIXME: pseudo-instruction?
+def TAI : Instruction {
   let Namespace = "Mos6502";
-  let Defs = [Y];
-  let Uses = [A];
-  let OutOperandList = (outs);
-  let InOperandList = (ins);
-  let AsmString = "TAY";
-  let Pattern = [(set Y, A)];
-  let Size = 1;
-}
-
-// Transfer X to A
-def TXA : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [A];
-  let Uses = [X];
-  let OutOperandList = (outs);
-  let InOperandList = (ins);
-  let AsmString = "TXA";
-  let Pattern = [(set A, X)];
-  let Size = 1;
-}
-
-// Transfer Y to A
-def TYA : Instruction {
-  let Namespace = "Mos6502";
-  let Defs = [A];
-  let Uses = [Y];
-  let OutOperandList = (outs);
-  let InOperandList = (ins);
-  let AsmString = "TYA";
-  let Pattern = [(set A, Y)];
+  let OutOperandList = (outs Index:$i);
+  let InOperandList = (ins Acc:$a); // Must be A
+  let AsmString = "TAI $a, $i";
+  let Pattern = [(set Index:$i, Acc:$a)];
   let Size = 1;
 }
 
