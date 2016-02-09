@@ -54,11 +54,11 @@ public:
     bpfel,          // eBPF or extended BPF or 64-bit BPF (little endian)
     bpfeb,          // eBPF or extended BPF or 64-bit BPF (big endian)
     hexagon,        // Hexagon: hexagon
+    m6502,          // M6502: m6502
     mips,           // MIPS: mips, mipsallegrex
     mipsel,         // MIPSEL: mipsel, mipsallegrexel
     mips64,         // MIPS64: mips64
     mips64el,       // MIPS64EL: mips64el
-    mos6502,        // MOS6502: mos6502
     msp430,         // MSP430: msp430
     ppc,            // PPC: powerpc
     ppc64,          // PPC64: powerpc64, ppu
