@@ -14,14 +14,14 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  DebugLoc DL, unsigned DestReg,
                                  unsigned SrcReg,
                                  bool killSrc) const {
-  if (SrcReg == M6502::A && DestReg == M6502::X) {
-    BuildMI(MBB, I, DL, get(M6502::TAI)).addReg(M6502::A).addReg(M6502::X);
-  } else if (SrcReg == M6502::A && DestReg == M6502::Y) {
-    BuildMI(MBB, I, DL, get(M6502::TAI)).addReg(M6502::A).addReg(M6502::Y);
-  } else if (SrcReg == M6502::X && DestReg == M6502::A) {
-    BuildMI(MBB, I, DL, get(M6502::TIA)).addReg(M6502::X).addReg(M6502::A);
-  } else if (SrcReg == M6502::Y && DestReg == M6502::A) {
-    BuildMI(MBB, I, DL, get(M6502::TIA)).addReg(M6502::Y).addReg(M6502::A);
+  if (SrcReg == M6502::A) {
+    // TAX, TAY
+    BuildMI(MBB, I, DL, get(M6502::TAI), DestReg)
+      .addReg(SrcReg, getKillRegState(killSrc));
+  } else if (DestReg != M6502::A) {
+    // TXA, TYA
+    BuildMI(MBB, I, DL, get(M6502::TIA), DestReg)
+      .addReg(SrcReg, getKillRegState(killSrc));
   } else {
     // FIXME: handle X->Y and Y->X?
     llvm_unreachable("Impossible reg-to-reg copy");

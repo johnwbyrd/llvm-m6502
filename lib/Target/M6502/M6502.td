@@ -131,7 +131,7 @@ def TIA : Instruction {
   let OutOperandList = (outs Acc:$a); // Must be A
   let InOperandList = (ins Index:$i);
   let AsmString = "TIA $i, $a";
-  let Pattern = [(set Acc:$a, Index:$i)];
+  let Pattern = []; // NOTE: instr behavior is established in copyPhysReg
   let Size = 1;
 }
 
@@ -142,7 +142,7 @@ def TAI : Instruction {
   let OutOperandList = (outs Index:$i);
   let InOperandList = (ins Acc:$a); // Must be A
   let AsmString = "TAI $a, $i";
-  let Pattern = [(set Index:$i, Acc:$a)];
+  let Pattern = []; // NOTE: instr behavior is established in copyPhysReg
   let Size = 1;
 }
 
