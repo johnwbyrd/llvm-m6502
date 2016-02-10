@@ -14,11 +14,13 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  DebugLoc DL, unsigned DestReg,
                                  unsigned SrcReg,
                                  bool killSrc) const {
-  if (SrcReg == M6502::A) {
+  if (M6502::AccRegClass.contains(SrcReg) &&
+      M6502::IndexRegClass.contains(DestReg)) {
     // TAX, TAY
     BuildMI(MBB, I, DL, get(M6502::TAI), DestReg)
       .addReg(SrcReg, getKillRegState(killSrc));
-  } else if (DestReg != M6502::A) {
+  } else if (M6502::IndexRegClass.contains(SrcReg) &&
+             M6502::AccRegClass.contains(DestReg)) {
     // TXA, TYA
     BuildMI(MBB, I, DL, get(M6502::TIA), DestReg)
       .addReg(SrcReg, getKillRegState(killSrc));
