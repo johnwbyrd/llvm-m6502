@@ -5,7 +5,6 @@
 
 #include "M6502FrameLowering.h"
 #include "M6502InstrInfo.h"
-#include "M6502SelectionDAGInfo.h"
 #include "M6502ISelLowering.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
@@ -18,7 +17,6 @@ class M6502Subtarget : public M6502GenSubtargetInfo {
   M6502InstrInfo InstrInfo;
   M6502FrameLowering FrameLowering;
   M6502TargetLowering TLInfo;
-  M6502SelectionDAGInfo TSInfo;
 
 public:
   M6502Subtarget(const Triple &TT, const std::string &CPU,
@@ -32,9 +30,6 @@ public:
   }
   const M6502TargetLowering *getTargetLowering() const override {
     return &TLInfo;
-  }
-  const M6502SelectionDAGInfo *getSelectionDAGInfo() const override {
-    return &TSInfo;
   }
   const TargetRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
