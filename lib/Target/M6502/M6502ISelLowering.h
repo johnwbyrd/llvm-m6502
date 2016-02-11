@@ -40,6 +40,12 @@ public:
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       const SmallVectorImpl<SDValue> &OutVals,
                       SDLoc dl, SelectionDAG &DAG) const override;
+
+
+  // Provide custom lowering hooks for some operation.
+  SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
+
+  SDValue LowerADD(SDValue Op, SelectionDAG &DAG) const;
 };
 
 } // end namespace llvm

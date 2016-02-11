@@ -24,6 +24,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i16, &M6502::PtrRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
+
+  setOperationAction(ISD::ADD, MVT::i8, Custom);
 }
 
 const char *
@@ -95,6 +97,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
   CCInfo.AnalyzeReturn(Outs, RetCC_M6502);
 
+  // FIXME: Is Glue necessary?
   SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
@@ -115,4 +118,46 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
   // Generate return instruction chained to output registers
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, RetOps);
+}
+
+SDValue
+M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+  switch (Op.getOpcode()) {
+  default:
+    llvm_unreachable("Custom lowering not implemented for operation");
+    break;
+  case ISD::ADD:
+    return LowerADD(Op, DAG);
+  }
+}
+
+SDValue
+M6502TargetLowering::LowerADD(SDValue Op, SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+
+  SDValue OperA = Op.getOperand(0);
+  SDValue OperB = Op.getOperand(1);
+
+  if (OperA.getOpcode() == ISD::CopyFromReg &&
+      OperB.getOpcode() == ISD::CopyFromReg) {
+    // 6502 cannot add reg to reg. One operand must come from memory.
+    // Due to LLVM limitations, we must custom-lower ADD to store one operand
+    // to memory.
+    // XXX: Our method is as follows:
+    //      Store operand B to an arbitrary address (60) and then load it again.
+    //      Set isVolatile to prevent LLVM from recombining the Store and Load
+    //      nodes into another CopyFromReg.
+    //      Then, LLVM will match the DAG pattern with the ADDabs instruction:
+    //      (set A, (add A, (load B)))
+    // TODO: Store to a reasonable location like the stack; choose which operand
+    // to store more smaerter; don't use volatiles
+    SDValue Ptr = DAG.getConstant(60, DL, MVT::i8);
+    OperB = DAG.getStore(OperB.getValue(1), DL, OperB, Ptr, MachinePointerInfo(),
+      true, false, 0);
+    OperB = DAG.getLoad(MVT::i8, DL, OperB, Ptr, MachinePointerInfo(), true, false, false, 0);
+    return DAG.getNode(ISD::ADD, DL, MVT::i8, OperA, OperB);
+  } else {
+    // Use default lowering
+    return Op;
+  }
 }
