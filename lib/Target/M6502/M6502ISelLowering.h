@@ -46,6 +46,8 @@ public:
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerADD(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 };
 
 } // end namespace llvm

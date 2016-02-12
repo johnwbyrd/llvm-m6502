@@ -138,6 +138,12 @@ M6502TargetLowering::LowerADD(SDValue Op, SelectionDAG &DAG) const {
   SDValue OperA = Op.getOperand(0);
   SDValue OperB = Op.getOperand(1);
 
+  errs() << "Lowering: ADD ";
+  OperA->dump();
+  errs() << ", ";
+  OperB->dump();
+  errs() << "\n";
+
   if (OperA.getOpcode() == ISD::CopyFromReg &&
       OperB.getOpcode() == ISD::CopyFromReg) {
     // 6502 cannot add reg to reg. One operand must come from memory.
@@ -145,19 +151,30 @@ M6502TargetLowering::LowerADD(SDValue Op, SelectionDAG &DAG) const {
     // to memory.
     // XXX: Our method is as follows:
     //      Store operand B to an arbitrary address (60) and then load it again.
-    //      Set isVolatile to prevent LLVM from recombining the Store and Load
-    //      nodes into another CopyFromReg.
+    //      Make the load volatile to prevent LLVM from recombining it into a
+    //      CopyFromReg, causing an infinite loop.
     //      Then, LLVM will match the DAG pattern with the ADDabs instruction:
     //      (set A, (add A, (load B)))
-    // TODO: Store to a reasonable location like the stack; choose which operand
-    // to store more smaerter; don't use volatiles
+    // TODO: Store to a reasonable place on the stack; choose which operand
+    // to store more smaerter
     SDValue Ptr = DAG.getConstant(60, DL, MVT::i8);
     OperB = DAG.getStore(OperB.getValue(1), DL, OperB, Ptr, MachinePointerInfo(),
-      true, false, 0);
+      false, false, 0);
     OperB = DAG.getLoad(MVT::i8, DL, OperB, Ptr, MachinePointerInfo(), true, false, false, 0);
     return DAG.getNode(ISD::ADD, DL, MVT::i8, OperA, OperB);
   } else {
     // Use default lowering
     return Op;
   }
+}
+
+SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
+                                               DAGCombinerInfo &DCI) const {
+  SelectionDAG &DAG = DCI.DAG;
+  switch (N->getOpcode()) {
+  default: break;
+    // TODO: implement custom DAG combining
+  }
+
+  return SDValue();
 }
