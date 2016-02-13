@@ -47,8 +47,16 @@ LiveInterval &LiveRangeEdit::createEmptyIntervalFrom(unsigned OldReg) {
   return LI;
 }
 
-unsigned LiveRangeEdit::createFrom(unsigned OldReg) {
-  unsigned VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
+unsigned LiveRangeEdit::createFrom(unsigned OldReg, const TargetRegisterClass *RC) {
+  if (RC) {
+    // FIXME: Could we allow RC not to contain OldReg as long as mem types are compatible?
+    assert(RC->hasSubClassEq(MRI.getRegClass(OldReg)) && "Reg class of new live range must contain class of OldReg");
+  } else {
+    // New live range's reg class is the same as that of OldReg by default.
+    RC = MRI.getRegClass(OldReg);
+  }
+
+  unsigned VReg = MRI.createVirtualRegister(RC);
   if (VRM) {
     VRM->setIsSplitFromReg(VReg, VRM->getOriginal(OldReg));
   }

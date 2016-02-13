@@ -558,7 +558,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg, MachineInstr &MI) {
       Edit->rematerializeAt(*MI.getParent(), MI, NewVReg, RM, TRI);
 
   // We take the DebugLoc from MI, since OrigMI may be attributed to a
-  // different source location. 
+  // different source location.
   auto *NewMI = LIS.getInstructionFromIndex(DefIdx);
   NewMI->setDebugLoc(MI.getDebugLoc());
 
@@ -954,7 +954,8 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
 
     // Create a new virtual register for spill/fill.
     // FIXME: Infer regclass from instruction alone.
-    unsigned NewVReg = Edit->createFrom(Reg);
+    const TargetRegisterClass *RegRC = MRI.getRegClass(Reg);
+    unsigned NewVReg = Edit->createFrom(Reg, TII.getSpillFillRegClass(Reg, RegRC));
 
     if (RI.Reads)
       insertReload(NewVReg, Idx, MI);

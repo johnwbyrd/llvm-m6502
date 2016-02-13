@@ -784,6 +784,20 @@ public:
     llvm_unreachable("Target didn't implement TargetInstrInfo::copyPhysReg!");
   }
 
+  /// Returns the register class to use for spills and fills of the given
+  /// register. Returns nullptr if the spill/fill class should be the same as
+  /// the given register's class.
+  ///
+  /// This function should return the most general superclass of Reg that can
+  /// be loaded from memory.
+  virtual const TargetRegisterClass *
+  getSpillFillRegClass(unsigned Reg,
+                       const TargetRegisterClass *RC) const {
+    // FIXME: instead of asking for spill/fill class, can it be inferred higher
+    // up?
+    return nullptr;
+  }
+
   /// Store the specified register of the given register class to the specified
   /// stack frame index. The store instruction is to be added to the given
   /// machine basic block before the specified machine instruction. If isKill
