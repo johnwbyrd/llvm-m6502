@@ -554,7 +554,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg, MachineInstr &MI) {
   }
 
   // Alocate a new register for the remat.
-  unsigned NewVReg = Edit->createFrom(Original);
+  unsigned NewVReg = Edit->createFrom(Original, nullptr);
 
   // Finally we can rematerialize OrigMI before MI.
   SlotIndex DefIdx =
@@ -943,7 +943,8 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
 
     // Create a new virtual register for spill/fill.
     // FIXME: Infer regclass from instruction alone.
-    unsigned NewVReg = Edit->createFrom(Reg);
+    const TargetRegisterClass *RegRC = MRI.getRegClass(Reg);
+    unsigned NewVReg = Edit->createFrom(Reg, TII.getSpillFillRegClass(Reg, RegRC));
 
     if (RI.Reads)
       insertReload(NewVReg, Idx, MI);
