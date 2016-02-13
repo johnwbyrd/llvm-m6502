@@ -5,7 +5,7 @@ class R<string n> : Register<n> {
 }
 
 def A : R<"A">;
-def X : R<"X">; // FIXME: X and Y are index registers
+def X : R<"X">;
 def Y : R<"Y">;
 
 // XXX: LLVM needs this fake register so we can use 16-bit pointers in
@@ -20,8 +20,8 @@ def Acc : RegisterClass<"M6502", [i8], 8,
 def Index : RegisterClass<"M6502", [i8], 8,
   (add X, Y)>;
 
-def Reg : RegisterClass<"M6502", [i8], 8,
-  (add A, X, Y)>;
+def General : RegisterClass<"M6502", [i8], 8,
+  (add Acc, Index)>;
 
 def Ptr : RegisterClass<"M6502", [i16], 16,
   (add XXXFake16)>;

@@ -3,6 +3,7 @@
 #include "M6502InstrInfo.h"
 #include "MCTargetDesc/M6502MCTargetDesc.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 
 using namespace llvm;
 
@@ -54,6 +55,17 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
+const TargetRegisterClass *
+M6502InstrInfo::getSpillFillRegClass(unsigned Reg,
+                                     const TargetRegisterClass *RegRC) const {
+  // Spill Acc and Index regs into General regs.
+  if (M6502::GeneralRegClass.hasSubClassEq(RegRC)) {
+    return &M6502::GeneralRegClass;
+  }
+
+  return nullptr;
+}
+
 void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          MachineBasicBlock::iterator MBBI,
                                          unsigned SrcReg, bool isKill,
@@ -85,18 +97,7 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
     MachineBasicBlock::iterator InsertPt, int FrameIndex) const {
 
-  // TODO
-  if (MI->getOpcode() == M6502::ADDabs) {
-    errs() << "Folding stack: "; MI->print(errs()); errs() << "\n";
-    MachineInstrBuilder MIB = BuildMI(*InsertPt->getParent(), InsertPt,
-      MI->getDebugLoc(), get(M6502::ADDabs))
-      .addOperand(MI->getOperand(0))
-      .addOperand(MI->getOperand(1))
-      .addImm(FrameIndex);
-    errs() << "Folded into: "; MIB->print(errs()); errs() << "\n";
-    return MIB;
-  }
-
+  errs() << "Asked to fold stack operand: ";  MI->print(errs());
   return nullptr;
 }
 
@@ -104,11 +105,6 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
     MachineBasicBlock::iterator InsertPt, MachineInstr *LoadMI) const {
 
-  // TODO
-  if (MI->getOpcode() == M6502::ADDabs) {
-    errs() << "Folding mem: "; MI->print(errs()); errs() << "\n";
-    llvm_unreachable("TODO: Implement ADD mem folding");
-  }
-
+  errs() << "Asked to fold mem operand: ";  MI->print(errs());
   return nullptr;
 }
