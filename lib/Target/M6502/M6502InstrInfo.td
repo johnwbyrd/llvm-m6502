@@ -21,6 +21,15 @@ def ADDidx_pseudo : Pseudo {
   //let isCommutable = 1;
 }
 
+// FIXME: There is no SUB instruction, only SBC
+def SUBidx_pseudo : Pseudo {
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, Index:$idx);
+  let Constraints = "$ao = $ai";
+  let AsmString = "SUBidx_pseudo $ai, $idx";
+  let Pattern = [(set Acc:$ao, (sub Acc:$ai, Index:$idx))];
+}
+
 // FIXME: There is no ADD instruction, only ADC
 def ADDimm : I {
   let OutOperandList = (outs Acc:$ao);
