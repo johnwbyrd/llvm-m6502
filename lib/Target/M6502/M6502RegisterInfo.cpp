@@ -27,6 +27,17 @@ M6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
+const TargetRegisterClass *
+M6502RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
+                                             const MachineFunction &) const {
+
+  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+    return &M6502::GeneralRegClass;
+  }
+
+  return RC;
+}
+
 void
 M6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                        int SPAdj, unsigned FIOperandNum,
