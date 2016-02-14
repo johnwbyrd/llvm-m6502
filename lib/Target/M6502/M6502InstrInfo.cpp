@@ -55,17 +55,6 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
-const TargetRegisterClass *
-M6502InstrInfo::getSpillFillRegClass(unsigned Reg,
-                                     const TargetRegisterClass *RegRC) const {
-  // Spill Acc and Index regs into General regs.
-  if (M6502::GeneralRegClass.hasSubClassEq(RegRC)) {
-    return &M6502::GeneralRegClass;
-  }
-
-  return nullptr;
-}
-
 void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          MachineBasicBlock::iterator MBBI,
                                          unsigned SrcReg, bool isKill,
@@ -74,6 +63,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          const TargetRegisterInfo *TRI) const {
 
   // XXX: store stack vars to address equal to FrameIndex
+  // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
   BuildMI(MBB, MBBI, DL, get(M6502::STRabs))
     .addReg(SrcReg, getKillRegState(isKill))
@@ -88,6 +78,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           const TargetRegisterInfo *TRI) const {
   
   // XXX: load stack vars from address equal to FrameIndex
+  // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
   BuildMI(MBB, MBBI, DL, get(M6502::LDRabs), DestReg)
     .addImm(FrameIndex);

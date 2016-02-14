@@ -37,10 +37,6 @@ public:
   unsigned isStoreToStackSlot(const MachineInstr *MI,
     int &FrameIndex) const override;
 
-  const TargetRegisterClass *
-  getSpillFillRegClass(unsigned Reg,
-                       const TargetRegisterClass *RC) const override;
-
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
                            unsigned SrcReg, bool isKill, int FrameIndex,
