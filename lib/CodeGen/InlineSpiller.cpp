@@ -953,9 +953,33 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
       continue;
 
     // Create a new virtual register for spill/fill.
-    // FIXME: Infer regclass from instruction alone.
-    const TargetRegisterClass *RegRC = MRI.getRegClass(Reg);
-    unsigned NewVReg = Edit->createFrom(Reg, TII.getSpillFillRegClass(Reg, RegRC));
+    // Infer regclass from all relevant operands.
+    const TargetRegisterClass *SpillRC = nullptr;
+    for (const auto &OpPair : Ops) {
+      MachineOperand &MO = OpPair.first->getOperand(OpPair.second);
+      const TargetRegisterClass* OpRC =
+          OpPair.first->getRegClassConstraint(OpPair.second, &TII, &TRI);
+      if (!SpillRC) {
+        SpillRC = OpRC;
+      } else if (OpRC != SpillRC) {
+        // FIXME: Handle operands with differing reg classes.
+        llvm_unreachable("Spilling with differing reg classes not implemented");
+      }
+    }
+
+    // If regclass could not be inferred from instruction, ask target for a
+    // default.
+    if (!SpillRC) {
+      const TargetRegisterClass *RegRC = MRI.getRegClass(Reg);
+      SpillRC = TII.getSpillFillRegClass(Reg, RegRC);
+      // If target had no default, use the same regclass as the original
+      // register.
+      if (!SpillRC) {
+        SpillRC = RegRC;
+      }
+    }
+
+    unsigned NewVReg = Edit->createFrom(Reg, SpillRC);
 
     if (RI.Reads)
       insertReload(NewVReg, Idx, MI);

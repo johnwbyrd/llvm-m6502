@@ -791,10 +791,8 @@ public:
   /// This function should return the most general superclass of Reg that can
   /// be loaded from memory.
   virtual const TargetRegisterClass *
-  getSpillFillRegClass(unsigned Reg,
-                       const TargetRegisterClass *RC) const {
-    // FIXME: instead of asking for spill/fill class, can it be inferred higher
-    // up?
+  getSpillFillRegClass(unsigned Reg, const TargetRegisterClass *RegRC) const {
+    // FIXME: can we delete this function and infer the class some other way?
     return nullptr;
   }
 
