@@ -953,7 +953,7 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
       continue;
 
     // Create a new virtual register for spill/fill.
-    // Infer regclass from all relevant operands.
+    // Infer regclass from instruction(s).
     const TargetRegisterClass *SpillRC = nullptr;
     for (const auto &OpPair : Ops) {
       MachineOperand &MO = OpPair.first->getOperand(OpPair.second);
@@ -971,12 +971,8 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
     // default.
     if (!SpillRC) {
       const TargetRegisterClass *RegRC = MRI.getRegClass(Reg);
-      SpillRC = TII.getSpillFillRegClass(Reg, RegRC);
-      // If target had no default, use the same regclass as the original
-      // register.
-      if (!SpillRC) {
-        SpillRC = RegRC;
-      }
+      SpillRC = TRI.getLargestLegalSuperClass(RegRC,
+                                              *MI->getParent()->getParent());
     }
 
     unsigned NewVReg = Edit->createFrom(Reg, SpillRC);

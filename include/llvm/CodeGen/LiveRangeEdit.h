@@ -168,7 +168,7 @@ public:
   LiveInterval &createEmptyIntervalFrom(unsigned OldReg);
 
   /// createFrom - Create a new virtual register based on OldReg.
-  unsigned createFrom(unsigned OldReg, const TargetRegisterClass *RC);
+  unsigned createFrom(unsigned OldReg, const TargetRegisterClass *NewRC);
 
   /// create - Create a new register with the same class and original slot as
   /// parent.
