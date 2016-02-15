@@ -65,11 +65,11 @@ bool RegPseudosExpansionPass::runOnMachineInstr(MachineBasicBlock &MBB,
 
   // %op0 = ADDreg_pseudo %op1, %op2
   // When %op1 == %op2:
-  //   => %op0 = LSLacc %op1
+  //   => %op0 = ASLacc %op1
   if (OldOpcode == M6502::ADDreg_pseudo
       && MI->getOperand(1).isIdenticalTo(MI->getOperand(2))) {
     // Don't spill. Double Acc by shifting left by one.
-    BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(M6502::LSLacc))
+    BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(M6502::ASLacc))
       .addOperand(MI->getOperand(0))
       .addOperand(MI->getOperand(1));
 

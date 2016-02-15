@@ -58,6 +58,15 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 defm ADD : AccOperatorI<"ADD", add>;
 defm SUB : AccOperatorI<"SUB", sub>;
 
+// Shift left by one
+def ASLacc : I {
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let AsmString = "LSL A";
+  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
+  let Size = 1;
+}
+
 // LDA, LDX, LDY fall under this form
 def LDimm : I {
   let OutOperandList = (outs General:$r);
@@ -85,17 +94,6 @@ def LDstack_pseudo : Pseudo {
   let Pattern = [(set General:$r, (load imm:$slot))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
-}
-
-// FIXME: There is no LSL instruction, only ROL (rotate left thru carry).
-//        To achieve LSL, clear Carry and then ROL.
-// LSL: Logical shift left by one
-def LSLacc : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
-  let AsmString = "LSL A";
-  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
-  let Size = 1;
 }
 
 def RTS : I {
