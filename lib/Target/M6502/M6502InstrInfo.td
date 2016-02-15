@@ -12,22 +12,23 @@ class Pseudo : I {
 }
 
 // FIXME: There is no ADD instruction, only ADC
-def ADDidx_pseudo : Pseudo {
+def ADDreg_pseudo : Pseudo {
   let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, Index:$idx);
+  let InOperandList = (ins Acc:$ai, General:$r);
   let Constraints = "$ao = $ai";
-  let AsmString = "ADDidx_pseudo $ai, $idx";
-  let Pattern = [(set Acc:$ao, (add Acc:$ai, Index:$idx))];
-  //let isCommutable = 1;
+  let AsmString = "ADDreg_pseudo $ai, $r";
+  let Pattern = [(set Acc:$ao, (add Acc:$ai, General:$r))];
+  // FIXME: how can we make commutation work?
+  let isCommutable = 1;
 }
 
 // FIXME: There is no SUB instruction, only SBC
-def SUBidx_pseudo : Pseudo {
+def SUBreg_pseudo : Pseudo {
   let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, Index:$idx);
+  let InOperandList = (ins Acc:$ai, General:$r);
   let Constraints = "$ao = $ai";
-  let AsmString = "SUBidx_pseudo $ai, $idx";
-  let Pattern = [(set Acc:$ao, (sub Acc:$ai, Index:$idx))];
+  let AsmString = "SUBreg_pseudo $ai, $r";
+  let Pattern = [(set Acc:$ao, (sub Acc:$ai, General:$r))];
 }
 
 // FIXME: There is no ADD instruction, only ADC
@@ -51,6 +52,16 @@ def ADDabs : I {
   let mayLoad = 1;
 }
 
+// FIXME: There is no SUB instruction, only SBC
+def SUBabs : I {
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i16imm:$addr);
+  let Constraints = "$ao = $ai";
+  let AsmString = "SUB $ai, $addr";
+  let Pattern = [(set Acc:$ao, (sub Acc:$ai, (load imm:$addr)))];
+  let Size = 3;
+  let mayLoad = 1;
+}
 
 // LDA, LDX, LDY fall under this form
 def LDRimm : I {
