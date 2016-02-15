@@ -88,7 +88,7 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
     MachineBasicBlock::iterator InsertPt, int FrameIndex) const {
 
-  errs() << "Asked to fold stack operand: ";  MI->print(errs());
+  // TODO: fold if possible
   return nullptr;
 }
 
@@ -96,6 +96,6 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
     MachineBasicBlock::iterator InsertPt, MachineInstr *LoadMI) const {
 
-  errs() << "Asked to fold mem operand: ";  MI->print(errs());
+  // TODO: fold if possible
   return nullptr;
 }
