@@ -55,5 +55,5 @@ bool M6502PassConfig::addInstSelector() {
 }
 
 void M6502PassConfig::addPreRegAlloc() {
-  addPass(createExpandAccPseudoPass());
+  addPass(createRegPseudosExpansionPass());
 }

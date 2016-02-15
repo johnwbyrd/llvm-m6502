@@ -2,6 +2,14 @@
 
 // This file contains a pre-reg allocation pass to expand pseudo instructions
 // that operate on the Acc register, such as ADDreg_pseudo, SUBreg_pseudo, etc.
+//
+// Reg-pseudo instructions have the form:
+//   %op0 = XXXreg_pseudo %op1, %op2
+// where %op0 and %op1 are Acc class, and %op2 is General class.
+//
+// %op2 is spilled onto the stack, and the instruction is transformed into a
+// stack-loading equivalent:
+//   %op0 = XXXstack %op1, [stack slot]
 
 #include "M6502.h"
 #include "M6502InstrInfo.h"
@@ -15,15 +23,15 @@ using namespace llvm;
 
 namespace {
 
-class ExpandAccPseudoPass : public MachineFunctionPass {
+class RegPseudosExpansionPass : public MachineFunctionPass {
 public:
   static char ID;
-  ExpandAccPseudoPass() : MachineFunctionPass(ID) {}
+  RegPseudosExpansionPass() : MachineFunctionPass(ID) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   const char *getPassName() const override {
-    return "M6502 Accumulator pseudo-instruction expansion pass";
+    return "M6502 Reg-pseudo instruction expansion pass";
   }
 
 private:
@@ -31,14 +39,14 @@ private:
   bool runOnBasicBlock(MachineBasicBlock &MBB);
 };
 
-char ExpandAccPseudoPass::ID = 0;
+char RegPseudosExpansionPass::ID = 0;
 
 } // End of namespace
 
 static unsigned ConvertRegPseudoToStackLoading(unsigned Pseudo) {
   switch (Pseudo) {
   default:
-    llvm_unreachable(false && "Opcode has no stack-loading conversion");
+    llvm_unreachable(false && "Reg-pseudo opcode has no stack-loading equivalent");
     break;
   case M6502::ADDreg_pseudo:
     return M6502::ADDabs; // TODO: ADDstack
@@ -47,14 +55,31 @@ static unsigned ConvertRegPseudoToStackLoading(unsigned Pseudo) {
   }
 }
 
-bool ExpandAccPseudoPass::runOnMachineInstr(MachineBasicBlock &MBB,
-                                            MachineInstr *MI) {
+bool RegPseudosExpansionPass::runOnMachineInstr(MachineBasicBlock &MBB,
+                                                MachineInstr *MI) {
   MachineFunction &MF = *MBB.getParent();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   unsigned OldOpcode = MI->getOpcode();
 
+  // %op0 = ADDreg_pseudo %op1, %op2
+  // When %op1 == %op2:
+  //   => %op0 = LSLacc %op1
+  if (OldOpcode == M6502::ADDreg_pseudo
+      && MI->getOperand(1).isIdenticalTo(MI->getOperand(2))) {
+    // Don't spill. Double Acc by shifting left by one.
+    BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(M6502::LSLacc))
+      .addOperand(MI->getOperand(0))
+      .addOperand(MI->getOperand(1));
+
+    MI->eraseFromParent();
+    return true;
+  }
+
+  // %op0 = XXXreg_pseudo %op1, %op2
+  //   => (Spill %op2 to [stack slot])
+  //      %op0 = XXXstack %op1, [stack slot]
   if (OldOpcode == M6502::ADDreg_pseudo
       || OldOpcode == M6502::SUBreg_pseudo) {
     // Spill operand 2 to stack
@@ -84,7 +109,7 @@ bool ExpandAccPseudoPass::runOnMachineInstr(MachineBasicBlock &MBB,
   return false;
 }
 
-bool ExpandAccPseudoPass::runOnBasicBlock(MachineBasicBlock &MBB) {
+bool RegPseudosExpansionPass::runOnBasicBlock(MachineBasicBlock &MBB) {
   bool Modified = false;
 
   // XXX: iterate through instructions in reverse to avoid breakage when MBB
@@ -103,7 +128,7 @@ bool ExpandAccPseudoPass::runOnBasicBlock(MachineBasicBlock &MBB) {
   return Modified;
 }
 
-bool ExpandAccPseudoPass::runOnMachineFunction(MachineFunction &MF) {
+bool RegPseudosExpansionPass::runOnMachineFunction(MachineFunction &MF) {
   bool Modified = false;
   for (MachineBasicBlock &MBB : MF) {
     Modified |= runOnBasicBlock(MBB);
@@ -112,6 +137,6 @@ bool ExpandAccPseudoPass::runOnMachineFunction(MachineFunction &MF) {
   return Modified;
 }
 
-FunctionPass *llvm::createExpandAccPseudoPass() {
-  return new ExpandAccPseudoPass();
+FunctionPass *llvm::createRegPseudosExpansionPass() {
+  return new RegPseudosExpansionPass();
 }

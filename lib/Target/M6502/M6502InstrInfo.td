@@ -83,6 +83,17 @@ def LDRabs : I {
   let canFoldAsLoad = 1;
 }
 
+// FIXME: there is no LSL instruction, only ROL (rotate left thru carry).
+//        to achieve LSL, clear Carry and then ROL.
+// LSL: Logical shift left by one
+def LSLacc : I {
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let AsmString = "LSL A";
+  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
+  let Size = 1;
+}
+
 def RTS : I {
   let isReturn = 1; // This is a return instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
