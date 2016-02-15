@@ -65,7 +65,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   // XXX: store stack vars to address equal to FrameIndex
   // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
-  BuildMI(MBB, MBBI, DL, get(M6502::STRabs))
+  BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
     .addReg(SrcReg, getKillRegState(isKill))
     .addImm(FrameIndex);
 }
@@ -80,7 +80,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // XXX: load stack vars from address equal to FrameIndex
   // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
-  BuildMI(MBB, MBBI, DL, get(M6502::LDRabs), DestReg)
+  BuildMI(MBB, MBBI, DL, get(M6502::LDstack_pseudo), DestReg)
     .addImm(FrameIndex);
 }
 

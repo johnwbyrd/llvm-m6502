@@ -46,12 +46,12 @@ char RegPseudosExpansionPass::ID = 0;
 static unsigned ConvertRegPseudoToStackLoading(unsigned Pseudo) {
   switch (Pseudo) {
   default:
-    llvm_unreachable(false && "Reg-pseudo opcode has no stack-loading equivalent");
+    llvm_unreachable(false && "Acc operator instruction has no stack-loading equivalent");
     break;
   case M6502::ADDreg_pseudo:
-    return M6502::ADDabs; // TODO: ADDstack
+    return M6502::ADDstack_pseudo;
   case M6502::SUBreg_pseudo:
-    return M6502::SUBabs; // TODO: SUBstack
+    return M6502::SUBstack_pseudo;
   }
 }
 
