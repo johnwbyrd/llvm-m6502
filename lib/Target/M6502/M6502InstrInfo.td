@@ -11,80 +11,84 @@ class Pseudo : I {
   let isPseudo = 1;
 }
 
-// FIXME: There is no ADD instruction, only ADC
-def ADDreg_pseudo : Pseudo {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, General:$r);
-  let Constraints = "$ao = $ai";
-  let AsmString = "ADDreg_pseudo $ai, $r";
-  let Pattern = [(set Acc:$ao, (add Acc:$ai, General:$r))];
-  // FIXME: how can we make commutation work?
-  let isCommutable = 1;
+multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
+  // Acc, General pseudo-instruction
+  def reg_pseudo : Pseudo {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, General:$r);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "reg_pseudo $ai, $r";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, General:$r))];
+  }
+
+  // Stack Loading pseudo-instruction
+  def stack_pseudo : Pseudo {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, i16imm:$idx);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "stack $ai, [$idx]";
+    // TODO: stack loading instr pattern
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$idx)))];
+    let mayLoad = 1;
+  }
+
+  // Immediate addressing
+  def imm : I {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, i8imm:$x);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "imm $ai, #$x";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
+    let Size = 2;
+  }
+
+  // Absolute addressing
+  def abs : I {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, i16imm:$addr);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "abs $ai, $addr";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$addr)))];
+    let Size = 3;
+    let mayLoad = 1;
+  }
 }
 
-// FIXME: There is no SUB instruction, only SBC
-def SUBreg_pseudo : Pseudo {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, General:$r);
-  let Constraints = "$ao = $ai";
-  let AsmString = "SUBreg_pseudo $ai, $r";
-  let Pattern = [(set Acc:$ao, (sub Acc:$ai, General:$r))];
-}
-
-// FIXME: There is no ADD instruction, only ADC
-def ADDimm : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i8imm:$x);
-  let Constraints = "$ao = $ai";
-  let AsmString = "ADD $ai, #$x";
-  let Pattern = [(set Acc:$ao, (add Acc:$ai, (i8 imm:$x)))];
-  let Size = 2;
-}
-
-// FIXME: There is no ADD instruction, only ADC
-def ADDabs : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i16imm:$addr);
-  let Constraints = "$ao = $ai";
-  let AsmString = "ADD $ai, $addr";
-  let Pattern = [(set Acc:$ao, (add Acc:$ai, (load imm:$addr)))];
-  let Size = 3;
-  let mayLoad = 1;
-}
-
-// FIXME: There is no SUB instruction, only SBC
-def SUBabs : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i16imm:$addr);
-  let Constraints = "$ao = $ai";
-  let AsmString = "SUB $ai, $addr";
-  let Pattern = [(set Acc:$ao, (sub Acc:$ai, (load imm:$addr)))];
-  let Size = 3;
-  let mayLoad = 1;
-}
+// FIXME: there is no ADD instruction, only ADC
+defm ADD : AccOperatorI<"ADD", add>;
+defm SUB : AccOperatorI<"SUB", sub>;
 
 // LDA, LDX, LDY fall under this form
-def LDRimm : I {
+def LDimm : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LD_reg $r, #$x";
+  let AsmString = "LDimm $r, #$x";
   let Pattern = [(set General:$r, (i8 imm:$x))];
   let Size = 2;
 }
 
 // LDA, LDX, LDY fall under this form
-def LDRabs : I {
+def LDabs : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$addr);
-  let AsmString = "LD_reg $r, $addr";
+  let AsmString = "LDabs $r, $addr";
   let Pattern = [(set General:$r, (load imm:$addr))];
   let Size = 3;
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
-// FIXME: there is no LSL instruction, only ROL (rotate left thru carry).
-//        to achieve LSL, clear Carry and then ROL.
+def LDstack_pseudo : Pseudo {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins i16imm:$slot);
+  let AsmString = "LDstack $r, [$slot]";
+  let Pattern = [(set General:$r, (load imm:$slot))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
+// FIXME: There is no LSL instruction, only ROL (rotate left thru carry).
+//        To achieve LSL, clear Carry and then ROL.
 // LSL: Logical shift left by one
 def LSLacc : I {
   let OutOperandList = (outs Acc:$ao);
@@ -106,12 +110,20 @@ def RTS : I {
 }
 
 // STA, STX, STY all use this form
-def STRabs : I {
+def STabs : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, i16imm:$addr);
-  let AsmString = "ST_reg $r, $addr";
+  let AsmString = "STabs $r, $addr";
   let Pattern = [(store General:$r, imm:$addr)];
   let Size = 3;
+  let mayStore = 1;
+}
+
+def STstack_pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, i16imm:$slot);
+  let AsmString = "STstack $r, [$slot]";
+  let Pattern = [(store General:$r, imm:$slot)];
   let mayStore = 1;
 }
 
