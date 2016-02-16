@@ -168,7 +168,7 @@ public:
   LiveInterval &createEmptyIntervalFrom(unsigned OldReg);
 
   /// createFrom - Create a new virtual register based on OldReg.
-  unsigned createFrom(unsigned OldReg, const TargetRegisterClass *RC);
+  unsigned createFrom(unsigned OldReg);
 
   /// create - Create a new register with the same class and original slot as
   /// parent.
@@ -177,7 +177,7 @@ public:
   }
 
   unsigned create() {
-    return createFrom(getReg(), nullptr);
+    return createFrom(getReg());
   }
 
   /// anyRematerializable - Return true if any parent values may be
