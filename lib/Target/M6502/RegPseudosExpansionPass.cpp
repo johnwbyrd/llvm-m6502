@@ -45,13 +45,12 @@ char RegPseudosExpansionPass::ID = 0;
 
 static unsigned ConvertRegPseudoToStackLoading(unsigned Pseudo) {
   switch (Pseudo) {
-  default:
-    llvm_unreachable(false && "Acc operator instruction has no stack-loading equivalent");
-    break;
-  case M6502::ADDreg_pseudo:
-    return M6502::ADDstack_pseudo;
-  case M6502::SUBreg_pseudo:
-    return M6502::SUBstack_pseudo;
+  default: return M6502::INSTRUCTION_LIST_END;
+  case M6502::ADDreg_pseudo: return M6502::ADDstack_pseudo;
+  case M6502::ANDreg_pseudo: return M6502::ANDstack_pseudo;
+  case M6502::EORreg_pseudo: return M6502::EORstack_pseudo;
+  case M6502::ORAreg_pseudo: return M6502::ORAstack_pseudo;
+  case M6502::SUBreg_pseudo: return M6502::SUBstack_pseudo;
   }
 }
 
@@ -78,10 +77,10 @@ bool RegPseudosExpansionPass::runOnMachineInstr(MachineBasicBlock &MBB,
   }
 
   // %op0 = XXXreg_pseudo %op1, %op2
-  //   => (Spill %op2 to [stack slot])
+  //   => ST_stack %op2, [stack slot]
   //      %op0 = XXXstack %op1, [stack slot]
-  if (OldOpcode == M6502::ADDreg_pseudo
-      || OldOpcode == M6502::SUBreg_pseudo) {
+  unsigned NewOpcode = ConvertRegPseudoToStackLoading(OldOpcode);
+  if (NewOpcode != M6502::INSTRUCTION_LIST_END) {
     // Spill operand 2 to stack
     MachineOperand &SpillMe = MI->getOperand(2);
     const TargetRegisterClass *SpillRC = MRI.getRegClass(SpillMe.getReg());
