@@ -71,6 +71,16 @@ def ASLacc : I {
   let Size = 1;
 }
 
+// DEX, DEY
+def DEI : I {
+  let OutOperandList = (outs Index:$io);
+  let InOperandList = (ins Index:$ii);
+  let Constraints = "$io = $ii";
+  let AsmString = "DEI $ii";
+  let Pattern = [(set Index:$io, (sub Index:$ii, 1))];
+  let Size = 1;
+}
+
 // INX, INY
 def INI : I {
   let OutOperandList = (outs Index:$io);
