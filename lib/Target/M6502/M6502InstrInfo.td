@@ -56,6 +56,9 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 
 // FIXME: there is no ADD instruction, only ADC
 defm ADD : AccOperatorI<"ADD", add>;
+defm AND : AccOperatorI<"AND", and>;
+defm EOR : AccOperatorI<"EOR", xor>;
+defm ORA : AccOperatorI<"ORA", or>;
 // FIXME: there is no SUB instruction, only SBC
 defm SUB : AccOperatorI<"SUB", sub>;
 
