@@ -47,12 +47,8 @@ LiveInterval &LiveRangeEdit::createEmptyIntervalFrom(unsigned OldReg) {
   return LI;
 }
 
-unsigned LiveRangeEdit::createFrom(unsigned OldReg, const TargetRegisterClass *RC) {
-  // FIXME: Could we allow RC not to contain OldReg as long as value types are compatible?
-  assert(RC->hasSubClassEq(MRI.getRegClass(OldReg)) &&
-      "Reg class of new live range must contain class of OldReg");
-
-  unsigned VReg = MRI.createVirtualRegister(RC);
+unsigned LiveRangeEdit::createFrom(unsigned OldReg) {
+  unsigned VReg = MRI.createVirtualRegister(MRI.getRegClass(OldReg));
   if (VRM) {
     VRM->setIsSplitFromReg(VReg, VRM->getOriginal(OldReg));
   }
