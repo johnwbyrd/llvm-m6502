@@ -17,7 +17,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, General:$r);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "reg_pseudo $ai, $r";
+    let AsmString = AsmName # "_reg_pseudo $ai, $r";
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, General:$r))];
   }
 
@@ -26,7 +26,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i16imm:$idx);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "stack $ai, [$idx]";
+    let AsmString = AsmName # "_stack $ai, [$idx]";
     // TODO: stack loading instr pattern
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$idx)))];
     let mayLoad = 1;
@@ -37,7 +37,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "imm $ai, #$x";
+    let AsmString = AsmName # "_imm $ai, #$x";
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
     let Size = 2;
   }
@@ -47,7 +47,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i16imm:$addr);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "abs $ai, $addr";
+    let AsmString = AsmName # "_abs $ai, $addr";
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$addr)))];
     let Size = 3;
     let mayLoad = 1;
@@ -56,13 +56,14 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 
 // FIXME: there is no ADD instruction, only ADC
 defm ADD : AccOperatorI<"ADD", add>;
+// FIXME: there is no SUB instruction, only SBC
 defm SUB : AccOperatorI<"SUB", sub>;
 
 // Shift left by one
 def ASLacc : I {
   let OutOperandList = (outs Acc:$ao);
   let InOperandList = (ins Acc:$ai);
-  let AsmString = "LSL A";
+  let AsmString = "ASL A";
   let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
   let Size = 1;
 }
@@ -71,7 +72,7 @@ def ASLacc : I {
 def LDimm : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LDimm $r, #$x";
+  let AsmString = "LD_imm $r, #$x";
   let Pattern = [(set General:$r, (i8 imm:$x))];
   let Size = 2;
 }
@@ -80,7 +81,7 @@ def LDimm : I {
 def LDabs : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$addr);
-  let AsmString = "LDabs $r, $addr";
+  let AsmString = "LD_abs $r, $addr";
   let Pattern = [(set General:$r, (load imm:$addr))];
   let Size = 3;
   let mayLoad = 1;
@@ -90,7 +91,7 @@ def LDabs : I {
 def LDstack_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$slot);
-  let AsmString = "LDstack $r, [$slot]";
+  let AsmString = "LD_stack $r, [$slot]";
   let Pattern = [(set General:$r, (load imm:$slot))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
@@ -111,7 +112,7 @@ def RTS : I {
 def STabs : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, i16imm:$addr);
-  let AsmString = "STabs $r, $addr";
+  let AsmString = "ST_abs $r, $addr";
   let Pattern = [(store General:$r, imm:$addr)];
   let Size = 3;
   let mayStore = 1;
@@ -120,7 +121,7 @@ def STabs : I {
 def STstack_pseudo : Pseudo {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, i16imm:$slot);
-  let AsmString = "STstack $r, [$slot]";
+  let AsmString = "ST_stack $r, [$slot]";
   let Pattern = [(store General:$r, imm:$slot)];
   let mayStore = 1;
 }
