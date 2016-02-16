@@ -71,6 +71,16 @@ def ASLacc : I {
   let Size = 1;
 }
 
+// INX, INY
+def INI : I {
+  let OutOperandList = (outs Index:$io);
+  let InOperandList = (ins Index:$ii);
+  let Constraints = "$io = $ii";
+  let AsmString = "INI $ii";
+  let Pattern = [(set Index:$io, (add Index:$ii, 1))];
+  let Size = 1;
+}
+
 // LDA, LDX, LDY fall under this form
 def LDimm : I {
   let OutOperandList = (outs General:$r);
