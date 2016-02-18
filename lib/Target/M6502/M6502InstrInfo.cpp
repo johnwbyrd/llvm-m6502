@@ -67,7 +67,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   DebugLoc DL = MBBI->getDebugLoc();
   BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
     .addReg(SrcReg, getKillRegState(isKill))
-    .addImm(FrameIndex);
+    .addFrameIndex(FrameIndex);
 }
 
 
@@ -81,7 +81,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
   BuildMI(MBB, MBBI, DL, get(M6502::LDstack_pseudo), DestReg)
-    .addImm(FrameIndex);
+    .addFrameIndex(FrameIndex);
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(

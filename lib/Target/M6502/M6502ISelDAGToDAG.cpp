@@ -2,6 +2,7 @@
 
 #include "M6502.h"
 #include "M6502TargetMachine.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 using namespace llvm;
 
@@ -13,7 +14,8 @@ class M6502DAGToDAGISel : public SelectionDAGISel {
 public:
   M6502DAGToDAGISel(M6502TargetMachine &TM, CodeGenOpt::Level OptLevel)
     : SelectionDAGISel(TM, OptLevel) {}
-
+  
+  bool SelectAddrFI(SDValue& N, SDValue &R);
   SDNode *Select(SDNode *N) override;
 
   const char *getPassName() const override {
@@ -29,6 +31,19 @@ private:
 FunctionPass *llvm::createM6502ISelDag(M6502TargetMachine &TM,
                                        CodeGenOpt::Level OptLevel) {
   return new M6502DAGToDAGISel(TM, OptLevel);
+}
+
+// The following is shamelessly borrowed from Hexagon backend.
+// Match a frame index that can be used in an addressing mode.
+bool M6502DAGToDAGISel::SelectAddrFI(SDValue& N, SDValue &R) {
+  if (N.getOpcode() != ISD::FrameIndex)
+    return false;
+  MachineFrameInfo *MFI = MF->getFrameInfo();
+  int FX = cast<FrameIndexSDNode>(N)->getIndex();
+  if (!MFI->isFixedObjectIndex(FX))
+    return false;
+  R = CurDAG->getTargetFrameIndex(FX, MVT::i16);
+  return true;
 }
 
 SDNode *M6502DAGToDAGISel::Select(SDNode *Node) {

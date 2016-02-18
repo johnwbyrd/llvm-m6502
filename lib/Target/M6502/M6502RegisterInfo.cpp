@@ -42,7 +42,13 @@ void
 M6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                        int SPAdj, unsigned FIOperandNum,
                                        RegScavenger *RS) const {
+  MachineInstr &MI = *II;
+  MachineBasicBlock &MBB = *MI.getParent();
+  MachineFunction &MF = *MBB.getParent();
+  const M6502FrameLowering *TFI = getFrameLowering(MF);
+
   // TODO
+  MI.getOperand(FIOperandNum).ChangeToImmediate(FIOperandNum);
 }
 
 unsigned
