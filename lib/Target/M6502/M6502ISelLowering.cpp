@@ -59,11 +59,18 @@ M6502TargetLowering::LowerFormalArguments(SDValue Chain,
     CCValAssign &VA = ArgLocs[i];
 
     if (VA.isRegLoc()) {
-      unsigned VReg = MF.addLiveIn(VA.getLocReg(), getRegClassFor(VA.getLocVT()));
+      unsigned VReg = MF.addLiveIn(VA.getLocReg(),
+                                   getRegClassFor(VA.getLocVT()));
       InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, VA.getLocVT()));
+    } else if (VA.isMemLoc()) {
+      unsigned ValSize = VA.getValVT().getSizeInBits() / 8;
+      int FI = MF.getFrameInfo()->CreateFixedObject(ValSize, VA.getLocMemOffset(), true);
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
+                                MachinePointerInfo(), false, false, false, 0);
+      InVals.push_back(Val);
     } else {
-      // TODO
-      llvm_unreachable("Stack-allocated arguments are not handled");
+      llvm_unreachable("Argument must be located in register or stack");
     }
   }
 
@@ -77,7 +84,17 @@ M6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
                                     LLVMContext &Context) const {
   // TODO
   // M6502 can't currently handle returning tuples.
-  return Outs.size() <= 1;
+  if (Outs.size() == 0)
+    return true;
+  if (Outs.size() > 1)
+    return false;
+
+  assert(Outs.size() == 1);
+
+  if (Outs[0].VT == MVT::i8)
+    return true;
+
+  return false;
 }
 
 SDValue
@@ -101,7 +118,9 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
   for (unsigned i = 0; i < RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
-    assert(VA.isRegLoc() && "Can only return in registers");
+    // NOTE: If return value won't fit in registers, CanLowerReturn should
+    // return false. LLVM will handle returning values on the stack.
+    assert(VA.isRegLoc() && "Can only lower return into registers");
 
     Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Glue);
     Glue = Chain.getValue(1);
@@ -125,6 +144,8 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     llvm_unreachable("Custom lowering not implemented for operation");
     break;
   }
+
+  return SDValue();
 }
 
 SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,

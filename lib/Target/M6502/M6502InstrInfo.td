@@ -1,5 +1,11 @@
 // TODO: header stuff
 
+// The following is shamelessly borrowed from Hexagon backend.
+// This complex pattern exists only to create a machine instruction operand
+// of type "frame index". There doesn't seem to be a way to do that directly
+// in the patterns.
+def AddrFI : ComplexPattern<i16, 1, "SelectAddrFI", [frameindex], []>;
+
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 
@@ -28,7 +34,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_stack $ai, [$idx]";
     // TODO: stack loading instr pattern
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$idx)))];
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load AddrFI:$idx)))];
     let mayLoad = 1;
   }
 
@@ -61,6 +67,13 @@ defm EOR : AccOperatorI<"EOR", xor>;
 defm ORA : AccOperatorI<"ORA", or>;
 // FIXME: there is no SUB instruction, only SBC
 defm SUB : AccOperatorI<"SUB", sub>;
+
+def ADDptrimm_pseudo : Pseudo {
+  let OutOperandList = (outs Ptr:$po);
+  let InOperandList = (ins Ptr:$pi, i16imm:$i);
+  let AsmString = "ADD_ptr $po, $pi, #$i";
+  let Pattern = [(set Ptr:$po, (add Ptr:$pi, imm:$i))];
+}
 
 // Shift left by one
 def ASLacc : I {
@@ -111,13 +124,31 @@ def LDabs : I {
   let canFoldAsLoad = 1;
 }
 
+// Pseudo-instruction to load from a variable 16-bit pointer.
+def LDptr_pseudo : Pseudo {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins Ptr:$p);
+  let AsmString = "LD_ptr $r, $p";
+  let Pattern = [(set General:$r, (load Ptr:$p))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
 def LDstack_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$slot);
   let AsmString = "LD_stack $r, [$slot]";
-  let Pattern = [(set General:$r, (load imm:$slot))];
+  let Pattern = [(set General:$r, (load AddrFI:$slot))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
+}
+
+def LSRacc : I {
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let AsmString = "LSR A";
+  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 1)))];
+  let Size = 1;
 }
 
 def RTS : I {
@@ -145,7 +176,7 @@ def STstack_pseudo : Pseudo {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, i16imm:$slot);
   let AsmString = "ST_stack $r, [$slot]";
-  let Pattern = [(store General:$r, imm:$slot)];
+  let Pattern = [(store General:$r, AddrFI:$slot)];
   let mayStore = 1;
 }
 
