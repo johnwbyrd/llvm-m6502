@@ -30,11 +30,11 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Stack Loading pseudo-instruction
   def stack_pseudo : Pseudo {
     let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, i16imm:$idx);
+    let InOperandList = (ins Acc:$ai, i16imm:$slot, i16imm:$offs);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_stack $ai, [$idx]";
+    let AsmString = AsmName # "_stack $ai, [#$slot] + #$offs";
     // TODO: stack loading instr pattern
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load AddrFI:$idx)))];
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load (add AddrFI:$slot, imm:$offs))))];
     let mayLoad = 1;
   }
 
@@ -67,13 +67,6 @@ defm EOR : AccOperatorI<"EOR", xor>;
 defm ORA : AccOperatorI<"ORA", or>;
 // FIXME: there is no SUB instruction, only SBC
 defm SUB : AccOperatorI<"SUB", sub>;
-
-def ADDptrimm_pseudo : Pseudo {
-  let OutOperandList = (outs Ptr:$po);
-  let InOperandList = (ins Ptr:$pi, i16imm:$i);
-  let AsmString = "ADD_ptr $po, $pi, #$i";
-  let Pattern = [(set Ptr:$po, (add Ptr:$pi, imm:$i))];
-}
 
 // Shift left by one
 def ASLacc : I {
@@ -136,9 +129,9 @@ def LDptr_pseudo : Pseudo {
 
 def LDstack_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins i16imm:$slot);
-  let AsmString = "LD_stack $r, [$slot]";
-  let Pattern = [(set General:$r, (load AddrFI:$slot))];
+  let InOperandList = (ins i16imm:$slot, i16imm:$offs);
+  let AsmString = "LD_stack $r, [#$slot] + #$offs";
+  let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -174,9 +167,9 @@ def STabs : I {
 
 def STstack_pseudo : Pseudo {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, i16imm:$slot);
-  let AsmString = "ST_stack $r, [$slot]";
-  let Pattern = [(store General:$r, AddrFI:$slot)];
+  let InOperandList = (ins General:$r, i16imm:$slot, i16imm:$offs);
+  let AsmString = "ST_stack $r, [#$slot] + #$offs";
+  let Pattern = [(store General:$r, (add AddrFI:$slot, imm:$offs))];
   let mayStore = 1;
 }
 
