@@ -99,7 +99,8 @@ bool RegPseudosExpansionPass::runOnMachineInstr(MachineBasicBlock &MBB,
     BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(NewOpcode))
       .addOperand(MI->getOperand(0))
       .addOperand(MI->getOperand(1))
-      .addFrameIndex(StackSlot);
+      .addFrameIndex(StackSlot)
+      .addImm(0);
 
     MI->eraseFromParent();
     return true;
