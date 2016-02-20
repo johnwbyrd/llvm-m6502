@@ -1,11 +1,16 @@
 // TODO: header stuff
 
+// XXX: this seems to be missing from Target.td
+let OperandType = "OPERAND_IMMEDIATE" in {
+  //def iPTRimm : Operand<iPTR>; // FIXME: this breaks.
+  def iPTRimm : Operand<i8>; // TODO: support 16-bit pointers
+}
+
 // The following is shamelessly borrowed from Hexagon backend.
 // This complex pattern exists only to create a machine instruction operand
 // of type "frame index". There doesn't seem to be a way to do that directly
 // in the patterns.
-//def AddrFI : ComplexPattern<i16, 1, "SelectAddrFI", [frameindex], []>;
-def AddrFI : ComplexPattern<i8, 1, "SelectAddrFI", [frameindex], []>;
+def AddrFI : ComplexPattern<iPTR, 1, "SelectAddrFI", [frameindex], []>;
 
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
@@ -31,8 +36,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Stack Loading pseudo-instruction
   def stack_pseudo : Pseudo {
     let OutOperandList = (outs Acc:$ao);
-    //let InOperandList = (ins Acc:$ai, i16imm:$slot, i16imm:$offs);
-    let InOperandList = (ins Acc:$ai, i8imm:$slot, i8imm:$offs);
+    let InOperandList = (ins Acc:$ai, iPTRimm:$slot, iPTRimm:$offs);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_stack $ai, [$slot] + $offs";
     // TODO: stack loading instr pattern
@@ -40,7 +44,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let mayLoad = 1;
   }
 
-  // Immediate addressing
+  // Immediate
   def imm : I {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i8imm:$x);
@@ -53,8 +57,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Absolute addressing
   def abs : I {
     let OutOperandList = (outs Acc:$ao);
-    //let InOperandList = (ins Acc:$ai, i16imm:$addr);
-    let InOperandList = (ins Acc:$ai, i8imm:$addr);
+    let InOperandList = (ins Acc:$ai, iPTRimm:$addr);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_abs $ai, $addr";
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$addr)))];
@@ -140,8 +143,7 @@ def LDabs : I {
 
 def LDstack_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
-  //let InOperandList = (ins i16imm:$slot, i16imm:$offs);
-  let InOperandList = (ins i8imm:$slot, i8imm:$offs);
+  let InOperandList = (ins iPTRimm:$slot, iPTRimm:$offs);
   let AsmString = "LD_stack $r, [$slot] + $offs";
   let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
@@ -154,7 +156,7 @@ def : Pat<(i8 (load AddrFI:$slot)), (LDstack_pseudo $slot, 0)>;
 //      an address.
 def LDFromPtr_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins General:$p, i8imm:$offs);
+  let InOperandList = (ins General:$p, iPTRimm:$offs);
   let AsmString = "LDFromPtr_pseudo $r, $p + $offs";
   let Pattern = [(set General:$r, (load (add General:$p, imm:$offs)))];
 }
@@ -165,77 +167,13 @@ def : Pat<(i8 (load General:$p)), (LDFromPtr_pseudo $p, 0)>;
 //      an address.
 def STToPtr_pseudo : Pseudo {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, General:$p, i8imm:$offs);
+  let InOperandList = (ins General:$r, General:$p, iPTRimm:$offs);
   let AsmString = "STToPtr_psuedo $r, $p + $offs";
   let Pattern = [(store General:$r, (add General:$p, imm:$offs))];
   let mayStore = 1;
 }
 
 def : Pat<(store General:$r, General:$p), (STToPtr_pseudo $r, $p, 0)>;
-
-// XXX: hacky pseudo-instructions to support 16-bit pointers.
-//      currently unused.
-
-/*
-// Load 16-bit pointer from stack
-def LDPtrFromStack_pseudo : Pseudo {
-  let OutOperandList = (outs Ptr:$p);
-  let InOperandList = (ins i16imm:$slot, i16imm:$offs);
-  let AsmString = "LDPtrFromStack_pseudo $p, [$slot] + $offs";
-  //let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
-  // XXX: Do not pattern match on this instruction. This instruction should be
-  // generated exclusively by loadRegFromStackSlot.
-  let Pattern = [];
-  let mayLoad = 1;
-}
-
-// Store 16-bit pointer to stack
-def STPtrToStack_pseudo : Pseudo {
-  let OutOperandList = (outs);
-  let InOperandList = (ins Ptr:$p, i16imm:$slot, i16imm:$offs);
-  let AsmString = "STPtrToStack_pseudo $p, [$slot] + $offs";
-  //let Pattern = [(store Ptr:$p, (add AddrFI:$slot, imm:$offs))];
-  // XXX: Do not pattern match on this instruction. This instruction should be
-  // generated exclusively by storeRegToStackSlot.
-  let Pattern = [];
-  let mayStore = 1;
-}
-
-// Store to pointer
-def STToPtr_pseudo : Pseudo {
-  let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, Ptr:$p);
-  let AsmString = "STToPtr_pseudo $r, $p";
-  let Pattern = [(store General:$r, Ptr:$p)];
-  let mayStore = 1;
-}
-
-// Store to pointer plus constant offset
-def STToPtrOffs_pseudo : Pseudo {
-  let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, Ptr:$p, i16imm:$offs);
-  let AsmString = "STToPtrOffs_pseudo $r, $p + $offs";
-  let Pattern = [(store General:$r, (add Ptr:$p, imm:$offs))];
-  let mayStore = 1;
-}
-
-def SDTBuildPair : SDTypeProfile<1, 2, [SDTCisVT<0, i16>, SDTCisVT<1, i8>, SDTCisVT<2, i8>]>;
-def buildpair    : SDNode<"ISD::BUILD_PAIR", SDTBuildPair>;
-def BUILDptr_pseudo : Pseudo {
-  let OutOperandList = (outs Ptr:$p);
-  let InOperandList = (ins General:$a, General:$b);
-  let AsmString = "BUILDptr_pseudo $p, $a, $b";
-  let Pattern = [(set Ptr:$p, (i16 (buildpair General:$a, General:$b)))];
-}
-*/
-/*
-def ADDptrimm_pseudo : Pseudo {
-  let OutOperandList = (outs Ptr:$po);
-  let InOperandList = (ins Ptr:$pi, i16imm:$i);
-  let AsmString = "ADDptrimm_pseudo $po, $pi, $i";
-  let Pattern = [(set Ptr:$po, (add Ptr:$pi, imm:$i))];
-}
-*/
 
 def LSRacc : I {
   let OutOperandList = (outs Acc:$ao);
@@ -259,8 +197,7 @@ def RTS : I {
 // STA, STX, STY all use this form
 def STabs : I {
   let OutOperandList = (outs);
-  //let InOperandList = (ins General:$r, i16imm:$addr);
-  let InOperandList = (ins General:$r, i8imm:$addr);
+  let InOperandList = (ins General:$r, iPTRimm:$addr);
   let AsmString = "ST_abs $r, $addr";
   let Pattern = [(store General:$r, imm:$addr)];
   let Size = 3;
@@ -269,8 +206,7 @@ def STabs : I {
 
 def STstack_pseudo : Pseudo {
   let OutOperandList = (outs);
-  //let InOperandList = (ins General:$r, i16imm:$slot, i16imm:$offs);
-  let InOperandList = (ins General:$r, i8imm:$slot, i8imm:$offs);
+  let InOperandList = (ins General:$r, iPTRimm:$slot, iPTRimm:$offs);
   let AsmString = "ST_stack $r, [$slot] + $offs";
   let Pattern = [(store General:$r, (add AddrFI:$slot, imm:$offs))];
   let mayStore = 1;
