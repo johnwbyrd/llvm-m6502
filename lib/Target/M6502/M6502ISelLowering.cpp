@@ -16,22 +16,12 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
                                          const M6502Subtarget &Subtarget)
     : TargetLowering(TM) {
 
-  // FIXME: It is not clear what is required here
-
   addRegisterClass(MVT::i8, &M6502::AccRegClass);
   addRegisterClass(MVT::i8, &M6502::IndexRegClass);
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  //addRegisterClass(MVT::i16, &M6502::PtrRegClass);
   addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
-
-  //setOperationAction(ISD::LOAD, MVT::i16, Custom);
-  //setOperationAction(ISD::STORE, MVT::i16, Custom);
-  //setOperationAction(ISD::TRUNCATE, MVT::i8, Custom);
-  //setTruncStoreAction(MVT::i16, MVT::i8, Expand);
-
-  //setOperationAction(ISD::ADD, MVT::i16, Expand);
 }
 
 const char *
@@ -151,103 +141,8 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
     break;
-  case ISD::LOAD: return LowerLOAD(Op, DAG);
-  case ISD::STORE: return LowerSTORE(Op, DAG);
-  case ISD::TRUNCATE: return LowerTRUNCATE(Op, DAG);
   }
 
-  return SDValue();
-}
-
-SDValue
-M6502TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
-  SDLoc DL(Op);
-  LoadSDNode *Load = cast<LoadSDNode>(Op);
-
-  assert(Load->getMemoryVT() == MVT::i16 &&
-         "Custom LOAD lowering only implemented for i16");
-
-  SDValue Ptr = Load->getBasePtr();
-
-  SDValue LoVal = DAG.getLoad(MVT::i8, DL, Load->getChain(),
-                              Load->getBasePtr(),
-                              Load->getPointerInfo(), Load->isVolatile(),
-                              Load->isNonTemporal(), Load->isInvariant(),
-                              Load->getAlignment(), Load->getAAInfo(),
-                              Load->getRanges());
-  SDValue HiVal = DAG.getLoad(MVT::i8, DL, Load->getChain(),
-                              DAG.getMemBasePlusOffset(Load->getBasePtr(),
-                                                       1, DL),
-                              Load->getPointerInfo(), Load->isVolatile(),
-                              Load->isNonTemporal(), Load->isInvariant(),
-                              Load->getAlignment(), Load->getAAInfo(),
-                              Load->getRanges());
-
-  // FIXME: are loval and hival backwards?
-  SDValue Ops[] = {
-    // Value
-    DAG.getNode(ISD::BUILD_PAIR, DL, MVT::i16, HiVal, LoVal),
-    // Chain
-    DAG.getNode(ISD::TokenFactor, DL, MVT::Other, HiVal.getValue(1), LoVal.getValue(1))
-  };
-  return DAG.getMergeValues(Ops, DL);
-}
-
-SDValue
-M6502TargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
-  SDLoc DL(Op);
-  StoreSDNode *Store = cast<StoreSDNode>(Op);
-
-  assert(Store->getMemoryVT() == MVT::i16 &&
-         "Custom STORE lowering only implemented for i16");
-
-  SDValue Val = Store->getValue();
-
-  SDValue LoVal = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i8, Val,
-                              DAG.getIntPtrConstant(0, DL));
-  SDValue HiVal = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i8, Val,
-                              DAG.getIntPtrConstant(1, DL));
-
-  SDValue LoChain = DAG.getStore(Store->getChain(), DL, LoVal,
-                                 Store->getBasePtr(),
-                                 Store->getPointerInfo(), Store->isVolatile(),
-                                 Store->isNonTemporal(), Store->getAlignment(),
-                                 Store->getAAInfo());
-  SDValue HiChain = DAG.getStore(Store->getChain(), DL, HiVal,
-                                 DAG.getMemBasePlusOffset(Store->getBasePtr(),
-                                                          1, DL),
-                                 Store->getPointerInfo(), Store->isVolatile(),
-                                 Store->isNonTemporal(), Store->getAlignment(),
-                                 Store->getAAInfo());
-
-  return DAG.getNode(ISD::TokenFactor, DL, MVT::Other, LoChain, HiChain);
-}
-
-SDValue
-M6502TargetLowering::LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const {
-  SDLoc DL(Op);
-
-  errs() << "Asked to lower "; Op.dump();
-
-  SDValue TruncMe = Op.getOperand(0);
-  if (TruncMe.getValueType() == MVT::i16) {
-    if (TruncMe.getOpcode() == ISD::BUILD_PAIR) {
-      // FIXME: pull operand 0 or 1?
-      // i8 = trunc (i16 = build-pair hi, lo)
-      //    => lo
-      return TruncMe.getOperand(1);
-    } else if (TruncMe.getOpcode() == ISD::SRL
-               && TruncMe.getOperand(0).getOpcode() == ISD::BUILD_PAIR
-               && TruncMe.getOperand(1).getOpcode() == ISD::Constant
-               && TruncMe.getConstantOperandVal(1) == 8) {
-      // i8 = trunc (i16 = srl (i16 = build-pair hi, lo), 8)
-      //    => hi
-      SDValue Pair = TruncMe.getOperand(0);
-      // FIXME: pull operand 0 or 1?
-      return Pair.getOperand(0);
-    }
-  }
-  
   return SDValue();
 }
 
