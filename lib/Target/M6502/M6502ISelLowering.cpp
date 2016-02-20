@@ -21,7 +21,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i8, &M6502::AccRegClass);
   addRegisterClass(MVT::i8, &M6502::IndexRegClass);
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  addRegisterClass(MVT::i16, &M6502::PtrRegClass);
+  //addRegisterClass(MVT::i16, &M6502::PtrRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
@@ -29,6 +29,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   //setOperationAction(ISD::STORE, MVT::i16, Custom);
   //setOperationAction(ISD::TRUNCATE, MVT::i8, Custom);
   //setTruncStoreAction(MVT::i16, MVT::i8, Expand);
+
+  //setOperationAction(ISD::ADD, MVT::i16, Expand);
 }
 
 const char *
@@ -228,9 +230,6 @@ M6502TargetLowering::LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const {
 
   SDValue TruncMe = Op.getOperand(0);
   if (TruncMe.getValueType() == MVT::i16) {
-    // TODO
-    errs() << "TODO: implement i16 truncate lowering\n";
-    errs() << "Lowering TRUNCATE of: "; TruncMe.dump();
     if (TruncMe.getOpcode() == ISD::BUILD_PAIR) {
       // FIXME: pull operand 0 or 1?
       // i8 = trunc (i16 = build-pair hi, lo)
