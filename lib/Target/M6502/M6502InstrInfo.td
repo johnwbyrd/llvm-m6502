@@ -32,7 +32,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i16imm:$slot, i16imm:$offs);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_stack $ai, [#$slot] + #$offs";
+    let AsmString = AsmName # "_stack $ai, [$slot] + $offs";
     // TODO: stack loading instr pattern
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load (add AddrFI:$slot, imm:$offs))))];
     let mayLoad = 1;
@@ -43,7 +43,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs Acc:$ao);
     let InOperandList = (ins Acc:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_imm $ai, #$x";
+    let AsmString = AsmName # "_imm $ai, $x";
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
     let Size = 2;
   }
@@ -117,23 +117,73 @@ def LDabs : I {
   let canFoldAsLoad = 1;
 }
 
-// Pseudo-instruction to load from a variable 16-bit pointer.
-def LDptr_pseudo : Pseudo {
+def LDstack_pseudo : Pseudo {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins Ptr:$p);
-  let AsmString = "LD_ptr $r, $p";
-  let Pattern = [(set General:$r, (load Ptr:$p))];
+  let InOperandList = (ins i16imm:$slot, i16imm:$offs);
+  let AsmString = "LD_stack $r, [$slot] + $offs";
+  let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
-def LDstack_pseudo : Pseudo {
-  let OutOperandList = (outs General:$r);
+def : Pat<(i8 (load AddrFI:$slot)), (LDstack_pseudo $slot, 0)>;
+
+// XXX: hacky instructions to support 16-bit pointers
+
+// Load 16-bit pointer from stack
+def LDPtrFromStack_pseudo : Pseudo {
+  let OutOperandList = (outs Ptr:$p);
   let InOperandList = (ins i16imm:$slot, i16imm:$offs);
-  let AsmString = "LD_stack $r, [#$slot] + #$offs";
-  let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
+  let AsmString = "LDPtrFromStack_pseudo $p, [$slot] + $offs";
+  let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
-  let canFoldAsLoad = 1;
+}
+
+def : Pat<(i16 (load AddrFI:$slot)), (LDPtrFromStack_pseudo $slot, 0)>;
+
+// Store 16-bit pointer to stack
+def STPtrToStack_pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Ptr:$p, i16imm:$slot, i16imm:$offs);
+  let AsmString = "STPtrToStack_pseudo $p, [$slot] + $offs";
+  let Pattern = [(store Ptr:$p, (add AddrFI:$slot, imm:$offs))];
+  let mayStore = 1;
+}
+
+// Store 16-bit pointer to pointer
+def STPtrToPtr_Pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Ptr:$val, Ptr:$p);
+  let AsmString = "STPtrToPtr_pseudo $val, $p";
+  let Pattern = [(store Ptr:$val, Ptr:$p)];
+  let mayStore = 1;
+}
+
+// Store to pointer
+def STToPtr_pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, Ptr:$p);
+  let AsmString = "STToPtr_pseudo $r, $p";
+  let Pattern = [(store General:$r, Ptr:$p)];
+  let mayStore = 1;
+}
+
+/*
+def SDTBuildPair : SDTypeProfile<1, 2, [SDTCisVT<0, i16>, SDTCisVT<1, i8>, SDTCisVT<2, i8>]>;
+def buildpair    : SDNode<"ISD::BUILD_PAIR", SDTBuildPair>;
+def BUILDptr_pseudo : Pseudo {
+  let OutOperandList = (outs Ptr:$p);
+  let InOperandList = (ins General:$a, General:$b);
+  let AsmString = "BUILDptr_pseudo $p, $a, $b";
+  let Pattern = [(set Ptr:$p, (i16 (buildpair General:$a, General:$b)))];
+}
+*/
+
+def ADDptrimm_pseudo : Pseudo {
+  let OutOperandList = (outs Ptr:$po);
+  let InOperandList = (ins Ptr:$pi, i16imm:$i);
+  let AsmString = "ADDptrimm_pseudo $po, $pi, $i";
+  let Pattern = [(set Ptr:$po, (add Ptr:$pi, imm:$i))];
 }
 
 def LSRacc : I {
@@ -168,10 +218,12 @@ def STabs : I {
 def STstack_pseudo : Pseudo {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, i16imm:$slot, i16imm:$offs);
-  let AsmString = "ST_stack $r, [#$slot] + #$offs";
+  let AsmString = "ST_stack $r, [$slot] + $offs";
   let Pattern = [(store General:$r, (add AddrFI:$slot, imm:$offs))];
   let mayStore = 1;
 }
+
+def : Pat<(store General:$r, AddrFI:$slot), (STstack_pseudo $r, $slot, 0)>;
 
 // Transfer X/Y to A
 def TIA : I {
