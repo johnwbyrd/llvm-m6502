@@ -8,11 +8,16 @@ def A : R<"A">;
 def X : R<"X">;
 def Y : R<"Y">;
 
-// XXX: LLVM needs this fake register so we can use 16-bit pointers in
-// instructions such as LDA, ADD, etc.
-// This register does not actually exist. There are no instructions for loading
-// or storing it.
-def XXXFake16 : R<"XXXFake16">;
+// XXX: Fake 16-bit registers for pseudo-instructions that operate on 16-bit
+// pointers.
+def FakePtr0 : R<"FakePtr0">;
+def FakePtr1 : R<"FakePtr1">;
+def FakePtr2 : R<"FakePtr2">;
+def FakePtr3 : R<"FakePtr3">;
+def FakePtr4 : R<"FakePtr4">;
+def FakePtr5 : R<"FakePtr5">;
+def FakePtr6 : R<"FakePtr6">;
+def FakePtr7 : R<"FakePtr7">;
 
 def Acc : RegisterClass<"M6502", [i8], 8,
   (add A)>;
@@ -24,4 +29,5 @@ def General : RegisterClass<"M6502", [i8], 8,
   (add Acc, Index)>;
 
 def Ptr : RegisterClass<"M6502", [i16], 16,
-  (add XXXFake16)>;
+  (add FakePtr0, FakePtr1, FakePtr2, FakePtr3,
+       FakePtr4, FakePtr5, FakePtr6, FakePtr7)>;

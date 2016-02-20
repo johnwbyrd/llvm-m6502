@@ -63,12 +63,20 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          const TargetRegisterInfo *TRI) const {
 
   // XXX: store stack vars to address equal to FrameIndex
-  // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
-  BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
-    .addReg(SrcReg, getKillRegState(isKill))
-    .addFrameIndex(FrameIndex)
-    .addImm(0);
+  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
+      .addReg(SrcReg, getKillRegState(isKill))
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MBBI, DL, get(M6502::STPtrToStack_pseudo))
+      .addReg(SrcReg, getKillRegState(isKill))
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else {
+    llvm_unreachable("Register class could not be stored to stack");
+  }
 }
 
 
@@ -81,9 +89,17 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   // XXX: load stack vars from address equal to FrameIndex
   // TODO: Check for valid RC
   DebugLoc DL = MBBI->getDebugLoc();
-  BuildMI(MBB, MBBI, DL, get(M6502::LDstack_pseudo), DestReg)
-    .addFrameIndex(FrameIndex)
-    .addImm(0);
+  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MBBI, DL, get(M6502::LDstack_pseudo), DestReg)
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MBBI, DL, get(M6502::LDPtrFromStack_pseudo), DestReg)
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else {
+    llvm_unreachable("Register class could not be loaded from stack");
+  }
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
