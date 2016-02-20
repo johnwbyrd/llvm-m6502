@@ -22,6 +22,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i8, &M6502::IndexRegClass);
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
   //addRegisterClass(MVT::i16, &M6502::PtrRegClass);
+  addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 

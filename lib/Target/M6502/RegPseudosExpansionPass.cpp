@@ -46,10 +46,14 @@ char RegPseudosExpansionPass::ID = 0;
 static unsigned ConvertRegPseudoToStackLoading(unsigned Pseudo) {
   switch (Pseudo) {
   default: return M6502::INSTRUCTION_LIST_END;
+  case M6502::ADCreg_pseudo: return M6502::ADCstack_pseudo;
+  case M6502::AD0reg_pseudo: return M6502::AD0stack_pseudo;
   case M6502::ADDreg_pseudo: return M6502::ADDstack_pseudo;
   case M6502::ANDreg_pseudo: return M6502::ANDstack_pseudo;
   case M6502::EORreg_pseudo: return M6502::EORstack_pseudo;
   case M6502::ORAreg_pseudo: return M6502::ORAstack_pseudo;
+  case M6502::SBCreg_pseudo: return M6502::SBCstack_pseudo;
+  case M6502::SB1reg_pseudo: return M6502::SB1stack_pseudo;
   case M6502::SUBreg_pseudo: return M6502::SUBstack_pseudo;
   }
 }
@@ -62,10 +66,10 @@ bool RegPseudosExpansionPass::runOnMachineInstr(MachineBasicBlock &MBB,
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   unsigned OldOpcode = MI->getOpcode();
 
-  // %op0 = ADDreg_pseudo %op1, %op2
+  // %op0 = AD0reg_pseudo %op1, %op2
   // When %op1 == %op2:
   //   => %op0 = ASLacc %op1
-  if (OldOpcode == M6502::ADDreg_pseudo
+  if (OldOpcode == M6502::AD0reg_pseudo
       && MI->getOperand(1).isIdenticalTo(MI->getOperand(2))) {
     // Don't spill. Double Acc by shifting left by one.
     BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(M6502::ASLacc))
