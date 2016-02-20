@@ -45,10 +45,6 @@ public:
   // Provide custom lowering hooks for some operation.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
-  SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const;
-
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 };
 
