@@ -42,7 +42,8 @@ bool M6502DAGToDAGISel::SelectAddrFI(SDValue& N, SDValue &R) {
   int FX = cast<FrameIndexSDNode>(N)->getIndex();
   if (!MFI->isFixedObjectIndex(FX))
     return false;
-  R = CurDAG->getTargetFrameIndex(FX, MVT::i16);
+  //R = CurDAG->getTargetFrameIndex(FX, MVT::i16);
+  R = CurDAG->getTargetFrameIndex(FX, MVT::i8);
   return true;
 }
 

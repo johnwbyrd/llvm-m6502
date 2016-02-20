@@ -7,6 +7,7 @@ class R<string n> : Register<n> {
 def A : R<"A">;
 def X : R<"X">;
 def Y : R<"Y">;
+def CFlag : R<"CFlag">; // carry flag
 
 /*
 // XXX: Fake 16-bit registers for pseudo-instructions that operate on 16-bit
@@ -29,6 +30,9 @@ def Index : RegisterClass<"M6502", [i8], 8,
 
 def General : RegisterClass<"M6502", [i8], 8,
   (add Acc, Index)>;
+
+def Flag : RegisterClass<"M6502", [i1], 1,
+  (add CFlag)>;
 
 /*
 def Ptr : RegisterClass<"M6502", [i16], 16,
