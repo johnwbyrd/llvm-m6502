@@ -20,7 +20,13 @@ M6502TargetMachine::M6502TargetMachine(const Target &T, const Triple &TT,
                                        const TargetOptions &Options,
                                        Reloc::Model RM, CodeModel::Model CM,
                                        CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "e-p:16:8", TT, CPU, FS, Options, RM, CM, OL),
+    : //LLVMTargetMachine(T, "e-p:16:8", TT, CPU, FS, Options, RM, CM, OL),
+      // XXX: lie and report 8-bit pointers.
+      // TODO: Support 16-bit pointers. Currently, supporting 16-bit pointers
+      // requires making a fake 16-bit pointer register class, then fighting
+      // LLVM to prevent it from trying to use these fake 16-bit registers
+      // everywhere.
+      LLVMTargetMachine(T, "e-p:8:8", TT, CPU, FS, Options, RM, CM, OL),
       TLOF(std::make_unique<M6502TargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
 

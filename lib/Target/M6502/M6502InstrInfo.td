@@ -128,34 +128,43 @@ def LDstack_pseudo : Pseudo {
 
 def : Pat<(i8 (load AddrFI:$slot)), (LDstack_pseudo $slot, 0)>;
 
-// XXX: hacky instructions to support 16-bit pointers
+// XXX: Fake store-to-pointer pseudo-instruction that takes a General reg as
+//      an address.
+def STToPtr_pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, General:$p, i8imm:$offs);
+  let AsmString = "STToPtr_psuedo $r, $p + $offs";
+  let Pattern = [(store General:$r, (add General:$p, imm:$offs))];
+  let mayStore = 1;
+}
 
+def : Pat<(store General:$r, General:$p), (STToPtr_pseudo $r, $p, 0)>;
+
+// XXX: hacky pseudo-instructions to support 16-bit pointers.
+//      currently unused.
+
+/*
 // Load 16-bit pointer from stack
 def LDPtrFromStack_pseudo : Pseudo {
   let OutOperandList = (outs Ptr:$p);
   let InOperandList = (ins i16imm:$slot, i16imm:$offs);
   let AsmString = "LDPtrFromStack_pseudo $p, [$slot] + $offs";
-  let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
+  //let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
+  // XXX: Do not pattern match on this instruction. This instruction should be
+  // generated exclusively by loadRegFromStackSlot.
+  let Pattern = [];
   let mayLoad = 1;
 }
-
-def : Pat<(i16 (load AddrFI:$slot)), (LDPtrFromStack_pseudo $slot, 0)>;
 
 // Store 16-bit pointer to stack
 def STPtrToStack_pseudo : Pseudo {
   let OutOperandList = (outs);
   let InOperandList = (ins Ptr:$p, i16imm:$slot, i16imm:$offs);
   let AsmString = "STPtrToStack_pseudo $p, [$slot] + $offs";
-  let Pattern = [(store Ptr:$p, (add AddrFI:$slot, imm:$offs))];
-  let mayStore = 1;
-}
-
-// Store 16-bit pointer to pointer
-def STPtrToPtr_Pseudo : Pseudo {
-  let OutOperandList = (outs);
-  let InOperandList = (ins Ptr:$val, Ptr:$p);
-  let AsmString = "STPtrToPtr_pseudo $val, $p";
-  let Pattern = [(store Ptr:$val, Ptr:$p)];
+  //let Pattern = [(store Ptr:$p, (add AddrFI:$slot, imm:$offs))];
+  // XXX: Do not pattern match on this instruction. This instruction should be
+  // generated exclusively by storeRegToStackSlot.
+  let Pattern = [];
   let mayStore = 1;
 }
 
@@ -168,7 +177,15 @@ def STToPtr_pseudo : Pseudo {
   let mayStore = 1;
 }
 
-/*
+// Store to pointer plus constant offset
+def STToPtrOffs_pseudo : Pseudo {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, Ptr:$p, i16imm:$offs);
+  let AsmString = "STToPtrOffs_pseudo $r, $p + $offs";
+  let Pattern = [(store General:$r, (add Ptr:$p, imm:$offs))];
+  let mayStore = 1;
+}
+
 def SDTBuildPair : SDTypeProfile<1, 2, [SDTCisVT<0, i16>, SDTCisVT<1, i8>, SDTCisVT<2, i8>]>;
 def buildpair    : SDNode<"ISD::BUILD_PAIR", SDTBuildPair>;
 def BUILDptr_pseudo : Pseudo {
@@ -178,13 +195,14 @@ def BUILDptr_pseudo : Pseudo {
   let Pattern = [(set Ptr:$p, (i16 (buildpair General:$a, General:$b)))];
 }
 */
-
+/*
 def ADDptrimm_pseudo : Pseudo {
   let OutOperandList = (outs Ptr:$po);
   let InOperandList = (ins Ptr:$pi, i16imm:$i);
   let AsmString = "ADDptrimm_pseudo $po, $pi, $i";
   let Pattern = [(set Ptr:$po, (add Ptr:$pi, imm:$i))];
 }
+*/
 
 def LSRacc : I {
   let OutOperandList = (outs Acc:$ao);
