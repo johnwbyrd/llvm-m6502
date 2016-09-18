@@ -11,20 +11,20 @@ using namespace llvm;
 #include "M6502GenInstrInfo.inc"
 
 void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator I,
-                                 DebugLoc DL, unsigned DestReg,
-                                 unsigned SrcReg,
-                                 bool killSrc) const {
+                                 MachineBasicBlock::iterator MI,
+	                             const DebugLoc &DL,
+                                 unsigned DestReg, unsigned SrcReg,
+                                 bool KillSrc) const {
   if (M6502::AccRegClass.contains(SrcReg) &&
       M6502::IndexRegClass.contains(DestReg)) {
     // TAX, TAY
-    BuildMI(MBB, I, DL, get(M6502::TAI), DestReg)
-      .addReg(SrcReg, getKillRegState(killSrc));
+    BuildMI(MBB, MI, DL, get(M6502::TAI), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
   } else if (M6502::IndexRegClass.contains(SrcReg) &&
              M6502::AccRegClass.contains(DestReg)) {
     // TXA, TYA
-    BuildMI(MBB, I, DL, get(M6502::TIA), DestReg)
-      .addReg(SrcReg, getKillRegState(killSrc));
+    BuildMI(MBB, MI, DL, get(M6502::TIA), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
   } else {
     // FIXME: handle X->Y and Y->X?
     llvm_unreachable("Impossible reg-to-reg copy");
@@ -36,9 +36,8 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 /// the destination along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than loading from the stack slot.
-unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
+unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
                                              int &FrameIndex) const {
-
   // TODO
   return 0;
 }
@@ -48,9 +47,8 @@ unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
 /// the source reg along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than storing to the stack slot.
-unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
+unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                             int &FrameIndex) const {
- 
   // TODO
   return 0;
 }
@@ -61,7 +59,6 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
                                          const TargetRegisterInfo *TRI) const {
-
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
@@ -100,17 +97,19 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
-    MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
-    MachineBasicBlock::iterator InsertPt, int FrameIndex) const {
-
+	MachineFunction &MF, MachineInstr &MI,
+    ArrayRef<unsigned> Ops,
+    MachineBasicBlock::iterator InsertPt,
+	int FrameIndex,
+    LiveIntervals *LIS) const {
   // TODO: fold if possible
   return nullptr;
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
-    MachineFunction &MF, MachineInstr *MI, ArrayRef<unsigned> Ops,
-    MachineBasicBlock::iterator InsertPt, MachineInstr *LoadMI) const {
-
+      MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
+      MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
+      LiveIntervals *LIS) const {
   // TODO: fold if possible
   return nullptr;
 }

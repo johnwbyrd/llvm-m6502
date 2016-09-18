@@ -25,21 +25,22 @@ public:
 
   const char *getTargetNodeName(unsigned Opcode) const override;
 
-  SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
-                               bool isVarArg,
-                               const SmallVectorImpl<ISD::InputArg> &Ins,
-                               SDLoc dl, SelectionDAG &DAG,
-                               SmallVectorImpl<SDValue> &InVals) const override;
+  SDValue LowerFormalArguments(
+      SDValue /*Chain*/, CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
+      const SmallVectorImpl<ISD::InputArg> & /*Ins*/, const SDLoc & /*dl*/,
+      SelectionDAG & /*DAG*/, SmallVectorImpl<SDValue> & /*InVals*/) const override;
 
   bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
                       bool isVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       LLVMContext &Context) const override;
 
-  SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-                      const SmallVectorImpl<ISD::OutputArg> &Outs,
-                      const SmallVectorImpl<SDValue> &OutVals,
-                      SDLoc dl, SelectionDAG &DAG) const override;
+  SDValue LowerReturn(SDValue /*Chain*/, CallingConv::ID /*CallConv*/,
+                      bool /*isVarArg*/,
+                      const SmallVectorImpl<ISD::OutputArg> & /*Outs*/,
+                      const SmallVectorImpl<SDValue> & /*OutVals*/,
+                      const SDLoc & /*dl*/,
+                      SelectionDAG & /*DAG*/) const override;
 
 
   // Provide custom lowering hooks for some operation.

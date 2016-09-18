@@ -16,7 +16,7 @@ public:
     : SelectionDAGISel(TM, OptLevel) {}
   
   bool SelectAddrFI(SDValue& N, SDValue &R);
-  SDNode *Select(SDNode *N) override;
+  void Select(SDNode *N) override;
 
   const char *getPassName() const override {
     return "M6502 DAG->DAG Pattern Instruction Selection";
@@ -47,20 +47,19 @@ bool M6502DAGToDAGISel::SelectAddrFI(SDValue& N, SDValue &R) {
   return true;
 }
 
-SDNode *M6502DAGToDAGISel::Select(SDNode *Node) {
+void M6502DAGToDAGISel::Select(SDNode *Node) {
+  // XXX: borrowed from MipsISelDAGToDAG.cpp
+
   // Dump information about the Node being selected
   DEBUG(errs() << "Selecting: "; Node->dump(CurDAG); errs() << "\n");
 
-  // XXX: borrowed from MipsISelDAGToDAG.cpp
-
+  // If we have a custom node, we already have selected!
+  if (Node->isMachineOpcode()) {
+    DEBUG(errs() << "== "; Node->dump(CurDAG); errs() << "\n");
+    Node->setNodeId(-1);
+    return;
+  }
+  
   // Select the default instruction
-  SDNode *ResNode = SelectCode(Node);
-
-  DEBUG(errs() << "=> ");
-  if (ResNode == nullptr || ResNode == Node)
-	  DEBUG(Node->dump(CurDAG));
-  else
-	  DEBUG(ResNode->dump(CurDAG));
-  DEBUG(errs() << "\n");
-  return ResNode;
+  SelectCode(Node);
 }

@@ -37,14 +37,10 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
 }
 
 SDValue
-M6502TargetLowering::LowerFormalArguments(SDValue Chain,
-                                          CallingConv::ID CallConv,
-                                          bool isVarArg,
-                                      const SmallVectorImpl<ISD::InputArg> &Ins,
-                                          SDLoc dl,
-                                          SelectionDAG &DAG,
-                                          SmallVectorImpl<SDValue> &InVals)
-                                            const {
+M6502TargetLowering::LowerFormalArguments(
+      SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+      const SmallVectorImpl<ISD::InputArg> & Ins, const SDLoc & dl,
+      SelectionDAG & DAG, SmallVectorImpl<SDValue> & InVals) const {
   // TODO
   MachineFunction &MF = DAG.getMachineFunction();
 
@@ -64,8 +60,7 @@ M6502TargetLowering::LowerFormalArguments(SDValue Chain,
       unsigned ValSize = VA.getValVT().getSizeInBits() / 8;
       int FI = MF.getFrameInfo()->CreateFixedObject(ValSize, VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
-                                MachinePointerInfo(), false, false, false, 0);
+      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
       InVals.push_back(Val);
     } else {
       llvm_unreachable("Argument must be located in register or stack");
@@ -98,9 +93,10 @@ M6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
 SDValue
 M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                                  bool isVarArg,
-                                 const SmallVectorImpl<ISD::OutputArg> &Outs,
-                                 const SmallVectorImpl<SDValue> &OutVals,
-                                 SDLoc dl, SelectionDAG &DAG) const {
+                                 const SmallVectorImpl<ISD::OutputArg> & Outs,
+                                 const SmallVectorImpl<SDValue> & OutVals,
+                                 const SDLoc & dl,
+                                 SelectionDAG & DAG) const {
   // TODO
   // XXX: RetOps stuff comes from WebAssemblyIselLowering and others
   MachineFunction &MF = DAG.getMachineFunction();
