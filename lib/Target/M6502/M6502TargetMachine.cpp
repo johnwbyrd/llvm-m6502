@@ -2,7 +2,7 @@
 
 #include "M6502TargetMachine.h"
 #include "M6502.h"
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/ADT/StringRef.h"
 using namespace llvm;
@@ -18,15 +18,14 @@ extern "C" void LLVMInitializeM6502Target() {
 M6502TargetMachine::M6502TargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
-                                       Reloc::Model RM, CodeModel::Model CM,
-                                       CodeGenOpt::Level OL)
+                                       Optional<Reloc::Model> RM,
+                                       CodeModel::Model CM, CodeGenOpt::Level OL)
     : //LLVMTargetMachine(T, "e-p:16:8", TT, CPU, FS, Options, RM, CM, OL),
       // XXX: lie and report 8-bit pointers.
-      // TODO: Support 16-bit pointers. Currently, supporting 16-bit pointers
-      // requires making a fake 16-bit pointer register class, then fighting
-      // LLVM to prevent it from trying to use these fake 16-bit registers
-      // everywhere.
-      LLVMTargetMachine(T, "e-p:8:8", TT, CPU, FS, Options, RM, CM, OL),
+      // TODO: Support 16-bit pointers. LLVM does not easily support an
+      // architecture whose registers cannot hold entire pointers.
+      LLVMTargetMachine(T, "e-p:8:8", TT, CPU, FS, Options,
+		                RM.getValueOr(Reloc::Model::Static), CM, OL),
       TLOF(std::make_unique<M6502TargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
 

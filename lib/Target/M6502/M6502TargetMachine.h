@@ -14,8 +14,10 @@ class M6502TargetMachine : public LLVMTargetMachine {
   M6502Subtarget Subtarget;
 
 public:
-  M6502TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
-                     StringRef FS, const TargetOptions &Options, Reloc::Model RM,
+  M6502TargetMachine(const Target &T, const Triple &TT,
+                     StringRef CPU, StringRef FS,
+                     const TargetOptions &Options,
+                     Optional<Reloc::Model> RM,
                      CodeModel::Model CM, CodeGenOpt::Level OL);
 
   const M6502Subtarget *getSubtargetImpl(const Function &) const override {
