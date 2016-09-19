@@ -22,6 +22,9 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
+
+  // FIXME: should BR_CC nodes be processed in M6502ISelDAGToDAG.cpp instead of here?
+  setOperationAction(ISD::BR_CC, MVT::i8, Custom);
 }
 
 const char *
@@ -32,6 +35,12 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     break;
   case M6502ISD::RETURN:
     return "M6502ISD::RETURN";
+  case M6502ISD::CMP:
+    return "M6502ISD::CMP";
+  case M6502ISD::BSET:
+    return "M6502ISD::BSET";
+  case M6502ISD::BCLEAR:
+    return "M6502ISD::BCLEAR";
   }
   return nullptr;
 }
@@ -127,6 +136,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
+  case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
     break;
@@ -144,4 +154,38 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   }
 
   return SDValue();
+}
+
+SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue Chain = Op.getOperand(0);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+  SDValue LHS = Op.getOperand(2);
+  SDValue RHS = Op.getOperand(3);
+  SDValue Dest = Op.getOperand(4);
+  SDLoc dl(Op);
+
+
+  M6502ISD::NodeType NodeType;
+  unsigned int FlagReg;
+  switch (CC) {
+  case ISD::SETEQ:
+    NodeType = M6502ISD::BSET;
+	FlagReg = M6502::ZFlag;
+	break;
+  case ISD::SETNE:
+    NodeType = M6502ISD::BCLEAR;
+	FlagReg = M6502::ZFlag;
+	break;
+  default:
+	llvm_unreachable("Invalid integer condition");
+	break;
+  }
+  
+  // TODO: avoid generating CMP instruction if possible, e.g. if
+  // an earlier SUB instruction put the desired condition in ZFlag.
+  Chain = DAG.getCopyToReg(Chain, dl, M6502::A, LHS); // Load LHS to A
+  SDValue CmpGlue = DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, DAG.getRegister(M6502::A, MVT::i8), RHS);
+
+  SDValue Flag = DAG.getRegister(FlagReg, MVT::i1);
+  return DAG.getNode(NodeType, dl, Op.getValueType(), Chain, Flag, Dest, CmpGlue);
 }

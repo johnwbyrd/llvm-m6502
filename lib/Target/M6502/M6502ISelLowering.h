@@ -14,6 +14,9 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   RETURN,
+  CMP,
+  BSET,
+  BCLEAR,
 };
 
 } // end namespace M6502ISD
@@ -42,11 +45,13 @@ public:
                       const SDLoc & /*dl*/,
                       SelectionDAG & /*DAG*/) const override;
 
-
   // Provide custom lowering hooks for some operation.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
+
+private:
+  SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 
 } // end namespace llvm
