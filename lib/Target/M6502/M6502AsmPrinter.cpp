@@ -33,7 +33,7 @@ extern "C" void LLVMInitializeM6502AsmPrinter() {
   RegisterAsmPrinter<M6502AsmPrinter> X(TheM6502Target);
 }
 
-static void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
+static void LowerMachineInstrToMCInst(MCContext &Ctx, const MachineInstr *MI, MCInst &OutMI) {
   // TODO
   // XXX: copied from BPFMCInstLower.cpp
   OutMI.setOpcode(MI->getOpcode());
@@ -56,9 +56,8 @@ static void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
       MCOp = MCOperand::createImm(MO.getImm());
       break;
     case MachineOperand::MO_MachineBasicBlock:
-      //MCOp = MCOperand::createExpr(
-      //    MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
-	  assert(false && "M6502 does not implement MO_MachineBasicBlock operands");
+      MCOp = MCOperand::createExpr(
+          MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
       break;
     case MachineOperand::MO_RegisterMask:
       continue;
@@ -75,6 +74,6 @@ static void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
 void M6502AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   // TODO
   MCInst TmpInst;
-  LowerMachineInstrToMCInst(MI, TmpInst);
+  LowerMachineInstrToMCInst(OutContext, MI, TmpInst);
   EmitToStreamer(*OutStreamer, TmpInst);
 }
