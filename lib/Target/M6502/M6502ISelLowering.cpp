@@ -76,15 +76,7 @@ M6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     LLVMContext &Context) const {
   // TODO
-  // M6502 can't currently handle returning tuples.
   if (Outs.size() == 0)
-    return true;
-  if (Outs.size() > 1)
-    return false;
-
-  assert(Outs.size() == 1);
-
-  if (Outs[0].VT == MVT::i8)
     return true;
 
   return false;
@@ -110,6 +102,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
+  // FIXME: remove this, values are never returned in registers anymore.
   for (unsigned i = 0; i < RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
     // NOTE: If return value won't fit in registers, CanLowerReturn should
