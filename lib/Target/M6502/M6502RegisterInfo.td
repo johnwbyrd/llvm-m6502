@@ -7,7 +7,10 @@ class R<string n> : Register<n> {
 def A : R<"A">;
 def X : R<"X">;
 def Y : R<"Y">;
+def NFlag : R<"NFlag">; // negative flag
+def ZFlag : R<"ZFlag">; // zero flag
 def CFlag : R<"CFlag">; // carry flag
+def VFlag : R<"VFlag">; // overflow flag
 
 /*
 // XXX: Fake 16-bit registers for pseudo-instructions that operate on 16-bit
@@ -32,7 +35,7 @@ def General : RegisterClass<"M6502", [i8], 8,
   (add Acc, Index)>;
 
 def Flag : RegisterClass<"M6502", [i1], 1,
-  (add CFlag)>;
+  (add NFlag, ZFlag, CFlag, VFlag)>;
 
 /*
 def Ptr : RegisterClass<"M6502", [i16], 16,

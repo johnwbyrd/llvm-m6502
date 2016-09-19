@@ -13,15 +13,30 @@ def brtarget : Operand<OtherVT>;
 // Custom patterns
 
 // The following is shamelessly borrowed from Hexagon backend.
-// This complex pattern exists only to create a machine instruction operand
-// of type "frame index". There doesn't seem to be a way to do that directly
+// This complex pattern creates a machine instruction operand of type
+// "frameindex". There doesn't seem to be a way to do that directly
 // in the patterns.
 def AddrFI : ComplexPattern<iPTR, 1, "SelectAddrFI", [frameindex], []>;
+
+// Custom type profiles
+
+def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
+// FIXME: in SDT_M6502BSet, is first parameter correct for a Flag register?
+def SDT_M6502BSet : SDTypeProfile<0, 2,
+                                  [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
+// FIXME: in SDT_M6502BClear, is first parameter correct for a Flag register?
+def SDT_M6502BClear : SDTypeProfile<0, 2,
+                                    [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
 
 // Custom nodes
 
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
-                           [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+                         [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def M6502cmp : SDNode<"M6502ISD::CMP", SDT_M6502Cmp, [SDNPOutGlue]>;
+def M6502bset : SDNode<"M6502ISD::BSET", SDT_M6502BSet,
+                       [SDNPHasChain, SDNPInGlue]>;
+def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
+                         [SDNPHasChain, SDNPInGlue]>;
 
 // Instructions
 
@@ -111,8 +126,76 @@ def ASLacc : I {
   let Size = 1;
 }
 
-// JMP
-def JMP_abs : I {
+// Branch on flag clear
+//   BPL: branch on NFlag = 0
+//   BNE: branch on ZFlag = 0
+//   BCC: branch on CFlag = 0
+//   BVC: branch on VFlag = 0
+// TODO: set Uses = [*Flag] on conditional branch instructions
+def BCLEAR : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Flag:$f, brtarget:$target);
+  let AsmString = "BCLEAR $f, $target"; // TODO: print correct mnemonic.
+  let Pattern = [(M6502bclear (i1 Flag:$f), bb:$target)];
+  // FIXME: conditional branch instructions can only target a relative address
+  // within -128..127 bytes of the program counter. Extra handling is needed for
+  // other addresses.
+  let Size = 2;
+  let isBranch = 1; // This is a branch instruction
+  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+}
+
+// Branch on flag set
+//   BMI: branch on NFlag = 1
+//   BEQ: branch on ZFlag = 1
+//   BCS: branch on CFlag = 1
+//   BVS: branch on VFlag = 1
+// TODO: set Uses = [*Flag] on conditional branch instructions
+def BSET : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Flag:$f, brtarget:$target);
+  let AsmString = "BSET $f, $target"; // TODO: print correct mnemonic.
+  let Pattern = [(M6502bset (i1 Flag:$f), bb:$target)];
+  // FIXME: conditional branch instructions can only target a relative address
+  // within -128..127 bytes of the program counter. Extra handling is needed for
+  // other addresses.
+  let Size = 2;
+  let isBranch = 1; // This is a branch instruction
+  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+}
+
+// Compare Memory with Accumulator
+// TODO: Define CMP with a multiclass like AccOperatorI
+def CMPstack_pseudo : Pseudo {
+  let Defs = [NFlag, ZFlag, CFlag];
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$ai, iPTRimm:$slot, iPTRimm:$offs);
+  //let Constraints = "";
+  let AsmString = "CMP_stack $ai, [$slot] + $offs";
+  let Pattern = [(M6502cmp Acc:$ai, (load (add AddrFI:$slot, imm:$offs)))];
+  let mayLoad = 1;
+}
+
+// TODO: Define CMP with a multiclass like AccOperatorI
+// XXX: this is a desperate hack to get stack-load operand to pattern-match...
+// ...CMPstack_pseudo doesn't match (M6502cmp Acc, (load AddrFI)) because
+// because the second operand is not (add AddrFI, imm).
+// If there is no offset added to AddrFI then CMPstack_pseudo will not
+// pattern-match.
+// The following is a version of CMPstack_pseudo without the offset.
+// FIXME: stack variables, in general, need rethinking.
+def CMPstack_pseudoXXX : Pseudo {
+  let Defs = [NFlag, ZFlag, CFlag];
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$ai, iPTRimm:$slot);
+  //let Constraints = "";
+  let AsmString = "CMP_stackXXX $ai, [$slot]";
+  let Pattern = [(M6502cmp Acc:$ai, (load AddrFI:$slot))];
+  let mayLoad = 1;
+}
+
+// Jump
+def JMPabs : I {
   let OutOperandList = (outs);
   let InOperandList = (ins brtarget:$target);
   let AsmString = "JMP $target";
