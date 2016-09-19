@@ -25,6 +25,8 @@ void M6502InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     O << Op.getImm();
   } else if (Op.isReg()) {
     O << getRegisterName(Op.getReg());
+  } else if (Op.isExpr()) {
+    Op.getExpr()->print(O, &MAI, true);
   } else {
     llvm_unreachable("Invalid assembly operand");
   }

@@ -1,10 +1,16 @@
 // TODO: header stuff
 
+// Custom operand types
+
 // XXX: this seems to be missing from Target.td
 let OperandType = "OPERAND_IMMEDIATE" in {
   //def iPTRimm : Operand<iPTR>; // FIXME: this breaks.
   def iPTRimm : Operand<i8>; // TODO: support 16-bit pointers
 }
+
+def brtarget : Operand<OtherVT>;
+
+// Custom patterns
 
 // The following is shamelessly borrowed from Hexagon backend.
 // This complex pattern exists only to create a machine instruction operand
@@ -12,8 +18,12 @@ let OperandType = "OPERAND_IMMEDIATE" in {
 // in the patterns.
 def AddrFI : ComplexPattern<iPTR, 1, "SelectAddrFI", [frameindex], []>;
 
+// Custom nodes
+
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+
+// Instructions
 
 class I : Instruction {
   let Namespace = "M6502";
@@ -99,6 +109,18 @@ def ASLacc : I {
   let AsmString = "ASL A";
   let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
   let Size = 1;
+}
+
+// JMP
+def JMP_abs : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins brtarget:$target);
+  let AsmString = "JMP $target";
+  let Pattern = [(br bb:$target)];
+  let Size = 3;
+  let isBranch = 1; // This is a branch instruction
+  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+  let isBarrier = 1; // Control flow cannot fall through this instruction
 }
 
 // DEX, DEY
