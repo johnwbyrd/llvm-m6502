@@ -164,6 +164,18 @@ def BSET : I {
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
 }
 
+// Compare Immediate with Accumulator
+// TODO: Define CMP with a multiclass like AccOperatorI
+def CMPimm : I {
+  let Defs = [NFlag, ZFlag, CFlag];
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  //let Constraints = "";
+  let AsmString = "CMP_imm $ai, $x";
+  let Pattern = [(M6502cmp Acc:$ai, imm:$x)];
+  let Size = 2;
+}
+
 // Compare Memory with Accumulator
 // TODO: Define CMP with a multiclass like AccOperatorI
 def CMPstack_pseudo : Pseudo {
