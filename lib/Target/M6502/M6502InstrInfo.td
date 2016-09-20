@@ -34,9 +34,9 @@ def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
                          [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def M6502cmp : SDNode<"M6502ISD::CMP", SDT_M6502Cmp, [SDNPOutGlue]>;
 def M6502bset : SDNode<"M6502ISD::BSET", SDT_M6502BSet,
-                       [SDNPHasChain, SDNPInGlue]>;
+                       [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
 def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
-                         [SDNPHasChain, SDNPInGlue]>;
+                         [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
 
 // Instructions
 

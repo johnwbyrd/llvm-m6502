@@ -164,21 +164,63 @@ SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Dest = Op.getOperand(4);
   SDLoc dl(Op);
 
-
-  M6502ISD::NodeType NodeType;
-  unsigned int FlagReg;
+  // TODO: clean up, verify correctness
+  M6502ISD::NodeType NodeType1;
+  unsigned int FlagReg1 = M6502::NoRegister;
+  M6502ISD::NodeType NodeType2;
+  unsigned int FlagReg2 = M6502::NoRegister;
   switch (CC) {
   case ISD::SETEQ:
-    NodeType = M6502ISD::BSET;
-	FlagReg = M6502::ZFlag;
-	break;
+    NodeType1 = M6502ISD::BSET;
+    FlagReg1 = M6502::ZFlag;
+    break;
   case ISD::SETNE:
-    NodeType = M6502ISD::BCLEAR;
-	FlagReg = M6502::ZFlag;
-	break;
+    NodeType1 = M6502ISD::BCLEAR;
+    FlagReg1 = M6502::ZFlag;
+    break;
+  case ISD::SETLT: // signed less-than
+    NodeType1 = M6502ISD::BSET;
+    FlagReg1 = M6502::NFlag;
+    break;
+  case ISD::SETLE: // signed less-than or equal
+    NodeType1 = M6502ISD::BSET;
+    FlagReg1 = M6502::NFlag;
+    NodeType2 = M6502ISD::BSET;
+    FlagReg2 = M6502::ZFlag;
+    break;
+  case ISD::SETGT: // signed greater-than
+    NodeType1 = M6502ISD::BCLEAR;
+    FlagReg1 = M6502::NFlag;
+    break;
+  case ISD::SETGE: // signed greater-than or equal
+    NodeType1 = M6502ISD::BCLEAR;
+    FlagReg1 = M6502::NFlag;
+    NodeType2 = M6502ISD::BSET;
+    FlagReg2 = M6502::ZFlag;
+    break;
+  case ISD::SETULT: // unsigned less-than
+    NodeType1 = M6502ISD::BSET;
+    FlagReg1 = M6502::CFlag;
+    break;
+  case ISD::SETULE: // unsigned less-than or equal
+    NodeType1 = M6502ISD::BSET;
+    FlagReg1 = M6502::CFlag;
+    NodeType2 = M6502ISD::BSET;
+    FlagReg2 = M6502::ZFlag;
+    break;
+  case ISD::SETUGT: // unsigned greater-than
+    NodeType1 = M6502ISD::BCLEAR;
+    FlagReg1 = M6502::CFlag;
+    break;
+  case ISD::SETUGE: // unsigned greater-than or equal
+    NodeType1 = M6502ISD::BCLEAR;
+    FlagReg1 = M6502::CFlag;
+    NodeType2 = M6502ISD::BSET;
+    FlagReg2 = M6502::ZFlag;
+    break;
   default:
-	llvm_unreachable("Invalid integer condition");
-	break;
+    llvm_unreachable("Invalid integer condition");
+    break;
   }
   
   // TODO: avoid generating CMP instruction if possible, e.g. if
@@ -186,6 +228,16 @@ SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   Chain = DAG.getCopyToReg(Chain, dl, M6502::A, LHS); // Load LHS to A
   SDValue CmpGlue = DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, DAG.getRegister(M6502::A, MVT::i8), RHS);
 
-  SDValue Flag = DAG.getRegister(FlagReg, MVT::i1);
-  return DAG.getNode(NodeType, dl, Op.getValueType(), Chain, Flag, Dest, CmpGlue);
+  if (FlagReg2 != M6502::NoRegister) {
+    // FIXME: glue correct?
+    SDValue Branch1 = DAG.getNode(NodeType1, dl, MVT::Glue, Chain,
+                                  DAG.getRegister(FlagReg1, MVT::i1), Dest, CmpGlue);
+    SDValue Branch2 = DAG.getNode(NodeType2, dl, Op.getValueType(), Chain,
+                                  DAG.getRegister(FlagReg2, MVT::i1), Dest, Branch1);
+    return Branch2;
+  } else {
+    SDValue Branch1 = DAG.getNode(NodeType1, dl, Op.getValueType(), Chain,
+                                  DAG.getRegister(FlagReg1, MVT::i1), Dest, CmpGlue);
+    return Branch1;
+  }
 }
