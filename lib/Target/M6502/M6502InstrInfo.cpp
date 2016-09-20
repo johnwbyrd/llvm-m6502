@@ -15,20 +15,8 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 	                             const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
-  if (M6502::AccRegClass.contains(SrcReg) &&
-      M6502::IndexRegClass.contains(DestReg)) {
-    // TAX, TAY
-    BuildMI(MBB, MI, DL, get(M6502::TAI), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  } else if (M6502::IndexRegClass.contains(SrcReg) &&
-             M6502::AccRegClass.contains(DestReg)) {
-    // TXA, TYA
-    BuildMI(MBB, MI, DL, get(M6502::TIA), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  } else {
-    // FIXME: handle X->Y and Y->X?
-    llvm_unreachable("Impossible reg-to-reg copy");
-  }
+  BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
+    .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
 /// isLoadFromStackSlot - If the specified machine instruction is a direct
@@ -61,7 +49,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
-    BuildMI(MBB, MBBI, DL, get(M6502::STstack_pseudo))
+    BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
       .addImm(0);
@@ -84,7 +72,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
-    BuildMI(MBB, MBBI, DL, get(M6502::LDstack_pseudo), DestReg)
+    BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
       .addFrameIndex(FrameIndex)
       .addImm(0);
   //} else if (M6502::PtrRegClass.hasSubClassEq(RC)) {

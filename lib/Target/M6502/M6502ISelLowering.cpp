@@ -16,8 +16,6 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
                                          const M6502Subtarget &Subtarget)
     : TargetLowering(TM) {
 
-  addRegisterClass(MVT::i8, &M6502::AccRegClass);
-  addRegisterClass(MVT::i8, &M6502::IndexRegClass);
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
   addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
@@ -172,51 +170,51 @@ SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   switch (CC) {
   case ISD::SETEQ:
     NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::ZFlag;
+    FlagReg1 = M6502::ZF;
     break;
   case ISD::SETNE:
     NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::ZFlag;
+    FlagReg1 = M6502::ZF;
     break;
   case ISD::SETLT: // signed less-than
     NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::NFlag;
+    FlagReg1 = M6502::NF;
     break;
   case ISD::SETLE: // signed less-than or equal
     NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::NFlag;
+    FlagReg1 = M6502::NF;
     NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZFlag;
+    FlagReg2 = M6502::ZF;
     break;
   case ISD::SETGT: // signed greater-than
     NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::NFlag;
+    FlagReg1 = M6502::NF;
     break;
   case ISD::SETGE: // signed greater-than or equal
     NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::NFlag;
+    FlagReg1 = M6502::NF;
     NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZFlag;
+    FlagReg2 = M6502::ZF;
     break;
   case ISD::SETULT: // unsigned less-than
     NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::CFlag;
+    FlagReg1 = M6502::CF;
     break;
   case ISD::SETULE: // unsigned less-than or equal
     NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::CFlag;
+    FlagReg1 = M6502::CF;
     NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZFlag;
+    FlagReg2 = M6502::ZF;
     break;
   case ISD::SETUGT: // unsigned greater-than
     NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::CFlag;
+    FlagReg1 = M6502::CF;
     break;
   case ISD::SETUGE: // unsigned greater-than or equal
     NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::CFlag;
+    FlagReg1 = M6502::CF;
     NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZFlag;
+    FlagReg2 = M6502::ZF;
     break;
   default:
     llvm_unreachable("Invalid integer condition");
@@ -225,8 +223,8 @@ SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   
   // TODO: avoid generating CMP instruction if possible, e.g. if
   // an earlier SUB instruction put the desired condition in ZFlag.
-  Chain = DAG.getCopyToReg(Chain, dl, M6502::A, LHS); // Load LHS to A
-  SDValue CmpGlue = DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, DAG.getRegister(M6502::A, MVT::i8), RHS);
+  Chain = DAG.getCopyToReg(Chain, dl, M6502::R0, LHS); // Load LHS to R0 (todo: allocate virtual register?)
+  SDValue CmpGlue = DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, DAG.getRegister(M6502::R0, MVT::i8), RHS);
 
   if (FlagReg2 != M6502::NoRegister) {
     // FIXME: glue correct?

@@ -18,7 +18,6 @@ add_llvm_target(M6502CodeGen
   M6502Subtarget.cpp
   M6502TargetMachine.cpp
   M6502TargetObjectFile.cpp
-  RegPseudosExpansionPass.cpp
   )
 
 add_subdirectory(InstPrinter)
