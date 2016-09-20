@@ -4,41 +4,27 @@ class R<string n> : Register<n> {
   let Namespace = "M6502";
 }
 
-def A : R<"A">;
-def X : R<"X">;
-def Y : R<"Y">;
-def NFlag : R<"NFlag">; // negative flag
-def ZFlag : R<"ZFlag">; // zero flag
-def CFlag : R<"CFlag">; // carry flag
-def VFlag : R<"VFlag">; // overflow flag
+// FIXME: is this necessary and used correctly? 1-bit flags are marked
+// Unallocatable as M6502 has no native i1 register type.
+class Unallocatable {
+  bit isAllocatable = 0;
+}
 
-/*
-// XXX: Fake 16-bit registers for pseudo-instructions that operate on 16-bit
-// pointers.
-def FakePtr0 : R<"FakePtr0">;
-def FakePtr1 : R<"FakePtr1">;
-def FakePtr2 : R<"FakePtr2">;
-def FakePtr3 : R<"FakePtr3">;
-def FakePtr4 : R<"FakePtr4">;
-def FakePtr5 : R<"FakePtr5">;
-def FakePtr6 : R<"FakePtr6">;
-def FakePtr7 : R<"FakePtr7">;
-*/
+// XXX: Create a set of virtual 8-bit registers. A late compiler pass will
+// assign these registers to A, X, Y and memory. (TODO: this pass is not
+// implemented yet.)
+foreach I = 0-31 in
+  def R#I : R<"R"#I>;
 
-def Acc : RegisterClass<"M6502", [i8], 8,
-  (add A)>;
-
-def Index : RegisterClass<"M6502", [i8], 8,
-  (add X, Y)>;
+def NF : R<"NF">; // negative flag
+def ZF : R<"ZF">; // zero flag
+def CF : R<"CF">; // carry flag
+def VF : R<"VF">; // overflow flag
 
 def General : RegisterClass<"M6502", [i8], 8,
-  (add Acc, Index)>;
+                            (sequence "R%u", 0, 31)>;
 
 def Flag : RegisterClass<"M6502", [i1], 1,
-  (add NFlag, ZFlag, CFlag, VFlag)>;
+                         (add NF, ZF, CF, VF)>, Unallocatable;
 
-/*
-def Ptr : RegisterClass<"M6502", [i16], 16,
-  (add FakePtr0, FakePtr1, FakePtr2, FakePtr3,
-       FakePtr4, FakePtr5, FakePtr6, FakePtr7)>;
-*/
+// TODO: register class for 16-bit pointers

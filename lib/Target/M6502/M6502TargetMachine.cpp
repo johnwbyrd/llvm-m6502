@@ -43,7 +43,7 @@ public:
   }
 
   bool addInstSelector() override;
-  
+
   /// This method may be implemented by targets that want to run passes
   /// immediately before register allocation.
   virtual void addPreRegAlloc() override;
@@ -60,5 +60,4 @@ bool M6502PassConfig::addInstSelector() {
 }
 
 void M6502PassConfig::addPreRegAlloc() {
-  addPass(createRegPseudosExpansionPass());
 }

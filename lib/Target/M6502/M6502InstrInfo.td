@@ -42,50 +42,47 @@ def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
 
 class I : Instruction {
   let Namespace = "M6502";
-}
-
-class Pseudo : I {
-  let isPseudo = 1;
+  let isPseudo = 1; // XXX: all instructions are pseudo-instructions for now.
 }
 
 multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
-  // Acc, General pseudo-instruction
-  def reg_pseudo : Pseudo {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, General:$r);
+  // Register operand (psuedo)
+  def _reg : I {
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, General:$r);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_reg_pseudo $ai, $r";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, General:$r))];
+    let AsmString = AsmName # "_reg $ai, $r";
+    let Pattern = [(set General:$ao, (Oper General:$ai, General:$r))];
   }
 
-  // Stack Loading pseudo-instruction
-  def stack_pseudo : Pseudo {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, iPTRimm:$slot, iPTRimm:$offs);
+  // Stack operand (pseudo)
+  def _stack : I {
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, iPTRimm:$slot, iPTRimm:$offs);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_stack $ai, [$slot] + $offs";
+    let AsmString = AsmName # "_stack $ai, [$slot]+$offs";
     // TODO: stack loading instr pattern
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load (add AddrFI:$slot, imm:$offs))))];
+    let Pattern = [(set General:$ao, (Oper General:$ai, (load (add AddrFI:$slot, imm:$offs))))];
     let mayLoad = 1;
   }
 
   // Immediate
-  def imm : I {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, i8imm:$x);
+  def _imm : I {
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_imm $ai, $x";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
+    let Pattern = [(set General:$ao, (Oper General:$ai, imm:$x))];
     let Size = 2;
   }
 
   // Absolute addressing
-  def abs : I {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, iPTRimm:$addr);
+  def _abs : I {
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, iPTRimm:$addr);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_abs $ai, $addr";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (load imm:$addr)))];
+    let Pattern = [(set General:$ao, (Oper General:$ai, (load imm:$addr)))];
     let Size = 3;
     let mayLoad = 1;
   }
@@ -94,9 +91,9 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 // XXX: Fake "AD0" instruction should generate:
 //      CLC
 //      ADC ...
-let Defs = [CFlag] in
+let Defs = [CF] in
   defm AD0 : AccOperatorI<"AD0", addc>;
-let Defs = [CFlag], Uses = [CFlag] in
+let Defs = [CF], Uses = [CF] in
   defm ADC : AccOperatorI<"ADC", adde>;
 
 // XXX: Fake instruction for regular add
@@ -105,9 +102,9 @@ defm ADD : AccOperatorI<"ADD", add>;
 // XXX: Fake "SB1" instruction should generate:
 //      SEC
 //      SBC ...
-let Defs = [CFlag] in
+let Defs = [CF] in
   defm SB1 : AccOperatorI<"SB1", subc>;
-let Defs = [CFlag], Uses = [CFlag] in
+let Defs = [CF], Uses = [CF] in
   defm SBC : AccOperatorI<"SBC", sube>;
 
 // XXX: Fake instruction for regular sub
@@ -118,19 +115,19 @@ defm EOR : AccOperatorI<"EOR", xor>;
 defm ORA : AccOperatorI<"ORA", or>;
 
 // Shift left by one
-def ASLacc : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
-  let AsmString = "ASL A";
-  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 1)))];
+def ASL_reg : I {
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai);
+  let AsmString = "ASL $ai";
+  let Pattern = [(set General:$ao, (shl General:$ai, (i8 1)))];
   let Size = 1;
 }
 
 // Branch on flag clear
-//   BPL: branch on NFlag = 0
-//   BNE: branch on ZFlag = 0
-//   BCC: branch on CFlag = 0
-//   BVC: branch on VFlag = 0
+//   BPL: branch on NF = 0
+//   BNE: branch on ZF = 0
+//   BCC: branch on CF = 0
+//   BVC: branch on VF = 0
 // TODO: set Uses = [*Flag] on conditional branch instructions
 def BCLEAR : I {
   let OutOperandList = (outs);
@@ -146,10 +143,10 @@ def BCLEAR : I {
 }
 
 // Branch on flag set
-//   BMI: branch on NFlag = 1
-//   BEQ: branch on ZFlag = 1
-//   BCS: branch on CFlag = 1
-//   BVS: branch on VFlag = 1
+//   BMI: branch on NF = 1
+//   BEQ: branch on ZF = 1
+//   BCS: branch on CF = 1
+//   BVS: branch on VF = 1
 // TODO: set Uses = [*Flag] on conditional branch instructions
 def BSET : I {
   let OutOperandList = (outs);
@@ -166,48 +163,48 @@ def BSET : I {
 
 // Compare Immediate with Accumulator
 // TODO: Define CMP with a multiclass like AccOperatorI
-def CMPimm : I {
-  let Defs = [NFlag, ZFlag, CFlag];
+def CMP_imm : I {
+  let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  let InOperandList = (ins General:$ai, i8imm:$x);
   //let Constraints = "";
   let AsmString = "CMP_imm $ai, $x";
-  let Pattern = [(M6502cmp Acc:$ai, imm:$x)];
+  let Pattern = [(M6502cmp General:$ai, imm:$x)];
   let Size = 2;
 }
 
 // Compare Memory with Accumulator
 // TODO: Define CMP with a multiclass like AccOperatorI
-def CMPstack_pseudo : Pseudo {
-  let Defs = [NFlag, ZFlag, CFlag];
+def CMP_stack : I {
+  let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins Acc:$ai, iPTRimm:$slot, iPTRimm:$offs);
+  let InOperandList = (ins General:$ai, iPTRimm:$slot, iPTRimm:$offs);
   //let Constraints = "";
-  let AsmString = "CMP_stack $ai, [$slot] + $offs";
-  let Pattern = [(M6502cmp Acc:$ai, (load (add AddrFI:$slot, imm:$offs)))];
+  let AsmString = "CMP_stack $ai, [$slot]+$offs";
+  let Pattern = [(M6502cmp General:$ai, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
 }
 
 // TODO: Define CMP with a multiclass like AccOperatorI
 // XXX: this is a desperate hack to get stack-load operand to pattern-match...
-// ...CMPstack_pseudo doesn't match (M6502cmp Acc, (load AddrFI)) because
+// ...CMP_stack doesn't match (M6502cmp Acc, (load AddrFI)) because
 // because the second operand is not (add AddrFI, imm).
-// If there is no offset added to AddrFI then CMPstack_pseudo will not
+// If there is no offset added to AddrFI then CMP_stack will not
 // pattern-match.
-// The following is a version of CMPstack_pseudo without the offset.
+// The following is a version of CMP_stack without the offset.
 // FIXME: stack variables, in general, need rethinking.
-def CMPstack_pseudoXXX : Pseudo {
-  let Defs = [NFlag, ZFlag, CFlag];
+def CMP_stackXXX : I {
+  let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins Acc:$ai, iPTRimm:$slot);
+  let InOperandList = (ins General:$ai, iPTRimm:$slot);
   //let Constraints = "";
-  let AsmString = "CMP_stackXXX $ai, [$slot]";
-  let Pattern = [(M6502cmp Acc:$ai, (load AddrFI:$slot))];
+  let AsmString = "CMP_stackXXX $ai, [$slot]+0";
+  let Pattern = [(M6502cmp General:$ai, (load AddrFI:$slot))];
   let mayLoad = 1;
 }
 
 // Jump
-def JMPabs : I {
+def JMP_abs : I {
   let OutOperandList = (outs);
   let InOperandList = (ins brtarget:$target);
   let AsmString = "JMP $target";
@@ -219,36 +216,36 @@ def JMPabs : I {
 }
 
 // DEX, DEY
-def DEI : I {
-  let OutOperandList = (outs Index:$io);
-  let InOperandList = (ins Index:$ii);
+def DE_reg : I {
+  let OutOperandList = (outs General:$io);
+  let InOperandList = (ins General:$ii);
   let Constraints = "$io = $ii";
-  let AsmString = "DEI $ii";
-  let Pattern = [(set Index:$io, (sub Index:$ii, 1))];
+  let AsmString = "DE_reg $ii";
+  let Pattern = [(set General:$io, (sub General:$ii, 1))];
   let Size = 1;
 }
 
 // INX, INY
-def INI : I {
-  let OutOperandList = (outs Index:$io);
-  let InOperandList = (ins Index:$ii);
+def IN_reg : I {
+  let OutOperandList = (outs General:$io);
+  let InOperandList = (ins General:$ii);
   let Constraints = "$io = $ii";
-  let AsmString = "INI $ii";
-  let Pattern = [(set Index:$io, (add Index:$ii, 1))];
+  let AsmString = "IN_reg $ii";
+  let Pattern = [(set General:$io, (add General:$ii, 1))];
   let Size = 1;
 }
 
-// LDA, LDX, LDY fall under this form
-def LDimm : I {
+// LDA, LDX, LDY
+def LD_imm : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i8imm:$x);
-  let AsmString = "LD_imm $r, #$x";
+  let AsmString = "LD_imm $r, $x";
   let Pattern = [(set General:$r, (i8 imm:$x))];
   let Size = 2;
 }
 
-// LDA, LDX, LDY fall under this form
-def LDabs : I {
+// LDA, LDX, LDY absolute address
+def LD_abs : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_abs $r, $addr";
@@ -258,23 +255,23 @@ def LDabs : I {
   let canFoldAsLoad = 1;
 }
 
-def LDstack_pseudo : Pseudo {
+def LD_stack : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins iPTRimm:$slot, iPTRimm:$offs);
-  let AsmString = "LD_stack $r, [$slot] + $offs";
+  let AsmString = "LD_stack $r, [$slot]+$offs";
   let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
-def : Pat<(i8 (load AddrFI:$slot)), (LDstack_pseudo $slot, 0)>;
+def : Pat<(i8 (load AddrFI:$slot)), (LD_stack $slot, 0)>;
 
 // XXX: Fake load-from-pointer pseudo-instruction that takes a General reg as
 //      an address.
-def LDFromPtr_pseudo : Pseudo {
+def LDFromPtr_pseudo : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins General:$p, iPTRimm:$offs);
-  let AsmString = "LDFromPtr_pseudo $r, $p + $offs";
+  let AsmString = "LDFromPtr_pseudo $r, $p+$offs";
   let Pattern = [(set General:$r, (load (add General:$p, imm:$offs)))];
 }
 
@@ -282,21 +279,21 @@ def : Pat<(i8 (load General:$p)), (LDFromPtr_pseudo $p, 0)>;
 
 // XXX: Fake store-to-pointer pseudo-instruction that takes a General reg as
 //      an address.
-def STToPtr_pseudo : Pseudo {
+def STToPtr_pseudo : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, General:$p, iPTRimm:$offs);
-  let AsmString = "STToPtr_psuedo $r, $p + $offs";
+  let AsmString = "STToPtr_psuedo $r, $p+$offs";
   let Pattern = [(store General:$r, (add General:$p, imm:$offs))];
   let mayStore = 1;
 }
 
 def : Pat<(store General:$r, General:$p), (STToPtr_pseudo $r, $p, 0)>;
 
-def LSRacc : I {
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
-  let AsmString = "LSR A";
-  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 1)))];
+def LSR_reg : I {
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai);
+  let AsmString = "LSR $ai";
+  let Pattern = [(set General:$ao, (srl General:$ai, (i8 1)))];
   let Size = 1;
 }
 
@@ -312,7 +309,7 @@ def RTS : I {
 }
 
 // STA, STX, STY all use this form
-def STabs : I {
+def ST_abs : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, iPTRimm:$addr);
   let AsmString = "ST_abs $r, $addr";
@@ -321,30 +318,22 @@ def STabs : I {
   let mayStore = 1;
 }
 
-def STstack_pseudo : Pseudo {
+def ST_stack : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, iPTRimm:$slot, iPTRimm:$offs);
-  let AsmString = "ST_stack $r, [$slot] + $offs";
+  let AsmString = "ST_stack $r, [$slot]+$offs";
   let Pattern = [(store General:$r, (add AddrFI:$slot, imm:$offs))];
   let mayStore = 1;
 }
 
-def : Pat<(store General:$r, AddrFI:$slot), (STstack_pseudo $r, $slot, 0)>;
+def : Pat<(store General:$r, AddrFI:$slot), (ST_stack $r, $slot, 0)>;
 
-// Transfer X/Y to A
-def TIA : I {
-  let OutOperandList = (outs Acc:$a); // Must be A
-  let InOperandList = (ins Index:$i);
-  let AsmString = "TIA $i, $a";
-  let Pattern = []; // NOTE: instr behavior is established in copyPhysReg
-  let Size = 1;
-}
-
-// Transfer A to X/Y
-def TAI : I {
-  let OutOperandList = (outs Index:$i);
-  let InOperandList = (ins Acc:$a); // Must be A
-  let AsmString = "TAI $a, $i";
-  let Pattern = []; // NOTE: instr behavior is established in copyPhysReg
+// TAX, TAY, TXA, TYA (may compile as memory loads/stores)
+def T_reg : I {
+  let OutOperandList = (outs General:$a);
+  let InOperandList = (ins General:$i);
+  let AsmString = "T_reg $i, $a";
+  let Pattern = []; // NOTE: instruction does not match patterns; it is
+                    // generated by copyPhysReg.
   let Size = 1;
 }

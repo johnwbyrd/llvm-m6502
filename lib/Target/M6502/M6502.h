@@ -12,7 +12,6 @@ class M6502TargetMachine;
 
 FunctionPass *createM6502ISelDag(M6502TargetMachine &TM,
                                  CodeGenOpt::Level OptLevel);
-FunctionPass *createRegPseudosExpansionPass();
 
 } // end namespace llvm
 
