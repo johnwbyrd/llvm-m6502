@@ -34,6 +34,8 @@ M6502RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
 
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     return &M6502::GeneralRegClass;
+  } else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
+    return &M6502::PtrRegClass;
   }
 
   return RC;

@@ -5,7 +5,7 @@
 // XXX: this seems to be missing from Target.td
 let OperandType = "OPERAND_IMMEDIATE" in {
   //def iPTRimm : Operand<iPTR>; // FIXME: this breaks.
-  def iPTRimm : Operand<i8>; // TODO: support 16-bit pointers
+  def iPTRimm : Operand<i16>;
 }
 
 def brtarget : Operand<OtherVT>;
@@ -247,7 +247,7 @@ def LD_imm : I {
 // LDA, LDX, LDY absolute address
 def LD_abs : I {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins i16imm:$addr);
+  let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_abs $r, $addr";
   let Pattern = [(set General:$r, (load imm:$addr))];
   let Size = 3;
@@ -266,28 +266,57 @@ def LD_stack : I {
 
 def : Pat<(i8 (load AddrFI:$slot)), (LD_stack $slot, 0)>;
 
-// XXX: Fake load-from-pointer pseudo-instruction that takes a General reg as
-//      an address.
-def LDFromPtr_pseudo : I {
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins General:$p, iPTRimm:$offs);
-  let AsmString = "LDFromPtr_pseudo $r, $p+$offs";
-  let Pattern = [(set General:$r, (load (add General:$p, imm:$offs)))];
+// Load pointer register from stack
+def LD_ptr_stack : I {
+  let OutOperandList = (outs Ptr:$p);
+  let InOperandList = (ins iPTRimm:$slot, iPTRimm:$offs);
+  let AsmString = "LD_ptr_stack $p, [$slot]+$offs";
+  let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
+  let mayLoad = 1;
 }
 
-def : Pat<(i8 (load General:$p)), (LDFromPtr_pseudo $p, 0)>;
+def : Pat<(i16 (load AddrFI:$slot)), (LD_ptr_stack $slot, 0)>;
 
-// XXX: Fake store-to-pointer pseudo-instruction that takes a General reg as
-//      an address.
-def STToPtr_pseudo : I {
+// Load immediate to pointer register
+def LD_ptr_imm : I {
+  let OutOperandList = (outs Ptr:$p);
+  let InOperandList = (ins iPTRimm:$x);
+  let AsmString = "LD_ptr_imm $p, $x";
+  let Pattern = [(set Ptr:$p, (i16 imm:$x))];
+}
+
+// Load from memory addressed by pointer register
+def LD_from_ptr : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins Ptr:$p, iPTRimm:$offs);
+  let AsmString = "LD_from_ptr $r, $p+$offs";
+  let Pattern = [(set General:$r, (load (add Ptr:$p, imm:$offs)))];
+}
+
+def : Pat<(i8 (load Ptr:$p)), (LD_from_ptr $p, 0)>;
+
+// Store to memory addressed by pointer register
+def ST_to_ptr : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, General:$p, iPTRimm:$offs);
-  let AsmString = "STToPtr_psuedo $r, $p+$offs";
-  let Pattern = [(store General:$r, (add General:$p, imm:$offs))];
+  let InOperandList = (ins General:$r, Ptr:$p, iPTRimm:$offs);
+  let AsmString = "ST_to_ptr $r, $p+$offs";
+  let Pattern = [(store General:$r, (add Ptr:$p, imm:$offs))];
   let mayStore = 1;
 }
 
-def : Pat<(store General:$r, General:$p), (STToPtr_pseudo $r, $p, 0)>;
+def : Pat<(store General:$r, Ptr:$p), (ST_to_ptr $r, $p, 0)>;
+
+// Store pointer to memory addressed by pointer register
+// TODO: remove this instruction and split it into two general-reg stores?
+def ST_ptr_to_ptr : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Ptr:$r, Ptr:$p, iPTRimm:$offs);
+  let AsmString = "ST_ptr_to_ptr $r, $p+$offs";
+  let Pattern = [(store Ptr:$r, (add Ptr:$p, imm:$offs))];
+  let mayStore = 1;
+}
+
+def : Pat<(store Ptr:$r, Ptr:$p), (ST_ptr_to_ptr $r, $p, 0)>;
 
 def LSR_reg : I {
   let OutOperandList = (outs General:$ao);
