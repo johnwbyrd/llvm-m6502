@@ -17,12 +17,15 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
+  //addRegisterClass(MVT::i16, &M6502::PtrRegClass);
   addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
+  setOperationAction(ISD::ADD, MVT::i16, Expand);
+  setOperationAction(ISD::SUB, MVT::i16, Expand);
   // FIXME: should BR_CC nodes be processed in M6502ISelDAGToDAG.cpp instead of here?
-  setOperationAction(ISD::BR_CC, MVT::i8, Custom);
+  setOperationAction(ISD::BR_CC, MVT::i16, Custom);
 }
 
 const char *

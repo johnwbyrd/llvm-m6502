@@ -15,6 +15,7 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 	                             const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
+  // TODO: support ptr regs
   BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
     .addReg(SrcReg, getKillRegState(KillSrc));
 }
@@ -47,6 +48,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
                                          const TargetRegisterInfo *TRI) const {
+  // TODO: support ptr regs
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
@@ -69,7 +71,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           unsigned DestReg, int FrameIndex,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
-  
+  // TODO: support ptr regs
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
@@ -85,19 +87,19 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
-	MachineFunction &MF, MachineInstr &MI,
+    MachineFunction &MF, MachineInstr &MI,
     ArrayRef<unsigned> Ops,
     MachineBasicBlock::iterator InsertPt,
-	int FrameIndex,
+    int FrameIndex,
     LiveIntervals *LIS) const {
   // TODO: fold if possible
   return nullptr;
 }
 
 MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
-      MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
-      MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
-      LiveIntervals *LIS) const {
+    MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
+    MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
+    LiveIntervals *LIS) const {
   // TODO: fold if possible
   return nullptr;
 }

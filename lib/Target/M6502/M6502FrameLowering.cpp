@@ -23,6 +23,5 @@ void M6502FrameLowering::emitEpilogue(MachineFunction &MF,
 }
 
 bool M6502FrameLowering::hasFP(const MachineFunction &MF) const {
-  // TODO (note: 6502 has very few registers)
   return false;
 }
