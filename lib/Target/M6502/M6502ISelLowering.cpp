@@ -34,6 +34,8 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER:
     break;
+  case M6502ISD::CALL:
+    return "M6502ISD::CALL";
   case M6502ISD::RETURN:
     return "M6502ISD::RETURN";
   case M6502ISD::CMP:
@@ -69,6 +71,7 @@ M6502TargetLowering::LowerFormalArguments(
     CCValAssign &VA = ArgLocs[i];
 
     if (VA.isMemLoc()) {
+      // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
       int FI = MF.getFrameInfo()->CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
@@ -82,16 +85,109 @@ M6502TargetLowering::LowerFormalArguments(
   return Chain;
 }
 
+SDValue
+M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
+                               SmallVectorImpl<SDValue> &InVals) const {
+  SelectionDAG &DAG = CLI.DAG;
+  MachineFunction &MF = DAG.getMachineFunction();
+  SDLoc &dl = CLI.DL;
+  SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
+  SmallVectorImpl<SDValue> &OutVals = CLI.OutVals;
+  SmallVectorImpl<ISD::InputArg> &Ins = CLI.Ins;
+  SDValue Chain = CLI.Chain;
+  SDValue Callee = CLI.Callee;
+  bool &isTailCall = CLI.IsTailCall;
+  CallingConv::ID CallConv = CLI.CallConv;
+  bool isVarArg = CLI.IsVarArg;
+
+  if (isVarArg) {
+    // TODO: support varargs
+    report_fatal_error("M6502 does not currently support varargs");
+    return SDValue();
+  }
+
+  // M6502 target does not yet support tail call optimization. (TODO)
+  isTailCall = false;
+
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState CCArgInfo(CallConv, isVarArg, MF, ArgLocs, *DAG.getContext());
+  CCArgInfo.AnalyzeCallOperands(Outs, CC_M6502);
+
+  // TODO: CALLSEQ_START instruction?
+
+  SmallVector<SDValue, 12> MemOpChains;
+
+  for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
+    CCValAssign &VA = ArgLocs[i];
+
+    SDValue Arg = OutVals[i];
+
+    if (VA.isMemLoc()) {
+      // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
+      int FI = MF.getFrameInfo()->CreateFixedObject(
+        VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      // TODO: special support for ByVals? please test.
+      SDValue MemOp = DAG.getStore(Chain, dl, Arg, FIPtr, MachinePointerInfo());
+      MemOpChains.push_back(MemOp);
+    } else {
+      llvm_unreachable("Invalid argument location");
+    }
+  }
+
+  // Transform all store nodes into one single node because all stores are
+  // independent of each other.
+  if (!MemOpChains.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, MemOpChains);
+  }
+
+  // (Copied from MSP430ISelLowering.cpp)
+  // If the callee is a GlobalAddress node (quite common, every direct call is)
+  // turn it into a TargetGlobalAddress node so that legalize doesn't hack it.
+  // Likewise ExternalSymbol -> TargetExternalSymbol.
+  // FIXME: is this necessary?
+  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, MVT::i16);
+  else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee))
+    Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i16);
+
+  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
+  Chain = DAG.getNode(M6502ISD::CALL, dl, NodeTys, Chain, Callee);
+  // TODO: use glue?
+
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCReturnInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
+  CCReturnInfo.AnalyzeCallResult(Ins, CC_M6502);
+
+  for (unsigned i = 0, e = RVLocs.size(); i != e; ++i) {
+    CCValAssign &VA = RVLocs[i];
+
+    if (VA.isMemLoc()) {
+      // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
+      int FI = MF.getFrameInfo()->CreateFixedObject(
+        VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      // TODO: special support for ByVals? please test.
+      SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
+      InVals.push_back(Load.getValue(0));
+      Chain = Load.getValue(1);
+    } else {
+      llvm_unreachable("Return value must be in memory location");
+    }
+  }
+
+  // TODO: CALLSEQ_END instruction?
+
+  return Chain;
+}
+
 bool
 M6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
                                     MachineFunction &MF, bool isVarArg,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     LLVMContext &Context) const {
-  // TODO: lower all return values to stack locations
-  if (Outs.size() == 0)
-    return true;
-
-  return false;
+  // NOTE: M6502 lowers all return values to stack locations.
+  return true;
 }
 
 SDValue
@@ -110,40 +206,29 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
   CCInfo.AnalyzeReturn(Outs, RetCC_M6502);
 
-  // FIXME: Is Glue necessary?
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
-  // TODO: support return values in memory/stack-frame locations.
   for (unsigned i = 0; i < RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
-    // NOTE: If return value won't fit in registers, CanLowerReturn should
-    // return false. LLVM will handle returning values on the stack.
-  /*  assert(VA.isRegLoc() && "Can only lower return into registers");
 
-    Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Glue);
-    Glue = Chain.getValue(1);
-    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));*/
-    
     if (VA.isMemLoc()) {
-      /*unsigned ValSize = VA.getValVT().getSizeInBits() / 8;
-      int FI = MF.getFrameInfo()->CreateFixedObject(ValSize, VA.getLocMemOffset(), true);
-      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
-      InVals.push_back(Val);*/
       int FI = MF.getFrameInfo()->CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      Chain = DAG.getStore(Chain, dl, OutVals[i], FIPtr, MachinePointerInfo());
-      RetOps.push_back(Chain);
+      SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIPtr, MachinePointerInfo());
+      RetOps.push_back(RetOp);
     } else {
       llvm_unreachable("Return value must be located in memory");
     }
   }
 
-  RetOps[0] = Chain; // Update chain.
+  if (!RetOps.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, RetOps);
+  }
 
   // Generate return instruction chained to output registers
-  return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, RetOps);
+  // FIXME: is glue needed?
+  return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
 SDValue

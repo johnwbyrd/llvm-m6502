@@ -13,6 +13,7 @@ namespace M6502ISD {
 
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
+  CALL,
   RETURN,
   CMP,
   BSET,
@@ -35,6 +36,9 @@ public:
       SDValue /*Chain*/, CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
       const SmallVectorImpl<ISD::InputArg> & /*Ins*/, const SDLoc & /*dl*/,
       SelectionDAG & /*DAG*/, SmallVectorImpl<SDValue> & /*InVals*/) const override;
+  
+  SDValue LowerCall(CallLoweringInfo &/*CLI*/,
+                    SmallVectorImpl<SDValue> &/*InVals*/) const override;
 
   bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
                       bool isVarArg,

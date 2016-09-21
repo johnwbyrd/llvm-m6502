@@ -20,6 +20,7 @@ def AddrFI : ComplexPattern<iPTR, 1, "SelectAddrFI", [frameindex], []>;
 
 // Custom type profiles
 
+def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 // FIXME: in SDT_M6502BSet, is first parameter correct for a Flag register?
 def SDT_M6502BSet : SDTypeProfile<0, 2,
@@ -37,6 +38,8 @@ def SDT_M6502BuildPtr : SDTypeProfile<1, 2,
 
 // Custom nodes
 
+def M6502call : SDNode<"M6502ISD::CALL", SDT_M6502Call,
+                       [SDNPHasChain, SDNPOutGlue, SDNPInGlue, SDNPVariadic]>;
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
                          [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def M6502cmp : SDNode<"M6502ISD::CMP", SDT_M6502Cmp, [SDNPOutGlue]>;
@@ -274,8 +277,6 @@ def LD_stack : I {
   let canFoldAsLoad = 1;
 }
 
-def : Pat<(i8 (load AddrFI:$slot)), (LD_stack $slot, 0)>;
-
 // Extract Hi component from pointer register
 def LD_ptr_hi : I {
   let OutOperandList = (outs General:$r);
@@ -298,6 +299,14 @@ def LD_ptr_build : I {
   let InOperandList = (ins General:$hi, General:$lo);
   let AsmString = "LD_ptr_build $p, $hi, $lo";
   let Pattern = [(set Ptr:$p, (M6502buildptr General:$hi, General:$lo))];
+}
+
+// Load address of stack variable to pointer register
+def LD_ptr_stack_addr : I {
+  let OutOperandList = (outs Ptr:$p);
+  let InOperandList = (ins iPTRimm:$slot);
+  let AsmString = "LD_ptr_stack_addr $p, [$slot]";
+  let Pattern = [(set Ptr:$p, AddrFI:$slot)];
 }
 
 // Load pointer register from stack
@@ -360,14 +369,32 @@ def LSR_reg : I {
   let Size = 1;
 }
 
-def RTS : I {
+// Generic call instruction
+// The actual instructions generated depend on the calling convention. (TODO)
+def CALL_imm : I {
+  let isCall = 1; // This is a call instruction
+  let OutOperandList = (outs);
+  let InOperandList = (ins iPTRimm:$target);
+  let AsmString = "CALL $target";
+  let Pattern = [(M6502call imm:$target)];
+}
+
+// calls
+def : Pat<(M6502call (i16 tglobaladdr:$dst)),
+          (CALL_imm tglobaladdr:$dst)>;
+def : Pat<(M6502call (i16 texternalsym:$dst)),
+          (CALL_imm texternalsym:$dst)>;
+
+// Generic return instruction
+// This should emit RTS or JMP depending on the calling convention. (TODO)
+def RETURN : I {
   let isReturn = 1; // This is a return instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
   let OutOperandList = (outs);
   let InOperandList = (ins);
   let Pattern = [(M6502return)];
-  let AsmString = "RTS";
+  let AsmString = "RETURN";
   let Size = 1;
 }
 

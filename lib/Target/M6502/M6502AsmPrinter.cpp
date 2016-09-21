@@ -26,6 +26,10 @@ public:
   }
 
   void EmitInstruction(const MachineInstr *MI) override;
+
+private:
+  MCOperand LowerSymbolOperand(MCSymbol *Sym, int64_t Offset);
+  void LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI);
 };
 } // end namespace llvm
 
@@ -33,7 +37,25 @@ extern "C" void LLVMInitializeM6502AsmPrinter() {
   RegisterAsmPrinter<M6502AsmPrinter> X(TheM6502Target);
 }
 
-static void LowerMachineInstrToMCInst(MCContext &Ctx, const MachineInstr *MI, MCInst &OutMI) {
+void M6502AsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  // TODO
+  MCInst TmpInst;
+  LowerMachineInstrToMCInst(MI, TmpInst);
+  EmitToStreamer(*OutStreamer, TmpInst);
+}
+
+// See WebAssemblyMCInstLower.cpp (and similar functions in other backends)
+MCOperand M6502AsmPrinter::LowerSymbolOperand(MCSymbol *Sym, int64_t Offset) {
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, OutContext);
+  if (Offset != 0) {
+    Expr = MCBinaryExpr::createAdd(Expr,
+                                   MCConstantExpr::create(Offset, OutContext),
+                                   OutContext);
+  }
+  return MCOperand::createExpr(Expr);
+}
+
+void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
   // TODO
   // XXX: copied from BPFMCInstLower.cpp
   OutMI.setOpcode(MI->getOpcode());
@@ -46,6 +68,7 @@ static void LowerMachineInstrToMCInst(MCContext &Ctx, const MachineInstr *MI, MC
     default:
       MI->dump();
       llvm_unreachable("unknown operand type");
+      break;
     case MachineOperand::MO_Register:
       // Ignore all implicit register operands.
       if (MO.isImplicit())
@@ -57,23 +80,18 @@ static void LowerMachineInstrToMCInst(MCContext &Ctx, const MachineInstr *MI, MC
       break;
     case MachineOperand::MO_MachineBasicBlock:
       MCOp = MCOperand::createExpr(
-          MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
+          MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), OutContext));
       break;
     case MachineOperand::MO_RegisterMask:
       continue;
     case MachineOperand::MO_GlobalAddress:
-      //MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
-	  assert(false && "M6502 does not implement MO_GlobalAddress operands");
+      assert(MO.getTargetFlags() == 0 &&
+             "M6502 does not use target flags on GlobalAddresses");
+      MCOp = LowerSymbolOperand(getSymbol(MO.getGlobal()), MO.getOffset());
       break;
+    // TODO: case MachineOperand::MO_ExternalSymbol
     }
 
     OutMI.addOperand(MCOp);
   }
-}
-
-void M6502AsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  // TODO
-  MCInst TmpInst;
-  LowerMachineInstrToMCInst(OutContext, MI, TmpInst);
-  EmitToStreamer(*OutStreamer, TmpInst);
 }
