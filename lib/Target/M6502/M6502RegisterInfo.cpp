@@ -37,6 +37,8 @@ M6502RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
   } else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
     return &M6502::PtrRegClass;
   }
+  // NOTE: Flag registers cannot be copied or spilled, therefore, they are not
+  // considered here.
 
   return RC;
 }
