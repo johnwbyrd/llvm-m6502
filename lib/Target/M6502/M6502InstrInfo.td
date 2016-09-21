@@ -27,6 +27,13 @@ def SDT_M6502BSet : SDTypeProfile<0, 2,
 // FIXME: in SDT_M6502BClear, is first parameter correct for a Flag register?
 def SDT_M6502BClear : SDTypeProfile<0, 2,
                                     [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
+def SDT_M6502PtrHi : SDTypeProfile<1, 1,
+                                   [SDTCisVT<0, i8>, SDTCisVT<1, i16>]>;
+def SDT_M6502PtrLo : SDTypeProfile<1, 1,
+                                   [SDTCisVT<0, i8>, SDTCisVT<1, i16>]>;
+def SDT_M6502BuildPtr : SDTypeProfile<1, 2,
+                                      [SDTCisVT<0, i16>, SDTCisVT<1, i8>,
+                                       SDTCisVT<2, i8>]>;
 
 // Custom nodes
 
@@ -37,6 +44,9 @@ def M6502bset : SDNode<"M6502ISD::BSET", SDT_M6502BSet,
                        [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
 def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
                          [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
+def M6502ptrhi : SDNode<"M6502ISD::PTRHI", SDT_M6502PtrHi, []>;
+def M6502ptrlo : SDNode<"M6502ISD::PTRLO", SDT_M6502PtrLo, []>;
+def M6502buildptr : SDNode<"M6502ISD::BUILDPTR", SDT_M6502BuildPtr, []>;
 
 // Instructions
 
@@ -265,6 +275,30 @@ def LD_stack : I {
 }
 
 def : Pat<(i8 (load AddrFI:$slot)), (LD_stack $slot, 0)>;
+
+// Extract Hi component from pointer register
+def LD_ptr_hi : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins Ptr:$p);
+  let AsmString = "LD_ptr_hi $r, $p";
+  let Pattern = [(set General:$r, (M6502ptrhi Ptr:$p))];
+}
+
+// Extract Lo component from pointer register
+def LD_ptr_lo : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins Ptr:$p);
+  let AsmString = "LD_ptr_lo $r, $p";
+  let Pattern = [(set General:$r, (M6502ptrlo Ptr:$p))];
+}
+
+// Build pointer register from Hi, Lo components
+def LD_ptr_build : I {
+  let OutOperandList = (outs Ptr:$p);
+  let InOperandList = (ins General:$hi, General:$lo);
+  let AsmString = "LD_ptr_build $p, $hi, $lo";
+  let Pattern = [(set Ptr:$p, (M6502buildptr General:$hi, General:$lo))];
+}
 
 // Load pointer register from stack
 def LD_ptr_stack : I {
