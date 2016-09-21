@@ -17,14 +17,12 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  //addRegisterClass(MVT::i16, &M6502::PtrRegClass);
-  addRegisterClass(MVT::i1, &M6502::FlagRegClass);
+  addRegisterClass(MVT::i16, &M6502::PtrRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
-  setOperationAction(ISD::ADD, MVT::i16, Expand);
-  setOperationAction(ISD::SUB, MVT::i16, Expand);
-  // FIXME: should BR_CC nodes be processed in M6502ISelDAGToDAG.cpp instead of here?
+  setOperationAction(ISD::ADD, MVT::i16, Custom);
+  setOperationAction(ISD::SUB, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i16, Custom);
 }
 
@@ -42,6 +40,12 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "M6502ISD::BSET";
   case M6502ISD::BCLEAR:
     return "M6502ISD::BCLEAR";
+  case M6502ISD::PTRHI:
+    return "M6502ISD::PTRHI";
+  case M6502ISD::PTRLO:
+    return "M6502ISD::PTRLO";
+  case M6502ISD::BUILDPTR:
+    return "M6502ISD::BUILDPTR";
   }
   return nullptr;
 }
@@ -62,18 +66,14 @@ M6502TargetLowering::LowerFormalArguments(
   for (unsigned i = 0; i < ArgLocs.size(); ++i) {
     CCValAssign &VA = ArgLocs[i];
 
-    if (VA.isRegLoc()) {
-      unsigned VReg = MF.addLiveIn(VA.getLocReg(),
-                                   getRegClassFor(VA.getLocVT()));
-      InVals.push_back(DAG.getCopyFromReg(Chain, dl, VReg, VA.getLocVT()));
-    } else if (VA.isMemLoc()) {
-      unsigned ValSize = VA.getValVT().getSizeInBits() / 8;
-      int FI = MF.getFrameInfo()->CreateFixedObject(ValSize, VA.getLocMemOffset(), true);
+    if (VA.isMemLoc()) {
+      int FI = MF.getFrameInfo()->CreateFixedObject(
+        VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
       InVals.push_back(Val);
     } else {
-      llvm_unreachable("Argument must be located in register or stack");
+      llvm_unreachable("Argument must be located in memory");
     }
   }
 
@@ -85,7 +85,7 @@ M6502TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
                                     MachineFunction &MF, bool isVarArg,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     LLVMContext &Context) const {
-  // TODO
+  // TODO: lower all return values to stack locations
   if (Outs.size() == 0)
     return true;
 
@@ -109,26 +109,36 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   CCInfo.AnalyzeReturn(Outs, RetCC_M6502);
 
   // FIXME: Is Glue necessary?
-  SDValue Glue;
   SmallVector<SDValue, 4> RetOps(1, Chain);
 
-  // FIXME: remove this, values are never returned in registers anymore.
+  // TODO: support return values in memory/stack-frame locations.
   for (unsigned i = 0; i < RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
     // NOTE: If return value won't fit in registers, CanLowerReturn should
     // return false. LLVM will handle returning values on the stack.
-    assert(VA.isRegLoc() && "Can only lower return into registers");
+  /*  assert(VA.isRegLoc() && "Can only lower return into registers");
 
     Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Glue);
     Glue = Chain.getValue(1);
-    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));*/
+    
+    if (VA.isMemLoc()) {
+      /*unsigned ValSize = VA.getValVT().getSizeInBits() / 8;
+      int FI = MF.getFrameInfo()->CreateFixedObject(ValSize, VA.getLocMemOffset(), true);
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
+      InVals.push_back(Val);*/
+      int FI = MF.getFrameInfo()->CreateFixedObject(
+        VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      Chain = DAG.getStore(Chain, dl, OutVals[i], FIPtr, MachinePointerInfo());
+      RetOps.push_back(Chain);
+    } else {
+      llvm_unreachable("Return value must be located in memory");
+    }
   }
 
   RetOps[0] = Chain; // Update chain.
-
-  if (Glue) {
-    RetOps.push_back(Glue);
-  }
 
   // Generate return instruction chained to output registers
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, RetOps);
@@ -137,6 +147,9 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
+  case ISD::ADD:
+  case ISD::SUB:
+    return LowerADDSUB(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
@@ -155,6 +168,47 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   }
 
   return SDValue();
+}
+
+SDValue M6502TargetLowering::LowerADDSUB(SDValue Op, SelectionDAG &DAG) const {
+  if (Op.getValueType() == MVT::i16) {
+    // Manually expand 16-bit addition. Despite having 16-bit pointers, the CPU
+    // cannot perform this operation natively.
+    // TODO: there are some types of pointer addition that CAN be performed
+    // natively by the CPU, for example, instructions that use absolute-indexed
+    // addressing modes. Try to support this.
+    // Based on DAGTypeLegalizer::ExpandIntRes_ADDSUB in LegalizeIntegerTypes.cpp.
+    // It would be better to find some way to call that code instead of copying
+    // it here.
+    SDValue LHS = Op.getOperand(0);
+    SDValue RHS = Op.getOperand(1);
+    SDLoc dl(Op);
+    // Expand the subcomponents.
+    SDValue LHSL, LHSH, RHSL, RHSH;
+    LHSL = DAG.getNode(M6502ISD::PTRLO, dl, MVT::i8, LHS);
+    LHSH = DAG.getNode(M6502ISD::PTRHI, dl, MVT::i8, LHS);
+    RHSL = DAG.getNode(M6502ISD::PTRLO, dl, MVT::i8, RHS);
+    RHSH = DAG.getNode(M6502ISD::PTRHI, dl, MVT::i8, RHS);
+
+    EVT NVT = LHSL.getValueType();
+    SDValue LoOps[2] = { LHSL, RHSL };
+    SDValue HiOps[3] = { LHSH, RHSH };
+
+    SDVTList VTList = DAG.getVTList(NVT, MVT::Glue);
+    SDValue Lo, Hi;
+    if (Op.getOpcode() == ISD::ADD) {
+      Lo = DAG.getNode(ISD::ADDC, dl, VTList, LoOps);
+      HiOps[2] = Lo.getValue(1);
+      Hi = DAG.getNode(ISD::ADDE, dl, VTList, HiOps);
+    } else {
+      Lo = DAG.getNode(ISD::SUBC, dl, VTList, LoOps);
+      HiOps[2] = Lo.getValue(1);
+      Hi = DAG.getNode(ISD::SUBE, dl, VTList, HiOps);
+    }
+    return DAG.getNode(M6502ISD::BUILDPTR, dl, MVT::i16, Hi, Lo);
+  } else {
+    return SDValue(); // Use standard lowering
+  }
 }
 
 SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {

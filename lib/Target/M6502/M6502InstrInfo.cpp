@@ -12,7 +12,7 @@ using namespace llvm;
 
 void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
-	                             const DebugLoc &DL,
+                                 const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
   // TODO: support ptr regs

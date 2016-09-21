@@ -17,6 +17,9 @@ enum NodeType : unsigned {
   CMP,
   BSET,
   BCLEAR,
+  PTRHI,
+  PTRLO,
+  BUILDPTR,
 };
 
 } // end namespace M6502ISD
@@ -51,6 +54,7 @@ public:
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
 private:
+  SDValue LowerADDSUB(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 
