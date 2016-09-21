@@ -70,7 +70,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let OutOperandList = (outs General:$ao);
     let InOperandList = (ins General:$ai, iPTRimm:$slot, iPTRimm:$offs);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_stack $ai, [$slot]+$offs";
+    let AsmString = AsmName # "_stack $ai, [$slot],$offs";
     // TODO: stack loading instr pattern
     let Pattern = [(set General:$ao, (Oper General:$ai, (load (add AddrFI:$slot, imm:$offs))))];
     let mayLoad = 1;
@@ -190,7 +190,7 @@ def CMP_stack : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$ai, iPTRimm:$slot, iPTRimm:$offs);
   //let Constraints = "";
-  let AsmString = "CMP_stack $ai, [$slot]+$offs";
+  let AsmString = "CMP_stack $ai, [$slot],$offs";
   let Pattern = [(M6502cmp General:$ai, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
 }
@@ -208,7 +208,7 @@ def CMP_stackXXX : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$ai, iPTRimm:$slot);
   //let Constraints = "";
-  let AsmString = "CMP_stackXXX $ai, [$slot]+0";
+  let AsmString = "CMP_stackXXX $ai, [$slot],0";
   let Pattern = [(M6502cmp General:$ai, (load AddrFI:$slot))];
   let mayLoad = 1;
 }
@@ -268,7 +268,7 @@ def LD_abs : I {
 def LD_stack : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins iPTRimm:$slot, iPTRimm:$offs);
-  let AsmString = "LD_stack $r, [$slot]+$offs";
+  let AsmString = "LD_stack $r, [$slot],$offs";
   let Pattern = [(set General:$r, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
@@ -304,7 +304,7 @@ def LD_ptr_build : I {
 def LD_ptr_stack : I {
   let OutOperandList = (outs Ptr:$p);
   let InOperandList = (ins iPTRimm:$slot, iPTRimm:$offs);
-  let AsmString = "LD_ptr_stack $p, [$slot]+$offs";
+  let AsmString = "LD_ptr_stack $p, [$slot],$offs";
   let Pattern = [(set Ptr:$p, (load (add AddrFI:$slot, imm:$offs)))];
   let mayLoad = 1;
 }
@@ -323,7 +323,7 @@ def LD_ptr_imm : I {
 def LD_from_ptr : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins Ptr:$p, iPTRimm:$offs);
-  let AsmString = "LD_from_ptr $r, $p+$offs";
+  let AsmString = "LD_from_ptr $r, ($p,$offs)";
   let Pattern = [(set General:$r, (load (add Ptr:$p, imm:$offs)))];
 }
 
@@ -333,7 +333,7 @@ def : Pat<(i8 (load Ptr:$p)), (LD_from_ptr $p, 0)>;
 def ST_to_ptr : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, Ptr:$p, iPTRimm:$offs);
-  let AsmString = "ST_to_ptr $r, $p+$offs";
+  let AsmString = "ST_to_ptr $r, ($p,$offs)";
   let Pattern = [(store General:$r, (add Ptr:$p, imm:$offs))];
   let mayStore = 1;
 }
@@ -345,7 +345,7 @@ def : Pat<(store General:$r, Ptr:$p), (ST_to_ptr $r, $p, 0)>;
 def ST_ptr_to_ptr : I {
   let OutOperandList = (outs);
   let InOperandList = (ins Ptr:$r, Ptr:$p, iPTRimm:$offs);
-  let AsmString = "ST_ptr_to_ptr $r, $p+$offs";
+  let AsmString = "ST_ptr_to_ptr $r, ($p,$offs)";
   let Pattern = [(store Ptr:$r, (add Ptr:$p, imm:$offs))];
   let mayStore = 1;
 }
@@ -384,7 +384,7 @@ def ST_abs : I {
 def ST_stack : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, iPTRimm:$slot, iPTRimm:$offs);
-  let AsmString = "ST_stack $r, [$slot]+$offs";
+  let AsmString = "ST_stack $r, [$slot],$offs";
   let Pattern = [(store General:$r, (add AddrFI:$slot, imm:$offs))];
   let mayStore = 1;
 }
