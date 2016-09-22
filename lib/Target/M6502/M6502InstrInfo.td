@@ -20,6 +20,8 @@ def AddrFI : ComplexPattern<iPTR, 1, "SelectAddrFI", [frameindex], []>;
 
 // Custom type profiles
 
+def SDT_M6502Wrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
+                                            SDTCisPtrTy<0>]>;
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 // FIXME: in SDT_M6502BSet, is first parameter correct for a Flag register?
@@ -38,6 +40,9 @@ def SDT_M6502BuildPtr : SDTypeProfile<1, 2,
 
 // Custom nodes
 
+// Wrapper to support converting tglobaladdr, texternalsym and tblockaddr to i16
+// This solution is similar to MSP430 backend, see MSP430InstrInfo.td
+def M6502wrapper : SDNode<"M6502ISD::WRAPPER", SDT_M6502Wrapper>;
 def M6502call : SDNode<"M6502ISD::CALL", SDT_M6502Call,
                        [SDNPHasChain, SDNPOutGlue, SDNPInGlue, SDNPVariadic]>;
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
@@ -327,6 +332,12 @@ def LD_ptr_imm : I {
   let AsmString = "LD_ptr_imm $p, $x";
   let Pattern = [(set Ptr:$p, (i16 imm:$x))];
 }
+
+// Patterns to load tglobaladdr, texternalsym and tblockaddress as immediate
+// pointers.
+def : Pat<(i16 (M6502wrapper tglobaladdr:$dst)), (LD_ptr_imm tglobaladdr:$dst)>;
+def : Pat<(i16 (M6502wrapper texternalsym:$dst)), (LD_ptr_imm texternalsym:$dst)>;
+def : Pat<(i16 (M6502wrapper tblockaddress:$dst)), (LD_ptr_imm tblockaddress:$dst)>;
 
 // Load from memory addressed by pointer register
 def LD_from_ptr : I {

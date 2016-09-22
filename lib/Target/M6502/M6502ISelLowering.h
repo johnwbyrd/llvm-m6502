@@ -13,6 +13,7 @@ namespace M6502ISD {
 
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
+  WRAPPER,
   CALL,
   RETURN,
   CMP,
@@ -58,6 +59,7 @@ public:
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
 private:
+  SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerADDSUB(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
