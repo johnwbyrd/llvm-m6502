@@ -23,6 +23,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
+  setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
+  // TODO: ExternalSymbol, BlockAddress
   setOperationAction(ISD::ADD, MVT::i16, Custom);
   setOperationAction(ISD::SUB, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
@@ -34,6 +36,8 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER:
     break;
+  case M6502ISD::WRAPPER:
+    return "M6502ISD::WRAPPER";
   case M6502ISD::CALL:
     return "M6502ISD::CALL";
   case M6502ISD::RETURN:
@@ -234,6 +238,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
+  case ISD::GlobalAddress: return LowerGlobalAddress(Op, DAG);
   case ISD::ADD:
   case ISD::SUB:
     return LowerADDSUB(Op, DAG);
@@ -255,6 +260,18 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   }
 
   return SDValue();
+}
+
+SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  // See MSP430ISelLowering.cpp
+  const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
+  int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
+
+  // Create the TargetGlobalAddress node, folding in the constant offset.
+  SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), PtrVT, Offset);
+  return DAG.getNode(M6502ISD::WRAPPER, SDLoc(Op), PtrVT, Result);
 }
 
 SDValue M6502TargetLowering::LowerADDSUB(SDValue Op, SelectionDAG &DAG) const {
