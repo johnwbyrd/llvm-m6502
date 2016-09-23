@@ -14,11 +14,9 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   WRAPPER,
-  GA, // global address operand
   GAHI, // hi element of global address
   GALO, // lo element of global address
   LOADGA, // load from global address
-  FI, // frame index operand
   FIHI, // hi element of frame index address
   FILO, // lo element of frame index address
   LOADFI, // load from frame index
