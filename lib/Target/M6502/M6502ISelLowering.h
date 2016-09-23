@@ -14,14 +14,23 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   WRAPPER,
+  GA, // global address operand
+  GAHI, // hi element of global address
+  GALO, // lo element of global address
+  LOADGA, // load from global address
+  FI, // frame index operand
+  FIHI, // hi element of frame index address
+  FILO, // lo element of frame index address
+  LOADFI, // load from frame index
+  STOREFI, // store to frame index
+  FIADDR, // get address of frame index
   CALL,
   RETURN,
   CMP,
   BSET,
   BCLEAR,
-  PTRHI,
-  PTRLO,
-  BUILDPTR,
+  LOADFROM,
+  STORETO,
 };
 
 } // end namespace M6502ISD
@@ -55,12 +64,16 @@ public:
 
   // Provide custom lowering hooks for some operation.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
+  void ReplaceNodeResults(SDNode * /*N*/,
+                          SmallVectorImpl<SDValue> &/*Results*/,
+                          SelectionDAG &/*DAG*/) const override;
 
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
 private:
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerADDSUB(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerLoad(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 

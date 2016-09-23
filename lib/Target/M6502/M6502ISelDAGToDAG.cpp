@@ -33,8 +33,7 @@ FunctionPass *llvm::createM6502ISelDag(M6502TargetMachine &TM,
   return new M6502DAGToDAGISel(TM, OptLevel);
 }
 
-// The following is shamelessly borrowed from Hexagon backend.
-// Match a frame index that can be used in an addressing mode.
+#if 0
 bool M6502DAGToDAGISel::SelectAddrFI(SDValue& N, SDValue &R) {
   if (N.getOpcode() != ISD::FrameIndex)
     return false;
@@ -46,6 +45,7 @@ bool M6502DAGToDAGISel::SelectAddrFI(SDValue& N, SDValue &R) {
   R = CurDAG->getTargetFrameIndex(FX, MVT::i16);
   return true;
 }
+#endif
 
 void M6502DAGToDAGISel::Select(SDNode *Node) {
   // XXX: borrowed from MipsISelDAGToDAG.cpp
