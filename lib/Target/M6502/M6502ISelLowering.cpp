@@ -18,16 +18,22 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
   addRegisterClass(MVT::i16, &M6502::PtrRegClass);
-  // FIXME: check whether this breaks code that uses i1 variables.
-  addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   // TODO: ExternalSymbol, BlockAddress
+  // TODO: It would be better to Expand these operations. Find some way to make
+  // it work.
+  setOperationAction(ISD::AND, MVT::i16, Custom);
   setOperationAction(ISD::ADD, MVT::i16, Custom);
   setOperationAction(ISD::SUB, MVT::i16, Custom);
+  setOperationAction(ISD::ZERO_EXTEND, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
+
+  setLoadExtAction(ISD::SEXTLOAD, MVT::i16, MVT::i8, Expand);
+  setLoadExtAction(ISD::ZEXTLOAD, MVT::i16, MVT::i8, Expand);
+  setLoadExtAction(ISD::EXTLOAD, MVT::i16, MVT::i8, Expand);
 }
 
 const char *
@@ -239,9 +245,13 @@ SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   case ISD::GlobalAddress: return LowerGlobalAddress(Op, DAG);
+  case ISD::AND:
+    return LowerAND(Op, DAG);
   case ISD::ADD:
   case ISD::SUB:
     return LowerADDSUB(Op, DAG);
+  case ISD::ZERO_EXTEND:
+    return LowerZERO_EXTEND(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
@@ -272,6 +282,30 @@ SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
   // Create the TargetGlobalAddress node, folding in the constant offset.
   SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), PtrVT, Offset);
   return DAG.getNode(M6502ISD::WRAPPER, SDLoc(Op), PtrVT, Result);
+}
+
+SDValue M6502TargetLowering::LowerAND(SDValue Op, SelectionDAG &DAG) const {
+  if (Op.getValueType() == MVT::i16) {
+    // Based on DAGTypeLegalizer::ExpandIntRes_Logical in LegalizeIntegerTypes.cpp.
+    // It would be better to find some way to call that code instead of copying
+    // it here.
+    SDValue LHS = Op.getOperand(0);
+    SDValue RHS = Op.getOperand(1);
+    SDLoc dl(Op);
+    // Expand the subcomponents.
+    SDValue LL, LH, RL, RH;
+    LL = DAG.getNode(M6502ISD::PTRLO, dl, MVT::i8, LHS);
+    LH = DAG.getNode(M6502ISD::PTRHI, dl, MVT::i8, LHS);
+    RL = DAG.getNode(M6502ISD::PTRLO, dl, MVT::i8, RHS);
+    RH = DAG.getNode(M6502ISD::PTRHI, dl, MVT::i8, RHS);
+
+    SDValue Lo, Hi;
+    Lo = DAG.getNode(Op.getOpcode(), dl, LL.getValueType(), LL, RL);
+    Hi = DAG.getNode(Op.getOpcode(), dl, LL.getValueType(), LH, RH);
+    return DAG.getNode(M6502ISD::BUILDPTR, dl, MVT::i16, Hi, Lo);
+  } else {
+    return SDValue();
+  }
 }
 
 SDValue M6502TargetLowering::LowerADDSUB(SDValue Op, SelectionDAG &DAG) const {
@@ -312,6 +346,18 @@ SDValue M6502TargetLowering::LowerADDSUB(SDValue Op, SelectionDAG &DAG) const {
     return DAG.getNode(M6502ISD::BUILDPTR, dl, MVT::i16, Hi, Lo);
   } else {
     return SDValue(); // Use standard lowering
+  }
+}
+
+SDValue M6502TargetLowering::LowerZERO_EXTEND(SDValue Op, SelectionDAG &DAG) const {
+  if (Op.getValueType() == MVT::i16 && Op.getOperand(0).getValueType() == MVT::i8) {
+    SDLoc dl(Op);
+    SDValue Lo, Hi;
+    Lo = Op.getOperand(0);
+    Hi = DAG.getConstant(0, dl, MVT::i8);
+    return DAG.getNode(M6502ISD::BUILDPTR, dl, MVT::i16, Hi, Lo);
+  } else {
+    return SDValue();
   }
 }
 
