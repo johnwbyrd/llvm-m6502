@@ -20,7 +20,7 @@ M6502TargetMachine::M6502TargetMachine(const Target &T, const Triple &TT,
                                        const TargetOptions &Options,
                                        Optional<Reloc::Model> RM,
                                        CodeModel::Model CM, CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "e-p:16:8", TT, CPU, FS, Options,
+    : LLVMTargetMachine(T, "e-p:16:8-n8", TT, CPU, FS, Options,
                         RM.getValueOr(Reloc::Model::Static), CM, OL),
       TLOF(std::make_unique<M6502TargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {

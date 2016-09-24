@@ -2826,6 +2826,15 @@ public:
     return Chain;
   }
 
+  /// TODO: documentation. This callback is invoked to give the target an
+  /// opportunity to perform its own type legalization on an operation.
+  ///
+  /// The default implementation does nothing.
+  virtual void LegalizeOperationTypes(SDNode *N,
+                                      SmallVectorImpl<SDValue> &Results,
+                                      SelectionDAG &DAG) const {
+  }
+
   /// This callback is invoked by the type legalizer to legalize nodes with an
   /// illegal operand type but legal result types.  It replaces the
   /// LowerOperation callback in the type Legalizer.  The reason we can not do

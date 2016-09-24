@@ -218,6 +218,15 @@ bool DAGTypeLegalizer::run() {
     assert(N->getNodeId() == ReadyToProcess &&
            "Node should be ready if on worklist!");
 
+    DEBUG(dbgs() << "Legalizing types: "; N->dump(&DAG));
+    
+    if (CustomLegalizeTypes(N)) {
+      // FIXME: Reanalyze when N is modified in place.
+      Changed = true;
+      DEBUG(dbgs() << "Custom legally typed node: "; N->dump(&DAG); dbgs() << "\n");
+      goto NodeDone;
+    }
+
     if (IgnoreNodeResults(N))
       goto ScanOperands;
 
@@ -934,6 +943,26 @@ SDValue DAGTypeLegalizer::CreateStackStoreLoad(SDValue Op,
       DAG.getStore(DAG.getEntryNode(), dl, Op, StackPtr, MachinePointerInfo());
   // Result is a load from the stack slot.
   return DAG.getLoad(DestVT, dl, Store, StackPtr, MachinePointerInfo());
+}
+
+/// TODO: documentation
+bool DAGTypeLegalizer::CustomLegalizeTypes(SDNode *N) {
+  // TODO: Check whether target wants to custom legalize this node before
+  // calling LegalizeOperationTypes.
+  SmallVector<SDValue, 8> Results;
+  TLI.LegalizeOperationTypes(N, Results, DAG);
+
+  if (Results.empty())
+    // The target didn't want to custom legalize it after all.
+    return false;
+
+  // Make everything that once used N's values now use those in Results instead.
+  assert(Results.size() == N->getNumValues() &&
+         "Custom lowering returned the wrong number of results!");
+  for (unsigned i = 0, e = Results.size(); i != e; ++i) {
+    ReplaceValueWith(SDValue(N, i), Results[i]);
+  }
+  return true;
 }
 
 /// Replace the node's results with custom code provided by the target and
