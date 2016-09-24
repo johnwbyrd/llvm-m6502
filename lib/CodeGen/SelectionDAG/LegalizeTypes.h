@@ -89,7 +89,11 @@ private:
 
   /// Pretend all of this node's results are legal.
   bool IgnoreNodeResults(SDNode *N) const {
-    return N->getOpcode() == ISD::TargetConstant;
+    unsigned Opcode = N->getOpcode();
+    // FIXME: This function used to check only against TargetConstant.
+    // Does anything break if we ignore other opcodes?
+    return Opcode == ISD::TargetConstant ||
+        Opcode == ISD::TargetGlobalAddress; // TODO: ignore others?
   }
 
   /// For integer nodes that are below legal width, this map indicates what
@@ -165,6 +169,7 @@ private:
   SDValue BitConvertToInteger(SDValue Op);
   SDValue BitConvertVectorToIntegerVector(SDValue Op);
   SDValue CreateStackStoreLoad(SDValue Op, EVT DestVT);
+  bool CustomLegalizeTypes(SDNode *N);
   bool CustomLowerNode(SDNode *N, EVT VT, bool LegalizeResult);
   bool CustomWidenLowerNode(SDNode *N, EVT VT);
 

@@ -23,9 +23,6 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
-
-  setTargetDAGCombine(ISD::LOAD);
-  setTargetDAGCombine(ISD::STORE);
 }
 
 const char *
@@ -247,6 +244,58 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
+void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
+                                             SmallVectorImpl<SDValue> &Results,
+                                             SelectionDAG &DAG) const {
+  switch (N->getOpcode()) {
+  default:
+    break;
+  case ISD::LOAD:
+  {
+    LoadSDNode *Load = cast<LoadSDNode>(N);
+    if (Load->getValueType(0) != MVT::i8) { // TODO: use getMemoryVT? is there a difference?
+      return; // Allow legalizer to handle non-i8 loads
+    }
+    SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
+    if (BasePtr->getValueType(0) != MVT::i16) {
+      return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
+    }
+    SDLoc dl(N);
+    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
+                                DAG.getTargetConstant(0, dl, MVT::i8));
+    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
+                                DAG.getTargetConstant(1, dl, MVT::i8));
+    SDValue Result = DAG.getNode(M6502ISD::LOADFROM, dl,
+                                 DAG.getVTList(MVT::i8, MVT::Other),
+                                 Load->getChain(), PtrHi, PtrLo);
+    Results.push_back(Result.getValue(0)); // Value
+    Results.push_back(Result.getValue(1)); // Chain
+    break;
+  }
+  case ISD::STORE:
+  {
+    StoreSDNode *Store = cast<StoreSDNode>(N);
+    if (Store->getMemoryVT() != MVT::i8) {
+      return; // Allow legalizer to handle non-i8 stores
+    }
+    SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
+    if (BasePtr->getValueType(0) != MVT::i16) {
+      return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
+    }
+    SDLoc dl(N);
+    SDValue Value = Store->getValue();
+    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
+                                DAG.getTargetConstant(0, dl, MVT::i8));
+    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
+                                DAG.getTargetConstant(1, dl, MVT::i8));
+    SDValue Result = DAG.getNode(M6502ISD::STORETO, dl, MVT::Other,
+                                 Store->getChain(), Value, PtrHi, PtrLo);
+    Results.push_back(Result);
+    break;
+  }
+  }
+}
+
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
@@ -284,54 +333,8 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
                                                DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
   switch (N->getOpcode()) {
-  case ISD::LOAD:
-  {
-    // TODO: See if this can be accomplished with Patterns in M6502InstrInfo.td (See TargetSelectionDAG.td)
-    // Since the type legalizer thinks i16's are illegal, a LOAD cannot have an
-    // i16 pointer parameter. To sneak pointers past the legalizer, we change
-    // all LOAD nodes to our own LOADFROM nodes.
-    // TODO: manually expand extloads
-    LoadSDNode *Load = cast<LoadSDNode>(N);
-    if (Load->getValueType(0) != MVT::i8) {
-      return SDValue(); // Allow legalizer to handle non-i8 loads
-    }
-    SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
-    if (BasePtr->getValueType(0) != MVT::i16) {
-      return SDValue(); // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-    }
-    SDLoc dl(N);
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(1, dl, MVT::i8));
-    return DAG.getNode(M6502ISD::LOADFROM, dl, N->getVTList(), Load->getChain(),
-                       PtrHi, PtrLo);
-  }
-  case ISD::STORE:
-  {
-    // TODO: See if this can be accomplished with Patterns in M6502InstrInfo.td (See TargetSelectionDAG.td)
-    // Since the type legalizer thinks i16's are illegal, a STORE cannot have
-    // an i16 pointer parameter. To sneak pointers past the legalizer, we
-    // change all STORE nodes to our own STORETO nodes.
-    StoreSDNode *Store = cast<StoreSDNode>(N);
-    if (Store->getMemoryVT() != MVT::i8) {
-      return SDValue(); // Allow legalizer to handle non-i8 stores
-    }
-    SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
-    if (BasePtr->getValueType(0) != MVT::i16) {
-      return SDValue(); // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-    }
-    SDLoc dl(N);
-    SDValue Value = Store->getValue();
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(1, dl, MVT::i8));
-    return DAG.getNode(M6502ISD::STORETO, dl, MVT::Other, Store->getChain(), Value, PtrHi, PtrLo);
-  }
   default:
     break;
-    // TODO: implement custom DAG combining
   }
 
   return SDValue();
@@ -342,12 +345,9 @@ SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
   // Transform GlobalAddress to prevent LLVM from trying to legalize the i16.
   SDLoc dl(Op);
   const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
-  //SDValue Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
-  //                                             GA->getOffset(),
-  //                                             GA->getTargetFlags());
-  // TODO
-  // XXX: why does LLVM try to legalize TargetGlobalAddress? it shouldn't, right?
-  SDValue Address = DAG.getTargetConstant(123, dl, MVT::i16);
+  SDValue Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
+                                               GA->getOffset(),
+                                               GA->getTargetFlags());
   SDValue Hi = DAG.getNode(M6502ISD::GAHI, dl, MVT::i8, Address);
   SDValue Lo = DAG.getNode(M6502ISD::GALO, dl, MVT::i8, Address);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
