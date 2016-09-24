@@ -17,6 +17,9 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
+  // XXX: this is a hack to get conditional branches to work. This might break
+  // code that uses i1 variables. Find a better solution.
+  addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 

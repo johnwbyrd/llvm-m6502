@@ -219,28 +219,24 @@ def BSET : I {
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
 }
 
-// Compare Immediate with Accumulator
+// Compare Register with Immediate
 // TODO: Define CMP with a multiclass like AccOperatorI
 def CMP_imm : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
   let InOperandList = (ins General:$ai, i8imm:$x);
-  //let Constraints = "";
   let AsmString = "CMP_imm $ai, $x";
   let Pattern = [(M6502cmp General:$ai, imm:$x)];
-  let Size = 2;
 }
 
-// Compare Memory with Accumulator
+// Compare Register with Register
 // TODO: Define CMP with a multiclass like AccOperatorI
-def CMP_stack : I {
+def CMP_reg : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$ai, iPTRimm:$fi);
-  //let Constraints = "";
-  let AsmString = "CMP_stack $ai, [$fi]";
-  let Pattern = [(M6502cmp General:$ai, (M6502loadfi imm:$fi))];
-  let mayLoad = 1;
+  let InOperandList = (ins General:$ai, General:$x);
+  let AsmString = "CMP_reg $ai, $x";
+  let Pattern = [(M6502cmp General:$ai, General:$x)];
 }
 
 // Jump
