@@ -38,6 +38,8 @@ public:
   M6502TargetLowering(const TargetMachine &TM,
                       const M6502Subtarget &Subtarget);
 
+  MVT getScalarShiftAmountTy(const DataLayout &DL, EVT LHSTy) const override;
+
   const char *getTargetNodeName(unsigned Opcode) const override;
 
   SDValue LowerFormalArguments(

@@ -28,6 +28,13 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
 }
 
+MVT M6502TargetLowering::getScalarShiftAmountTy(const DataLayout &DL,
+                                                EVT LHSTy) const {
+  // NOTE: Without this override, LLVM assumes that a shift amount
+  // is the size of a pointer. However, i16's are illegal in M6502.
+  return MVT::i8;
+}
+
 const char *
 M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (static_cast<M6502ISD::NodeType>(Opcode)) {
