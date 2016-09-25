@@ -15,7 +15,6 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
-  // TODO: support ptr regs
   BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
     .addReg(SrcReg, getKillRegState(KillSrc));
 }
@@ -48,7 +47,6 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
                                          const TargetRegisterInfo *TRI) const {
-  // TODO: support ptr regs
   // TODO: test
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
@@ -56,11 +54,6 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
       .addImm(0);
-  //} else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
-  //  BuildMI(MBB, MBBI, DL, get(M6502::STPtrToStack_pseudo))
-  //    .addReg(SrcReg, getKillRegState(isKill))
-  //    .addFrameIndex(FrameIndex)
-  //    .addImm(0);
   } else {
     llvm_unreachable("Register class could not be stored to stack");
   }
@@ -72,17 +65,12 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           unsigned DestReg, int FrameIndex,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
-  // TODO: support ptr regs
   // TODO: test
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
       .addFrameIndex(FrameIndex)
       .addImm(0);
-  //} else if (M6502::PtrRegClass.hasSubClassEq(RC)) {
-  //  BuildMI(MBB, MBBI, DL, get(M6502::LDPtrFromStack_pseudo), DestReg)
-  //    .addFrameIndex(FrameIndex)
-  //    .addImm(0);
   } else {
     llvm_unreachable("Register class could not be loaded from stack");
   }
