@@ -93,7 +93,8 @@ private:
     // FIXME: This function used to check only against TargetConstant.
     // Does anything break if we ignore other opcodes?
     return Opcode == ISD::TargetConstant ||
-        Opcode == ISD::TargetGlobalAddress; // TODO: ignore others?
+        Opcode == ISD::TargetGlobalAddress ||
+        Opcode == ISD::TargetExternalSymbol; // TODO: ignore others?
   }
 
   /// For integer nodes that are below legal width, this map indicates what
