@@ -273,7 +273,29 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
     if (BasePtr->getValueType(0) != MVT::i16) {
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
+
     SDLoc dl(N);
+
+    // Attempt to recombine an address pair
+    if (BasePtr->getOpcode() == ISD::BUILD_PAIR) {
+      SDValue Lo = BasePtr->getOperand(0);
+      SDValue Hi = BasePtr->getOperand(1);
+      if (Lo.getOpcode() == M6502ISD::FILO && Hi.getOpcode() == M6502ISD::FIHI) {
+        if (Lo.getOperand(0) == Hi.getOperand(0)) {
+          // Recombine a frameindex operand
+          SDValue Index = Lo.getOperand(0);
+          assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
+          SDValue Result = DAG.getNode(M6502ISD::LOADFI, dl,
+                                       DAG.getVTList(MVT::i8, MVT::Other),
+                                       Load->getChain(), Index);
+          Results.push_back(Result.getValue(0)); // Value
+          Results.push_back(Result.getValue(1)); // Chain
+          return;
+        }
+      }
+    }
+
+    // Generic load legalization
     SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
                                 DAG.getTargetConstant(0, dl, MVT::i8));
     SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
@@ -295,8 +317,28 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
     if (BasePtr->getValueType(0) != MVT::i16) {
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
+
     SDLoc dl(N);
     SDValue Value = Store->getValue();
+    
+    // Attempt to recombine an address pair
+    if (BasePtr->getOpcode() == ISD::BUILD_PAIR) {
+      SDValue Lo = BasePtr->getOperand(0);
+      SDValue Hi = BasePtr->getOperand(1);
+      if (Lo.getOpcode() == M6502ISD::FILO && Hi.getOpcode() == M6502ISD::FIHI) {
+        if (Lo.getOperand(0) == Hi.getOperand(0)) {
+          // Recombine a frameindex operand
+          SDValue Index = Lo.getOperand(0);
+          assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
+          SDValue Result = DAG.getNode(M6502ISD::STOREFI, dl, MVT::Other,
+                                       Store->getChain(), Value, Index);
+          Results.push_back(Result);
+          return;
+        }
+      }
+    }
+
+    // Generic store legalization
     SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
                                 DAG.getTargetConstant(0, dl, MVT::i8));
     SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
