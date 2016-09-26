@@ -28,6 +28,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
+  setOperationAction(ISD::MUL, MVT::i8, LibCall);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
 
   // TODO: support pre-indexed loads and stores
@@ -271,9 +272,15 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
     SDValue LHS = Ptr->getOperand(0);
     SDValue RHS = Ptr->getOperand(1);
     if (LHS.getOpcode() == ISD::BUILD_PAIR &&
-        RHS.getOpcode() == ISD::Constant && RHS.getValueSizeInBits() <= 16) {
+        RHS.getValueSizeInBits() <= 16 &&
+        isa<ConstantSDNode>(RHS)) {
       Pair = LHS;
       Offset = cast<ConstantSDNode>(RHS)->getSExtValue();
+    } else if (LHS.getValueSizeInBits() <= 16 &&
+               isa<ConstantSDNode>(LHS) &&
+               RHS.getOpcode() == ISD::BUILD_PAIR) {
+      Pair = RHS;
+      Offset = cast<ConstantSDNode>(LHS)->getSExtValue();
     }
   } else if (Ptr->getOpcode() == ISD::BUILD_PAIR) {
     Pair = Ptr;
@@ -282,8 +289,10 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
   // TODO: other recombinations go here
 
   if (Pair) {
-    SDValue Lo = Ptr->getOperand(0);
-    SDValue Hi = Ptr->getOperand(1);
+    SDValue Lo = Pair.getOperand(0);
+    SDValue Hi = Pair.getOperand(1);
+    DEBUG(dbgs() << "Pair Lo: "; Lo.dumpr());
+    DEBUG(dbgs() << "Pair Hi: "; Hi.dumpr());
     if (Lo.getOpcode() == M6502ISD::ADDRLO &&
         Hi.getOpcode() == M6502ISD::ADDRHI &&
         Lo.getOperand(0) == Hi.getOperand(0)) {
