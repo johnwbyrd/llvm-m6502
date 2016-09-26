@@ -52,7 +52,8 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
       .addReg(SrcReg, getKillRegState(isKill))
-      .addFrameIndex(FrameIndex);
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
   } else {
     llvm_unreachable("Register class could not be stored to stack");
   }
@@ -68,7 +69,8 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   DebugLoc DL = MBBI->getDebugLoc();
   if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
-      .addFrameIndex(FrameIndex);
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
   } else {
     llvm_unreachable("Register class could not be loaded from stack");
   }
