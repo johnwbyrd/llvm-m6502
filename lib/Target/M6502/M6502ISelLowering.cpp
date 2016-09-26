@@ -29,6 +29,10 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
+
+  // TODO: support pre-indexed loads and stores
+  //setIndexedLoadAction(ISD::PRE_INC, MVT::i8, Legal);
+  //setIndexedStoreAction(ISD::PRE_INC, MVT::i8, Legal);
 }
 
 MVT M6502TargetLowering::getScalarShiftAmountTy(const DataLayout &DL,
@@ -44,24 +48,24 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER:
     break;
-  case M6502ISD::WRAPPER:
-    return "M6502ISD::WRAPPER";
+  case M6502ISD::ABSADDR:
+    return "M6502ISD::ABSADDR";
+  case M6502ISD::HILOADDR:
+    return "M6502ISD::HILOADDR";
+  case M6502ISD::FIADDR:
+    return "M6502ISD::FIADDR";
   case M6502ISD::ADDRHI:
     return "M6502ISD::ADDRHI";
   case M6502ISD::ADDRLO:
     return "M6502ISD::ADDRLO";
-  case M6502ISD::LOADGA:
-    return "M6502ISD::LOADGA";
   case M6502ISD::FIHI:
     return "M6502ISD::FIHI";
   case M6502ISD::FILO:
     return "M6502ISD::FILO";
-  case M6502ISD::LOADFI:
-    return "M6502ISD::LOADFI";
-  case M6502ISD::STOREFI:
-    return "M6502ISD::STOREFI";
-  case M6502ISD::FIADDR:
-    return "M6502ISD::FIADDR";
+  case M6502ISD::LOADFROM:
+    return "M6502ISD::LOADFROM";
+  case M6502ISD::STORETO:
+    return "M6502ISD::STORETO";
   case M6502ISD::CALL:
     return "M6502ISD::CALL";
   case M6502ISD::RETURN:
@@ -72,10 +76,6 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "M6502ISD::BSET";
   case M6502ISD::BCLEAR:
     return "M6502ISD::BCLEAR";
-  case M6502ISD::LOADFROM:
-    return "M6502ISD::LOADFROM";
-  case M6502ISD::STORETO:
-    return "M6502ISD::STORETO";
   }
   return nullptr;
 }
@@ -257,6 +257,67 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
+// Convert i16 pointer to M6502 address operand for LOADFROM and STORETO nodes.
+static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
+                                   SelectionDAG &DAG) {
+  assert(Ptr.getValueType() == MVT::i16);
+
+  SDValue Pair;
+  int64_t Offset = 0;
+
+  // Attempt to recombine an address pair
+  // TODO: clean up and simplify
+  if (Ptr->getOpcode() == ISD::ADD) {
+    SDValue LHS = Ptr->getOperand(0);
+    SDValue RHS = Ptr->getOperand(1);
+    if (LHS.getOpcode() == ISD::BUILD_PAIR &&
+        RHS.getOpcode() == ISD::Constant && RHS.getValueSizeInBits() <= 16) {
+      Pair = LHS;
+      Offset = cast<ConstantSDNode>(RHS)->getSExtValue();
+    }
+  } else if (Ptr->getOpcode() == ISD::BUILD_PAIR) {
+    Pair = Ptr;
+    Offset = 0;
+  }
+  // TODO: other recombinations go here
+
+  if (Pair) {
+    SDValue Lo = Ptr->getOperand(0);
+    SDValue Hi = Ptr->getOperand(1);
+    if (Lo.getOpcode() == M6502ISD::ADDRLO &&
+        Hi.getOpcode() == M6502ISD::ADDRHI &&
+        Lo.getOperand(0) == Hi.getOperand(0)) {
+      // Recombine absolute address
+      SDValue Address = Lo.getOperand(0);
+      assert(Address.getOpcode() == ISD::TargetGlobalAddress); // TODO: support texternalsym, etc.
+      assert(Address.getValueType() == MVT::i16);
+      // Add Offset if necessary
+      if (Offset != 0) {
+        GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Address);
+        Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
+                                             GA->getOffset() + Offset,
+                                             GA->getTargetFlags());
+      }
+      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
+    } else if (Lo.getOpcode() == M6502ISD::FILO &&
+               Hi.getOpcode() == M6502ISD::FIHI
+               && Lo.getOperand(0) == Hi.getOperand(0)) {
+      // Recombine frameindex
+      SDValue Index = Lo.getOperand(0);
+      assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
+      return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
+                          Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
+    }
+  }
+
+  // Generic
+  SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
+                              DAG.getTargetConstant(0, dl, MVT::i8));
+  SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
+                              DAG.getTargetConstant(1, dl, MVT::i8));
+  return DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrHi, PtrLo);
+}
+
 void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
                                              SmallVectorImpl<SDValue> &Results,
                                              SelectionDAG &DAG) const {
@@ -274,35 +335,13 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
 
+    DEBUG(dbgs() << "Load BasePtr: "; BasePtr.dumpr());
+
     SDLoc dl(N);
-
-    // Attempt to recombine an address pair
-    if (BasePtr->getOpcode() == ISD::BUILD_PAIR) {
-      SDValue Lo = BasePtr->getOperand(0);
-      SDValue Hi = BasePtr->getOperand(1);
-      if (Lo.getOpcode() == M6502ISD::FILO && Hi.getOpcode() == M6502ISD::FIHI) {
-        if (Lo.getOperand(0) == Hi.getOperand(0)) {
-          // Recombine a frameindex operand
-          SDValue Index = Lo.getOperand(0);
-          assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
-          SDValue Result = DAG.getNode(M6502ISD::LOADFI, dl,
-                                       DAG.getVTList(MVT::i8, MVT::Other),
-                                       Load->getChain(), Index);
-          Results.push_back(Result.getValue(0)); // Value
-          Results.push_back(Result.getValue(1)); // Chain
-          return;
-        }
-      }
-    }
-
-    // Generic load legalization
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(1, dl, MVT::i8));
+    SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
     SDValue Result = DAG.getNode(M6502ISD::LOADFROM, dl,
                                  DAG.getVTList(MVT::i8, MVT::Other),
-                                 Load->getChain(), PtrHi, PtrLo);
+                                 Load->getChain(), Address);
     Results.push_back(Result.getValue(0)); // Value
     Results.push_back(Result.getValue(1)); // Chain
     break;
@@ -318,33 +357,13 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
 
+    DEBUG(dbgs() << "Store BasePtr: "; BasePtr.dumpr());
+
     SDLoc dl(N);
     SDValue Value = Store->getValue();
-    
-    // Attempt to recombine an address pair
-    if (BasePtr->getOpcode() == ISD::BUILD_PAIR) {
-      SDValue Lo = BasePtr->getOperand(0);
-      SDValue Hi = BasePtr->getOperand(1);
-      if (Lo.getOpcode() == M6502ISD::FILO && Hi.getOpcode() == M6502ISD::FIHI) {
-        if (Lo.getOperand(0) == Hi.getOperand(0)) {
-          // Recombine a frameindex operand
-          SDValue Index = Lo.getOperand(0);
-          assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
-          SDValue Result = DAG.getNode(M6502ISD::STOREFI, dl, MVT::Other,
-                                       Store->getChain(), Value, Index);
-          Results.push_back(Result);
-          return;
-        }
-      }
-    }
-
-    // Generic store legalization
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, BasePtr,
-                                DAG.getTargetConstant(1, dl, MVT::i8));
+    SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
     SDValue Result = DAG.getNode(M6502ISD::STORETO, dl, MVT::Other,
-                                 Store->getChain(), Value, PtrHi, PtrLo);
+                                 Store->getChain(), Value, Address);
     Results.push_back(Result);
     break;
   }

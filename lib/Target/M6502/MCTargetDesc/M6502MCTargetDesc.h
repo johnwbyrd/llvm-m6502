@@ -12,9 +12,8 @@ extern Target TheM6502Target;
 
 namespace M6502 {
 enum OperandType {
-  // Custom frame-index operand
-  OPERAND_M6502_GLOBAL_ADDRESS = MCOI::OPERAND_FIRST_TARGET,
-  OPERAND_M6502_FRAME_INDEX,
+  // Custom address operand
+  OPERAND_M6502_ADDRESS = MCOI::OPERAND_FIRST_TARGET, // XXX: not used
 };
 }
 
