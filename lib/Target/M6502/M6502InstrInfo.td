@@ -23,18 +23,23 @@ def brtarget : Operand<OtherVT>;
 
 // Custom type profiles
 
-def SDT_M6502Wrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
-                                            SDTCisPtrTy<0>]>;
+def SDT_M6502AbsAddr : SDTypeProfile<1, 1, [SDTCisVT<0, OtherVT>,
+                                            SDTCisVT<1, i16>]>;
+def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
+                                             SDTCisVT<1, i8>,
+                                             SDTCisVT<2, i8>]>;
+def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
+                                           SDTCisVT<1, i16>,
+                                           SDTCisVT<2, i16>]>;
 def SDT_M6502AddrElement : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
                                                 SDTCisVT<1, i16>]>;
-def SDT_M6502LoadGA : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
-                                           SDTCisVT<1, i16>]>;
-def SDT_M6502LoadFI : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
-                                           SDTCisVT<1, i16>]>;
-def SDT_M6502StoreFI : SDTypeProfile<0, 2, [SDTCisVT<0, i8>,
-                                            SDTCisVT<1, i16>]>;
-def SDT_M6502FIAddr : SDTypeProfile<1, 1, [SDTCisVT<0, i16>,
-                                           SDTCisVT<1, i16>]>;
+def SDT_M6502LoadFrom : SDTypeProfile<1, 1,
+                                     [SDTCisVT<0, i8>,
+                                      SDTCisVT<1, OtherVT>]>;
+def SDT_M6502StoreTo : SDTypeProfile<0, 2,
+                                    [SDTCisVT<0, i8>,
+                                     SDTCisVT<1, OtherVT>]>;
+
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 // FIXME: in SDT_M6502BSet, is first parameter correct for a Flag register?
@@ -43,39 +48,31 @@ def SDT_M6502BSet : SDTypeProfile<0, 2,
 // FIXME: in SDT_M6502BClear, is first parameter correct for a Flag register?
 def SDT_M6502BClear : SDTypeProfile<0, 2,
                                     [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
-// NOTE: i16's are not allowed. Pointers are constructed from two i8's.
-def SDT_M6502LoadFrom : SDTypeProfile<1, 2,
-                                      [SDTCisVT<0, i8>,
-                                       SDTCisVT<1, i8>, SDTCisVT<2, i8>]>;
-def SDT_M6502StoreTo : SDTypeProfile<0, 3,
-                                     [SDTCisVT<0, i8>,
-                                      SDTCisVT<1, i8>, SDTCisVT<2, i8>]>;
 
 // Custom nodes
 
-// Wrapper to support converting tglobaladdr, texternalsym and tblockaddr to i16
-// This solution is similar to MSP430 backend, see MSP430InstrInfo.td
-def M6502wrapper : SDNode<"M6502ISD::WRAPPER", SDT_M6502Wrapper>;
-
-// GlobalAddress-related nodes
-// See FrameIndex stuff below
-def M6502addrhi : SDNode<"M6502ISD::ADDRHI", SDT_M6502AddrElement, []>;
-                       // Hi element of address
-def M6502addrlo : SDNode<"M6502ISD::ADDRLO", SDT_M6502AddrElement, []>;
-                       // Lo element of address
-def M6502loadga : SDNode<"M6502ISD::LOADGA", SDT_M6502LoadGA,
-                         [SDNPHasChain, SDNPMayLoad]>; // load from M6502ga
-
-def M6502fihi : SDNode<"M6502ISD::FIHI", SDT_M6502AddrElement, []>;
-                       // Hi element of frameindex
-def M6502filo : SDNode<"M6502ISD::FILO", SDT_M6502AddrElement, []>;
-                       // Lo element of frameindex
-def M6502loadfi : SDNode<"M6502ISD::LOADFI", SDT_M6502LoadFI,
-                         [SDNPHasChain, SDNPMayLoad]>; // load from frameindex
-def M6502storefi : SDNode<"M6502ISD::STOREFI", SDT_M6502StoreFI,
-                          [SDNPHasChain, SDNPMayStore]>; // store to frameindex
+// Address-related nodes
+def M6502absaddr : SDNode<"M6502ISD::ABSADDR", SDT_M6502AbsAddr,
+                          []>; // get absolute address
+def M6502hiloaddr : SDNode<"M6502ISD::HILOADDR", SDT_M6502HiLoAddr,
+                           []>; // get address from Hi, Lo bytes
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr,
                          []>; // get address of frameindex
+def M6502addrhi : SDNode<"M6502ISD::ADDRHI", SDT_M6502AddrElement, []>;
+                      // Hi element of absolute address
+def M6502addrlo : SDNode<"M6502ISD::ADDRLO", SDT_M6502AddrElement, []>;
+                      // Lo element of absolute address
+def M6502fihi : SDNode<"M6502ISD::FIHI", SDT_M6502AddrElement, []>;
+                      // Hi element of frameindex address
+def M6502filo : SDNode<"M6502ISD::FILO", SDT_M6502AddrElement, []>;
+                      // Lo element of frameindex address
+
+ // Loading and storing-related nodes
+ def M6502loadfrom : SDNode<"M6502ISD::LOADFROM", SDT_M6502LoadFrom,
+                            [SDNPHasChain, SDNPMayLoad]>; // load from pointer
+ def M6502storeto : SDNode<"M6502ISD::STORETO", SDT_M6502StoreTo,
+                           [SDNPHasChain, SDNPMayStore]>; // store to pointer
+
 
 // Call-related nodes
 def M6502call : SDNode<"M6502ISD::CALL", SDT_M6502Call,
@@ -90,11 +87,6 @@ def M6502bset : SDNode<"M6502ISD::BSET", SDT_M6502BSet,
 def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
                          [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
 
-// Pointer-related nodes
-def M6502loadfrom : SDNode<"M6502ISD::LOADFROM", SDT_M6502LoadFrom,
-                           [SDNPHasChain, SDNPMayLoad]>; // load from pointer
-def M6502storeto : SDNode<"M6502ISD::STORETO", SDT_M6502StoreTo,
-                          [SDNPHasChain, SDNPMayStore]>; // store to pointer
 
 // Instructions
 
@@ -113,17 +105,6 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let Pattern = [(set General:$ao, (Oper General:$ai, General:$r))];
   }
 
-  // Stack operand
-  def _stack : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, iPTRimm:$fi);
-    let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_stack $ai, [$fi]";
-    // TODO: stack loading instr pattern
-    let Pattern = [(set General:$ao, (Oper General:$ai, (M6502loadfi imm:$fi)))];
-    let mayLoad = 1;
-  }
-
   // Immediate
   def _imm : I {
     let OutOperandList = (outs General:$ao);
@@ -134,16 +115,9 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let Size = 2;
   }
 
-  // Absolute addressing
-  def _abs : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, iPTRimm:$addr);
-    let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_abs $ai, $addr";
-    let Pattern = [(set General:$ao, (Oper General:$ai, (load imm:$addr)))];
-    let Size = 3;
-    let mayLoad = 1;
-  }
+  // TODO: stack operand
+  // TODO: absolute address operand
+  // TODO: indexed address operand
 }
 
 // XXX: Fake "AD0" instruction should generate:
@@ -294,26 +268,6 @@ def LD_imm : I {
   let Size = 2;
 }
 
-// LDA, LDX, LDY absolute address
-def LD_abs : I {
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins iPTRimm:$addr);
-  let AsmString = "LD_abs $r, $addr";
-  let Pattern = [(set General:$r, (load imm:$addr))];
-  let Size = 3;
-  let mayLoad = 1;
-  let canFoldAsLoad = 1;
-}
-
-def LD_stack : I {
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins iPTRimm:$fi);
-  let AsmString = "LD_stack $r, [$fi]";
-  let Pattern = [(set General:$r, (M6502loadfi timm:$fi))];
-  let mayLoad = 1;
-  let canFoldAsLoad = 1;
-}
-
 // Get hi byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_hi : I {
   let OutOperandList = (outs General:$r);
@@ -333,13 +287,6 @@ def LD_addr_lo : I {
 def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
 def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
 
-// Patterns to load tglobaladdr, texternalsym and tblockaddress as immediate
-// pointers.
-// TODO
-//def : Pat<(i16 (M6502wrapper tglobaladdr:$dst)), (LD_addr_ tglobaladdr:$dst)>;
-//def : Pat<(i16 (M6502wrapper texternalsym:$dst)), (LD_ptr_imm texternalsym:$dst)>;
-//def : Pat<(i16 (M6502wrapper tblockaddress:$dst)), (LD_ptr_imm tblockaddress:$dst)>;
-
 // Get hi byte of address of stack variable
 def LD_stack_addr_hi : I {
   let OutOperandList = (outs General:$r);
@@ -356,21 +303,68 @@ def LD_stack_addr_lo : I {
   let Pattern = [(set General:$r, (M6502filo timm:$fi))];
 }
 
-// Load from pointer specified by hi, lo bytes
-def LD_from_ptr : I {
+// Load from absolute address
+def LD_abs : I {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins General:$hi, General:$lo);
-  let AsmString = "LD_from_ptr $r, ($hi | $lo)";
-  let Pattern = [(set General:$r, (M6502loadfrom General:$hi, General:$lo))];
+  let InOperandList = (ins iPTRimm:$addr);
+  let AsmString = "LD_abs $r, $addr";
+  let Pattern = [(set General:$r, (M6502loadfrom (M6502absaddr timm:$addr)))];
   let mayLoad = 1;
+  let canFoldAsLoad = 1;
 }
 
-// Store to pointer specified by hi, lo bytes
-def ST_to_ptr : I {
+def : Pat<(M6502loadfrom (M6502absaddr tglobaladdr:$addr)),
+          (LD_abs tglobaladdr:$addr)>;
+// TODO: texternalsym, etc.
+
+// Load from address formed by Hi, Lo bytes
+def LD_hi_lo : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins General:$hi, General:$lo);
+  let AsmString = "LD_hi_lo $r, ($hi, $lo)";
+  let Pattern = [(set General:$r, (M6502loadfrom (M6502hiloaddr General:$hi, General:$lo)))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
+// Load from stack
+def LD_stack : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs);
+  let AsmString = "LD_stack $r, [$fi]+$offs";
+  let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr timm:$fi, timm:$offs)))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
+// Store to absolute address
+def ST_abs : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, iPTRimm:$addr);
+  let AsmString = "ST_abs $r, $addr";
+  let Pattern = [(M6502storeto General:$r, (M6502absaddr timm:$addr))];
+  let mayStore = 1;
+}
+
+def : Pat<(M6502storeto General:$r, (M6502absaddr tglobaladdr:$addr)),
+          (ST_abs General:$r, tglobaladdr:$addr)>;
+// TODO: texternalsym, etc.
+
+// Store to address formed by Hi, Lo bytes
+def ST_hi_lo : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, General:$hi, General:$lo);
-  let AsmString = "ST_to_ptr $r, ($hi | $lo)";
-  let Pattern = [(M6502storeto General:$r, General:$hi, General:$lo)];
+  let AsmString = "ST_hi_lo $r, ($hi, $lo)";
+  let Pattern = [(M6502storeto General:$r, (M6502hiloaddr General:$hi, General:$lo))];
+  let mayStore = 1;
+}
+
+// Store to stack
+def ST_stack : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, iPTRimm:$fi, iPTRimm:$offs);
+  let AsmString = "ST_stack $r, [$fi]+$offs";
+  let Pattern = [(M6502storeto General:$r, (M6502fiaddr timm:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
@@ -409,24 +403,6 @@ def RETURN : I {
   let Pattern = [(M6502return)];
   let AsmString = "RETURN";
   let Size = 1;
-}
-
-// STA, STX, STY all use this form
-def ST_abs : I {
-  let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, iPTRimm:$addr);
-  let AsmString = "ST_abs $r, $addr";
-  let Pattern = [(store General:$r, imm:$addr)];
-  let Size = 3;
-  let mayStore = 1;
-}
-
-def ST_stack : I {
-  let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, iPTRimm:$fi);
-  let AsmString = "ST_stack $r, [$fi]";
-  let Pattern = [(M6502storefi General:$r, timm:$fi)];
-  let mayStore = 1;
 }
 
 // TAX, TAY, TXA, TYA (may compile as memory loads/stores)

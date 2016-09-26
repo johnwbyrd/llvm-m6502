@@ -13,22 +13,20 @@ namespace M6502ISD {
 
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
-  WRAPPER,
-  ADDRHI, // hi element of address
-  ADDRLO, // lo element of address
-  LOADGA, // load from global address
+  ABSADDR, // absolute address (timm, tglobaladdr, texternalsym, tblockaddr)
+  HILOADDR, // address formed of Hi, Lo bytes
+  FIADDR, // frame index address
+  ADDRHI, // hi element of global address
+  ADDRLO, // lo element of global address
   FIHI, // hi element of frame index address
   FILO, // lo element of frame index address
-  LOADFI, // load from frame index
-  STOREFI, // store to frame index
-  FIADDR, // get address of frame index
+  LOADFROM,
+  STORETO,
   CALL,
   RETURN,
   CMP,
   BSET,
   BCLEAR,
-  LOADFROM,
-  STORETO,
 };
 
 } // end namespace M6502ISD
