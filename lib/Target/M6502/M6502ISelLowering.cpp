@@ -10,6 +10,8 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "m6502-lower"
+
 #include "M6502GenCallingConv.inc"
 
 M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
@@ -25,6 +27,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
+  setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
 }
 
@@ -43,10 +46,10 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     break;
   case M6502ISD::WRAPPER:
     return "M6502ISD::WRAPPER";
-  case M6502ISD::GAHI:
-    return "M6502ISD::GAHI";
-  case M6502ISD::GALO:
-    return "M6502ISD::GALO";
+  case M6502ISD::ADDRHI:
+    return "M6502ISD::ADDRHI";
+  case M6502ISD::ADDRLO:
+    return "M6502ISD::ADDRLO";
   case M6502ISD::LOADGA:
     return "M6502ISD::LOADGA";
   case M6502ISD::FIHI:
@@ -311,6 +314,7 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   case ISD::GlobalAddress: return LowerGlobalAddress(Op, DAG);
   case ISD::FrameIndex: return LowerFrameIndex(Op, DAG);
+  case ISD::ExternalSymbol: return LowerExternalSymbol(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
@@ -358,8 +362,8 @@ SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
   SDValue Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
                                                GA->getOffset(),
                                                GA->getTargetFlags());
-  SDValue Hi = DAG.getNode(M6502ISD::GAHI, dl, MVT::i8, Address);
-  SDValue Lo = DAG.getNode(M6502ISD::GALO, dl, MVT::i8, Address);
+  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, Address);
+  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
   return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
 }
@@ -373,6 +377,19 @@ SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
   SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
   SDValue Hi = DAG.getNode(M6502ISD::FIHI, dl, MVT::i8, Index);
   SDValue Lo = DAG.getNode(M6502ISD::FILO, dl, MVT::i8, Index);
+  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
+  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
+}
+
+SDValue M6502TargetLowering::LowerExternalSymbol(SDValue Op,
+                                                 SelectionDAG &DAG) const {
+  // Transform GlobalAddress to prevent LLVM from trying to legalize the i16.
+  SDLoc dl(Op);
+  const ExternalSymbolSDNode *ES = cast<ExternalSymbolSDNode>(Op);
+  SDValue Address = DAG.getTargetExternalSymbol(ES->getSymbol(), MVT::i16,
+                                                ES->getTargetFlags());
+  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, Address);
+  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
   return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
 }

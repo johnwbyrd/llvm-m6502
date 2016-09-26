@@ -14,8 +14,8 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   WRAPPER,
-  GAHI, // hi element of global address
-  GALO, // lo element of global address
+  ADDRHI, // hi element of address
+  ADDRLO, // lo element of address
   LOADGA, // load from global address
   FIHI, // hi element of frame index address
   FILO, // lo element of frame index address
@@ -76,6 +76,7 @@ public:
 private:
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 

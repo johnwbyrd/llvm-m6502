@@ -89,7 +89,12 @@ void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &
              "M6502 does not use target flags on GlobalAddresses");
       MCOp = LowerSymbolOperand(getSymbol(MO.getGlobal()), MO.getOffset());
       break;
-    // TODO: case MachineOperand::MO_ExternalSymbol
+    case MachineOperand::MO_ExternalSymbol:
+      assert(MO.getTargetFlags() == 0 &&
+             "M6502 does not use target flags on ExternalSymbols");
+      MCOp = LowerSymbolOperand(GetExternalSymbolSymbol(MO.getSymbolName()),
+                                MO.getOffset());
+      break;
     }
 
     OutMI.addOperand(MCOp);
