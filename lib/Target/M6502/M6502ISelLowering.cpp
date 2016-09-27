@@ -29,6 +29,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
   setOperationAction(ISD::MUL, MVT::i8, LibCall);
+  setOperationAction(ISD::UMUL_LOHI, MVT::i8, LibCall);
+  setOperationAction(ISD::MULHU, MVT::i8, LibCall);
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
 
   // TODO: support pre-indexed loads and stores
@@ -142,7 +144,7 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // TODO: CALLSEQ_START instruction?
 
-  SmallVector<SDValue, 12> MemOpChains;
+  SmallVector<SDValue, 12> ArgChains;
 
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
@@ -156,7 +158,14 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       // TODO: special support for ByVals? please test.
       SDValue MemOp = DAG.getStore(Chain, dl, Arg, FIPtr, MachinePointerInfo());
-      MemOpChains.push_back(MemOp);
+
+      // XXX: Since LowerCall may be called AFTER type legalization in the case
+      // of LibCalls, LowerCall must type-legalize its output.
+      SmallVector<SDValue, 1> LegalizedMemOps;
+      LegalizeOperationTypes(MemOp.getNode(), LegalizedMemOps, DAG);
+      assert(LegalizedMemOps.size() == 1 &&
+             "LegalizeOperationTypes must legalize this operation");
+      ArgChains.push_back(LegalizedMemOps[0]);
     } else {
       llvm_unreachable("Invalid argument location");
     }
@@ -164,8 +173,8 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // Transform all store nodes into one single node because all stores are
   // independent of each other.
-  if (!MemOpChains.empty()) {
-    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, MemOpChains);
+  if (!ArgChains.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, ArgChains);
   }
 
   // (Copied from MSP430ISelLowering.cpp)
@@ -186,6 +195,8 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   CCState CCReturnInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
   CCReturnInfo.AnalyzeCallResult(Ins, CC_M6502);
 
+  SmallVector<SDValue, 12> RetChains;
+
   for (unsigned i = 0, e = RVLocs.size(); i != e; ++i) {
     CCValAssign &VA = RVLocs[i];
 
@@ -196,11 +207,25 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       // TODO: special support for ByVals? please test.
       SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
-      InVals.push_back(Load.getValue(0));
-      Chain = Load.getValue(1);
+      
+      // XXX: Since LowerCall may be called AFTER type legalization in the case
+      // of LibCalls, LowerCall must type-legalize its output.
+      SmallVector<SDValue, 1> LegalizedMemOps;
+      LegalizeOperationTypes(Load.getNode(), LegalizedMemOps, DAG);
+      assert(LegalizedMemOps.size() == 2 &&
+             "LegalizeOperationTypes must legalize this operation");
+
+      InVals.push_back(LegalizedMemOps[0]); // Value
+      RetChains.push_back(LegalizedMemOps[1]); // Chain
     } else {
       llvm_unreachable("Return value must be in memory location");
     }
+  }
+
+  // Transform all load nodes into one single node because all loads are
+  // independent of each other.
+  if (!RetChains.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, RetChains);
   }
 
   // TODO: CALLSEQ_END instruction?
@@ -243,6 +268,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
           VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIPtr, MachinePointerInfo());
+      // FIXME: type-legalize store here?
       RetOps.push_back(RetOp);
     } else {
       llvm_unreachable("Return value must be located in memory");
@@ -311,6 +337,13 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
       return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
                           Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
     }
+  } else if (Walker && isa<FrameIndexSDNode>(Walker)) {
+    // Occurs in LowerCall during LibCall legalization
+    FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Walker);
+    assert(FI->getValueType(0) == MVT::i16);
+    SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
+    return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
+                       Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
   }
 
   // Generic
@@ -334,11 +367,10 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle non-i8 loads
     }
     SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
+    DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
     if (BasePtr->getValueType(0) != MVT::i16) {
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
-
-    DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
 
     SDLoc dl(N);
     SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
@@ -356,11 +388,10 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle non-i8 stores
     }
     SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
+    DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
     if (BasePtr->getValueType(0) != MVT::i16) {
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
-
-    DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
 
     SDLoc dl(N);
     SDValue Value = Store->getValue();
