@@ -263,36 +263,30 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
                                    SelectionDAG &DAG) {
   assert(Ptr.getValueType() == MVT::i16);
 
-  SDValue Pair;
+  // Attempt to recombine an address pair to a frameindex or globaladdress,
+  // possibly with one or more added constant offsets.
+  SDValue Walker = Ptr;
   int64_t Offset = 0;
-
-  // Attempt to recombine an address pair
-  // TODO: clean up and simplify
-  if (Ptr->getOpcode() == ISD::ADD) {
-    SDValue LHS = Ptr->getOperand(0);
-    SDValue RHS = Ptr->getOperand(1);
-    if (LHS.getOpcode() == ISD::BUILD_PAIR &&
-        RHS.getValueSizeInBits() <= 16 &&
-        isa<ConstantSDNode>(RHS)) {
-      Pair = LHS;
-      Offset = cast<ConstantSDNode>(RHS)->getSExtValue();
-    } else if (LHS.getValueSizeInBits() <= 16 &&
-               isa<ConstantSDNode>(LHS) &&
-               RHS.getOpcode() == ISD::BUILD_PAIR) {
-      Pair = RHS;
-      Offset = cast<ConstantSDNode>(LHS)->getSExtValue();
+  // Walk down pointer nodes, accumulating offsets.
+  while (Walker.getOpcode() == ISD::ADD) {
+    SDValue LHS = Walker.getOperand(0);
+    SDValue RHS = Walker.getOperand(1);
+    if (isa<ConstantSDNode>(LHS)) {
+      Offset += cast<ConstantSDNode>(LHS)->getSExtValue();
+      Walker = RHS;
+    } else if (isa<ConstantSDNode>(RHS)) {
+      Offset += cast<ConstantSDNode>(RHS)->getSExtValue();
+      Walker = LHS;
+    } else {
+      // Pointer added to non-constant. Do not attempt to recombine.
+      Walker = SDValue();
+      break;
     }
-  } else if (Ptr->getOpcode() == ISD::BUILD_PAIR) {
-    Pair = Ptr;
-    Offset = 0;
   }
-  // TODO: other recombinations go here
 
-  if (Pair) {
-    SDValue Lo = Pair.getOperand(0);
-    SDValue Hi = Pair.getOperand(1);
-    DEBUG(dbgs() << "Pair Lo: "; Lo.dumpr());
-    DEBUG(dbgs() << "Pair Hi: "; Hi.dumpr());
+  if (Walker && Walker.getOpcode() == ISD::BUILD_PAIR) {
+    SDValue Lo = Walker.getOperand(0);
+    SDValue Hi = Walker.getOperand(1);
     if (Lo.getOpcode() == M6502ISD::ADDRLO &&
         Hi.getOpcode() == M6502ISD::ADDRHI &&
         Lo.getOperand(0) == Hi.getOperand(0)) {
@@ -344,7 +338,7 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
 
-    DEBUG(dbgs() << "Load BasePtr: "; BasePtr.dumpr());
+    DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
 
     SDLoc dl(N);
     SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
@@ -366,7 +360,7 @@ void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
       return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
     }
 
-    DEBUG(dbgs() << "Store BasePtr: "; BasePtr.dumpr());
+    DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
 
     SDLoc dl(N);
     SDValue Value = Store->getValue();
