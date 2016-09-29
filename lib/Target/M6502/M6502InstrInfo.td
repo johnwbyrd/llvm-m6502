@@ -180,6 +180,17 @@ def ASR_imm : I {
   let Pattern = [(set General:$ao, (sra General:$ai, (i8 imm:$x)))];
 }
 
+// Logical shift right
+// FIXME: This is not a real instruction in 6502. The closest equivalent is
+// LSR, which shifts A right by one bit.
+def LSR_imm : I {
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai, i8imm:$x);
+  let Constraints = "$ao = $ai";
+  let AsmString = "LSR_imm $ai, $x";
+  let Pattern = [(set General:$ao, (srl General:$ai, (i8 imm:$x)))];
+}
+
 // Branch on flag instructions
 multiclass CondBranchI<SDPatternOperator Flag, string IfSetName,
                        string IfClearName> {
