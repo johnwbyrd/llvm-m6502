@@ -27,6 +27,8 @@ enum NodeType : unsigned {
   CMP,
   BSET,
   BCLEAR,
+  SELECT_CC,
+  NFLAG, ZFLAG, CFLAG, VFLAG,
 };
 
 } // end namespace M6502ISD
@@ -37,6 +39,8 @@ public:
                       const M6502Subtarget &Subtarget);
 
   MVT getScalarShiftAmountTy(const DataLayout &DL, EVT LHSTy) const override;
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Context,
+                         EVT VT) const override;
 
   const char *getTargetNodeName(unsigned Opcode) const override;
 
@@ -71,11 +75,16 @@ public:
 
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
+  MachineBasicBlock *
+  EmitInstrWithCustomInserter(MachineInstr &MI, MachineBasicBlock *MBB)
+      const override;
+
 private:
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 
 } // end namespace llvm

@@ -42,12 +42,14 @@ def SDT_M6502StoreTo : SDTypeProfile<0, 2,
 
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
-// FIXME: in SDT_M6502BSet, is first parameter correct for a Flag register?
+// BSet and BClear parameters: Flag, Branch Target
 def SDT_M6502BSet : SDTypeProfile<0, 2,
-                                  [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
-// FIXME: in SDT_M6502BClear, is first parameter correct for a Flag register?
+                                  [SDTCisVT<0, OtherVT>, SDTCisVT<1, OtherVT>]>;
 def SDT_M6502BClear : SDTypeProfile<0, 2,
-                                    [SDTCisInt<0>, SDTCisVT<1, OtherVT>]>;
+                                    [SDTCisVT<0, OtherVT>, SDTCisVT<1, OtherVT>]>;
+def SDT_M6502SelectCC : SDTypeProfile<1, 3, [SDTCisVT<0, i8>, SDTCisVT<1, i8>,
+                                             SDTCisVT<2, i8>, SDTCisVT<3, i8>]>;
+def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Custom nodes
 
@@ -86,7 +88,14 @@ def M6502bset : SDNode<"M6502ISD::BSET", SDT_M6502BSet,
                        [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
 def M6502bclear : SDNode<"M6502ISD::BCLEAR", SDT_M6502BClear,
                          [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
+def M6502selectcc : SDNode<"M6502ISD::SELECT_CC", SDT_M6502SelectCC,
+                           [SDNPInGlue]>;
 
+// Flag nodes for bset and bclear
+def M6502nflag : SDNode<"M6502ISD::NFLAG", SDT_M6502Flag, []>; // negative
+def M6502zflag : SDNode<"M6502ISD::ZFLAG", SDT_M6502Flag, []>; // zero
+def M6502cflag : SDNode<"M6502ISD::CFLAG", SDT_M6502Flag, []>; // carry
+def M6502vflag : SDNode<"M6502ISD::VFLAG", SDT_M6502Flag, []>; // overflow
 
 // Instructions
 
@@ -94,6 +103,8 @@ class I : Instruction {
   let Namespace = "M6502";
   let isPseudo = 1; // XXX: for now, all instructions are pseudo-instructions.
 }
+
+// TODO: Add Defs and Uses for Flag registers in instructions that modify flags
 
 multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Register operand (psuedo)
@@ -169,42 +180,47 @@ def ASR_imm : I {
   let Pattern = [(set General:$ao, (sra General:$ai, (i8 imm:$x)))];
 }
 
-// Branch on flag clear
-//   BPL: branch on NF = 0
-//   BNE: branch on ZF = 0
-//   BCC: branch on CF = 0
-//   BVC: branch on VF = 0
-// TODO: set Uses = [*Flag] on conditional branch instructions
-def BCLEAR : I {
-  let OutOperandList = (outs);
-  let InOperandList = (ins Flag:$f, brtarget:$target);
-  let AsmString = "BCLEAR $f, $target"; // TODO: print correct mnemonic.
-  let Pattern = [(M6502bclear (i1 Flag:$f), bb:$target)];
-  // FIXME: conditional branch instructions can only target a relative address
-  // within -128..127 bytes of the program counter. Extra handling is needed for
-  // other addresses.
-  let Size = 2;
-  let isBranch = 1; // This is a branch instruction
-  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+// Branch on flag instructions
+multiclass CondBranchI<SDPatternOperator Flag, string IfSetName,
+                       string IfClearName> {
+  def _set : I {
+    let OutOperandList = (outs);
+    let InOperandList = (ins brtarget:$target);
+    let AsmString = IfSetName # " $target";
+    let Pattern = [(M6502bset (Flag), bb:$target)];
+    let isBranch = 1;
+    let isTerminator = 1;
+  }
+
+  def _clear : I {
+    let OutOperandList = (outs);
+    let InOperandList = (ins brtarget:$target);
+    let AsmString = IfClearName # " $target";
+    let Pattern = [(M6502bclear (Flag), bb:$target)];
+    let isBranch = 1;
+    let isTerminator = 1;
+  }
 }
 
-// Branch on flag set
-//   BMI: branch on NF = 1
-//   BEQ: branch on ZF = 1
-//   BCS: branch on CF = 1
-//   BVS: branch on VF = 1
-// TODO: set Uses = [*Flag] on conditional branch instructions
-def BSET : I {
-  let OutOperandList = (outs);
-  let InOperandList = (ins Flag:$f, brtarget:$target);
-  let AsmString = "BSET $f, $target"; // TODO: print correct mnemonic.
-  let Pattern = [(M6502bset (i1 Flag:$f), bb:$target)];
-  // FIXME: conditional branch instructions can only target a relative address
-  // within -128..127 bytes of the program counter. Extra handling is needed for
-  // other addresses.
-  let Size = 2;
-  let isBranch = 1; // This is a branch instruction
-  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+let Uses = [NF] in
+  defm BN : CondBranchI<M6502nflag, "BMI", "BPL">;
+let Uses = [ZF] in
+  defm BZ : CondBranchI<M6502zflag, "BEQ", "BNE">;
+let Uses = [CF] in
+  defm BC : CondBranchI<M6502cflag, "BCS", "BCC">;
+let Uses = [VF] in
+  defm BV : CondBranchI<M6502vflag, "BVS", "BVC">;
+
+let usesCustomInserter = 1 in {
+  // NOTE: Custom inserter converts SELECT to conditional branches
+  // TODO: add Flag node operand to select instructions
+  def SELECT : I {
+    let OutOperandList = (outs General:$r);
+    let InOperandList = (ins General:$a, General:$b, i8imm:$cc);
+    let AsmString = "SELECT $a, $b, $cc # Pseudo";
+    let Pattern = [(set General:$r, (M6502selectcc General:$a, General:$b,
+                                                   imm:$cc))];
+  }
 }
 
 // Compare Register with Immediate
@@ -406,7 +422,9 @@ def RETURN : I {
 }
 
 // TAX, TAY, TXA, TYA (may compile as memory loads/stores)
+// TODO: Transfer instructions may modify flags!
 def T_reg : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs General:$dst);
   let InOperandList = (ins General:$src);
   let AsmString = "T_reg $dst, $src";
