@@ -5,6 +5,7 @@
 #include "M6502Subtarget.h"
 #include "MCTargetDesc/M6502MCTargetDesc.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 
@@ -19,19 +20,21 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  // XXX: this is a hack to get conditional branches to work. This might break
-  // code that uses i1 variables. Find a better solution.
-  addRegisterClass(MVT::i1, &M6502::FlagRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
-  setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
-  setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
+  setOperationAction(ISD::GlobalAddress,  MVT::i16, Custom);
+  setOperationAction(ISD::FrameIndex,     MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
-  setOperationAction(ISD::MUL, MVT::i8, LibCall);
+
+  setOperationAction(ISD::MUL,       MVT::i8, LibCall);
+  setOperationAction(ISD::MULHU,     MVT::i8, LibCall);
   setOperationAction(ISD::UMUL_LOHI, MVT::i8, LibCall);
-  setOperationAction(ISD::MULHU, MVT::i8, LibCall);
-  setOperationAction(ISD::BR_CC, MVT::i8, Custom);
+
+  setOperationAction(ISD::BR_CC,     MVT::i8,    Custom);
+  setOperationAction(ISD::BRCOND,    MVT::Other, Expand);
+  setOperationAction(ISD::SETCC,     MVT::i8,    Expand);
+  setOperationAction(ISD::SELECT_CC, MVT::i8,    Custom);
 
   // TODO: support pre-indexed loads and stores
   //setIndexedLoadAction(ISD::PRE_INC, MVT::i8, Legal);
@@ -45,40 +48,38 @@ MVT M6502TargetLowering::getScalarShiftAmountTy(const DataLayout &DL,
   return MVT::i8;
 }
 
+EVT M6502TargetLowering::getSetCCResultType(const DataLayout &DL,
+                                            LLVMContext &Context,
+                                            EVT VT) const {
+  // NOTE: Without this override, LLVM assumes that a SETCC result
+  // is the size of a pointer. However, i16's are illegal in M6502.
+  return MVT::i8;
+}
+
 const char *
 M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (static_cast<M6502ISD::NodeType>(Opcode)) {
     // TODO: Use .def to automate this like WebAssembly
-  case M6502ISD::FIRST_NUMBER:
-    break;
-  case M6502ISD::ABSADDR:
-    return "M6502ISD::ABSADDR";
-  case M6502ISD::HILOADDR:
-    return "M6502ISD::HILOADDR";
-  case M6502ISD::FIADDR:
-    return "M6502ISD::FIADDR";
-  case M6502ISD::ADDRHI:
-    return "M6502ISD::ADDRHI";
-  case M6502ISD::ADDRLO:
-    return "M6502ISD::ADDRLO";
-  case M6502ISD::FIHI:
-    return "M6502ISD::FIHI";
-  case M6502ISD::FILO:
-    return "M6502ISD::FILO";
-  case M6502ISD::LOADFROM:
-    return "M6502ISD::LOADFROM";
-  case M6502ISD::STORETO:
-    return "M6502ISD::STORETO";
-  case M6502ISD::CALL:
-    return "M6502ISD::CALL";
-  case M6502ISD::RETURN:
-    return "M6502ISD::RETURN";
-  case M6502ISD::CMP:
-    return "M6502ISD::CMP";
-  case M6502ISD::BSET:
-    return "M6502ISD::BSET";
-  case M6502ISD::BCLEAR:
-    return "M6502ISD::BCLEAR";
+  case M6502ISD::FIRST_NUMBER: break;
+  case M6502ISD::ABSADDR:      return "M6502ISD::ABSADDR";
+  case M6502ISD::HILOADDR:     return "M6502ISD::HILOADDR";
+  case M6502ISD::FIADDR:       return "M6502ISD::FIADDR";
+  case M6502ISD::ADDRHI:       return "M6502ISD::ADDRHI";
+  case M6502ISD::ADDRLO:       return "M6502ISD::ADDRLO";
+  case M6502ISD::FIHI:         return "M6502ISD::FIHI";
+  case M6502ISD::FILO:         return "M6502ISD::FILO";
+  case M6502ISD::LOADFROM:     return "M6502ISD::LOADFROM";
+  case M6502ISD::STORETO:      return "M6502ISD::STORETO";
+  case M6502ISD::CALL:         return "M6502ISD::CALL";
+  case M6502ISD::RETURN:       return "M6502ISD::RETURN";
+  case M6502ISD::CMP:          return "M6502ISD::CMP";
+  case M6502ISD::BSET:         return "M6502ISD::BSET";
+  case M6502ISD::BCLEAR:       return "M6502ISD::BCLEAR";
+  case M6502ISD::SELECT_CC:    return "M6502ISD::SELECT_CC";
+  case M6502ISD::NFLAG:        return "M6502ISD::NFLAG";
+  case M6502ISD::ZFLAG:        return "M6502ISD::ZFLAG";
+  case M6502ISD::CFLAG:        return "M6502ISD::CFLAG";
+  case M6502ISD::VFLAG:        return "M6502ISD::VFLAG";
   }
   return nullptr;
 }
@@ -411,6 +412,7 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FrameIndex: return LowerFrameIndex(Op, DAG);
   case ISD::ExternalSymbol: return LowerExternalSymbol(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
+  case ISD::SELECT_CC: return LowerSELECT_CC(Op, DAG);
   default:
     llvm_unreachable("Custom lowering not implemented for operation");
     break;
@@ -489,6 +491,13 @@ SDValue M6502TargetLowering::LowerExternalSymbol(SDValue Op,
   return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
 }
 
+static SDValue EmitCMP(SDValue LHS, SDValue RHS, const SDLoc &dl,
+                       SelectionDAG &DAG) {
+  // TODO: avoid generating CMP instruction if possible, e.g. if
+  // an earlier SUB instruction put the desired condition in ZFlag.
+  return DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, LHS, RHS);
+}
+
 SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
@@ -497,80 +506,191 @@ SDValue M6502TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Dest = Op.getOperand(4);
   SDLoc dl(Op);
 
+  SDValue Glue = EmitCMP(LHS, RHS, dl, DAG);
+
   // TODO: clean up, verify correctness
-  M6502ISD::NodeType NodeType1;
-  unsigned int FlagReg1 = M6502::NoRegister;
-  M6502ISD::NodeType NodeType2;
-  unsigned int FlagReg2 = M6502::NoRegister;
-  switch (CC) {
-  case ISD::SETEQ:
-    NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::ZF;
-    break;
-  case ISD::SETNE:
-    NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::ZF;
-    break;
-  case ISD::SETLT: // signed less-than
-    NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::NF;
-    break;
-  case ISD::SETLE: // signed less-than or equal
-    NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::NF;
-    NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZF;
-    break;
-  case ISD::SETGT: // signed greater-than
-    NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::NF;
-    break;
-  case ISD::SETGE: // signed greater-than or equal
-    NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::NF;
-    NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZF;
-    break;
-  case ISD::SETULT: // unsigned less-than
-    NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::CF;
-    break;
-  case ISD::SETULE: // unsigned less-than or equal
-    NodeType1 = M6502ISD::BSET;
-    FlagReg1 = M6502::CF;
-    NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZF;
-    break;
-  case ISD::SETUGT: // unsigned greater-than
-    NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::CF;
-    break;
-  case ISD::SETUGE: // unsigned greater-than or equal
-    NodeType1 = M6502ISD::BCLEAR;
-    FlagReg1 = M6502::CF;
-    NodeType2 = M6502ISD::BSET;
-    FlagReg2 = M6502::ZF;
-    break;
-  default:
-    llvm_unreachable("Invalid integer condition");
-    break;
+  // Find node types for less-than/greater-than comparison
+  if (isSignedIntSetCC(CC) || isUnsignedIntSetCC(CC)) {
+    M6502ISD::NodeType B;
+    M6502ISD::NodeType Flag;
+    switch (CC) {
+    case ISD::SETLT: // signed less-than
+    case ISD::SETLE: // signed less-than or equal
+      B = M6502ISD::BSET;
+      Flag = M6502ISD::NFLAG;
+      break;
+    case ISD::SETGT: // signed greater-than
+    case ISD::SETGE: // signed greater-than or equal
+      B = M6502ISD::BCLEAR;
+      Flag = M6502ISD::NFLAG;
+      break;
+    case ISD::SETULT: // unsigned less-than
+    case ISD::SETULE: // unsigned less-than or equal
+      B = M6502ISD::BSET;
+      Flag = M6502ISD::CFLAG;
+      break;
+    case ISD::SETUGT: // unsigned greater-than
+    case ISD::SETUGE: // unsigned greater-than or equal
+      B = M6502ISD::BCLEAR;
+      Flag = M6502ISD::CFLAG;
+      break;
+    default:
+      llvm_unreachable("Invalid integer condition");
+      break;
+    }
+
+    SDValue Branch1 = DAG.getNode(B, dl, DAG.getVTList(MVT::Other, MVT::Glue),
+                                  Chain, DAG.getNode(Flag, dl, MVT::Other),
+                                  Dest, Glue);
+    Chain = Branch1.getValue(0);
+    Glue = Branch1.getValue(1);
+  }
+
+  if (isTrueWhenEqual(CC)) {
+    // FIXME: glue correct?
+    SDValue Branch2 = DAG.getNode(M6502ISD::BSET, dl,
+                                  DAG.getVTList(MVT::Other, MVT::Glue), Chain,
+                                  DAG.getNode(M6502ISD::ZFLAG, dl, MVT::Other),
+                                  Dest, Glue);
+    Chain = Branch2.getValue(0);
+    Glue = Branch2.getValue(1);
+  } else if (CC == ISD::SETNE) { // not equal
+    SDValue Branch1 = DAG.getNode(M6502ISD::BCLEAR, dl,
+                                  DAG.getVTList(MVT::Other, MVT::Glue), Chain,
+                                  DAG.getNode(M6502ISD::ZFLAG, dl, MVT::Other),
+                                  Dest, Glue);
+    Chain = Branch1.getValue(0);
+    Glue = Branch1.getValue(1);
+  } // else, branch has already been created above
+
+  return Chain;
+}
+
+SDValue M6502TargetLowering::LowerSELECT_CC(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  // NOTE: Similar to MSP430, see MSP430ISelLowering.cpp.
+  // I would like to lower SELECT_CC to CMP's and BR_CC's, but LLVM does not
+  // allow me to easily create BasicBlocks and manipulate control flow here.
+  // Hence, this function emits an M6502selectcc node. The "meat" of SELECT_CC
+  // lowering is in EmitInstrWithCustomInserter.
+  SDValue LHS = Op.getOperand(0);
+  SDValue RHS = Op.getOperand(1);
+  SDValue TrueV = Op.getOperand(2);
+  SDValue FalseV = Op.getOperand(3);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
+  SDLoc dl(Op);
+
+  SDValue Glue = EmitCMP(LHS, RHS, dl, DAG);
+
+  return DAG.getNode(M6502ISD::SELECT_CC, dl, DAG.getVTList(MVT::i8, MVT::Glue),
+                     TrueV, FalseV, DAG.getConstant(CC, dl, MVT::i8), Glue);
+}
+
+
+MachineBasicBlock *
+M6502TargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
+                                                 MachineBasicBlock *BB)
+                                                 const {
+  // See MSP430ISelLowering.cpp, this function is mostly copied
+  unsigned Opc = MI.getOpcode();
+
+  const TargetInstrInfo &TII = *BB->getParent()->getSubtarget().getInstrInfo();
+  DebugLoc dl = MI.getDebugLoc();
+
+  assert((Opc == M6502::SELECT) && "Unexpected instr type to insert");
+  
+  DEBUG(dbgs() << "Custom inserting SELECT instruction: "; MI.dump());
+  const MachineOperand &Result = MI.getOperand(0);
+  const MachineOperand &TrueV = MI.getOperand(1);
+  const MachineOperand &FalseV = MI.getOperand(2);
+  ISD::CondCode CC = static_cast<ISD::CondCode>(MI.getOperand(3).getImm());
+
+  // To "insert" a SELECT instruction, we actually have to insert the diamond
+  // control-flow pattern.  The incoming instruction knows the destination vreg
+  // to set, the condition code register to branch on, the true/false values to
+  // select between, and a branch opcode to use.
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  MachineFunction::iterator I = ++BB->getIterator();
+
+  //  thisMBB:
+  //  ...
+  //   TrueVal = ...
+  //   cmpTY ccX, r1, r2
+  //   jCC copy1MBB
+  //   fallthrough --> copy0MBB
+  MachineBasicBlock *thisMBB = BB;
+  MachineFunction *F = BB->getParent();
+  MachineBasicBlock *copy0MBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *copy1MBB = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(I, copy0MBB);
+  F->insert(I, copy1MBB);
+  // Update machine-CFG edges by transferring all successors of the current
+  // block to the new block which will contain the Phi node for the select.
+  copy1MBB->splice(copy1MBB->begin(), BB,
+                   std::next(MachineBasicBlock::iterator(MI)), BB->end());
+  copy1MBB->transferSuccessorsAndUpdatePHIs(BB);
+  // Next, add the true and fallthrough blocks as its successors.
+  BB->addSuccessor(copy0MBB);
+  BB->addSuccessor(copy1MBB);
+  
+  // TODO: clean up, verify correctness
+  // Find node types for less-than/greater-than comparison
+  if (isSignedIntSetCC(CC) || isUnsignedIntSetCC(CC)) {
+    unsigned BOpc = 0;
+    switch (CC) {
+    case ISD::SETLT: // signed less-than
+    case ISD::SETLE: // signed less-than or equal (TODO)
+      BOpc = M6502::BN_set;
+      break;
+    case ISD::SETGT: // signed greater-than
+    case ISD::SETGE: // signed greater-than or equal (TODO)
+      BOpc = M6502::BN_clear;
+      break;
+    case ISD::SETULT: // unsigned less-than
+    case ISD::SETULE: // unsigned less-than or equal (TODO)
+      BOpc = M6502::BC_set;
+      break;
+    case ISD::SETUGT: // unsigned greater-than
+    case ISD::SETUGE: // unsigned greater-than or equal (TODO)
+      BOpc = M6502::BC_clear;
+      break;
+    default:
+      llvm_unreachable("Invalid condition code");
+      break;
+    }
+
+    BuildMI(BB, dl, TII.get(BOpc))
+        .addMBB(copy1MBB);
   }
   
-  // TODO: avoid generating CMP instruction if possible, e.g. if
-  // an earlier SUB instruction put the desired condition in ZFlag.
-  Chain = DAG.getCopyToReg(Chain, dl, M6502::R0, LHS); // Load LHS to R0 (todo: allocate virtual register?)
-  SDValue CmpGlue = DAG.getNode(M6502ISD::CMP, dl, MVT::Glue, DAG.getRegister(M6502::R0, MVT::i8), RHS);
+  if (isTrueWhenEqual(CC)) {
+    // TODO: new basic block?
+    BuildMI(BB, dl, TII.get(M6502::BZ_set))
+        .addMBB(copy1MBB);
+  } else if (CC == ISD::SETNE) { // not equal
+    // TODO: new basic block?
+    BuildMI(BB, dl, TII.get(M6502::BZ_clear))
+        .addMBB(copy1MBB);
+  } // else, branch has already been created above
 
-  if (FlagReg2 != M6502::NoRegister) {
-    // FIXME: glue correct?
-    SDValue Branch1 = DAG.getNode(NodeType1, dl, MVT::Glue, Chain,
-                                  DAG.getRegister(FlagReg1, MVT::i1), Dest, CmpGlue);
-    SDValue Branch2 = DAG.getNode(NodeType2, dl, Op.getValueType(), Chain,
-                                  DAG.getRegister(FlagReg2, MVT::i1), Dest, Branch1);
-    return Branch2;
-  } else {
-    SDValue Branch1 = DAG.getNode(NodeType1, dl, Op.getValueType(), Chain,
-                                  DAG.getRegister(FlagReg1, MVT::i1), Dest, CmpGlue);
-    return Branch1;
-  }
+  //  copy0MBB:
+  //   %FalseValue = ...
+  //   # fallthrough to copy1MBB
+  BB = copy0MBB;
+
+  // Update machine-CFG edges
+  BB->addSuccessor(copy1MBB);
+
+  //  copy1MBB:
+  //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
+  //  ...
+  BB = copy1MBB;
+  BuildMI(*BB, BB->begin(), dl, TII.get(M6502::PHI), Result.getReg())
+      .addReg(FalseV.getReg())
+      .addMBB(copy0MBB)
+      .addReg(TrueV.getReg())
+      .addMBB(thisMBB);
+
+  MI.eraseFromParent(); // The pseudo instruction is gone now.
+  return BB;
 }

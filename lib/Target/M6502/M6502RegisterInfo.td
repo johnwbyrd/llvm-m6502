@@ -4,12 +4,6 @@ class R<string n> : Register<n> {
   let Namespace = "M6502";
 }
 
-// FIXME: is this necessary and used correctly? 1-bit flags are marked
-// Unallocatable as M6502 has no native i1 register type.
-class Unallocatable {
-  bit isAllocatable = 0;
-}
-
 // XXX: Create a set of virtual 8-bit registers. A late compiler pass will
 // assign these registers to A, X, Y and memory. (TODO: this pass is not
 // implemented yet.)
@@ -23,8 +17,3 @@ def VF : R<"VF">; // overflow flag
 
 def General : RegisterClass<"M6502", [i8], 8,
                             (sequence "R%u", 0, 31)>;
-
-def Flag : RegisterClass<"M6502", [i1], 1,
-                         (add NF, ZF, CF, VF)>, Unallocatable;
-
-// TODO: register class for 16-bit pointers

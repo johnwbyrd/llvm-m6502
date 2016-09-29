@@ -15,6 +15,8 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
+  // FIXME: T_reg clobbers N and Z flags, and possibly others, depending on the
+  // final machine code. Do not insert T_reg between a CMP and a branch.
   BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
     .addReg(SrcReg, getKillRegState(KillSrc));
 }
