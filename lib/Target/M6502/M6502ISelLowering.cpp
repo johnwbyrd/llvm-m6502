@@ -305,7 +305,8 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
       Offset += cast<ConstantSDNode>(RHS)->getSExtValue();
       Walker = LHS;
     } else {
-      // Pointer added to non-constant. Do not attempt to recombine.
+      // Offset was non-constant. Do not attempt to recombine.
+      // TODO: support 8-bit variable offset (Y-indexed addressing)
       Walker = SDValue();
       break;
     }
@@ -345,6 +346,11 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
     SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
     return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
                        Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
+  } else if (Walker && isa<ConstantSDNode>(Walker)) {
+    ConstantSDNode *C = cast<ConstantSDNode>(Walker);
+    SDValue Address = DAG.getTargetConstant(C->getAPIntValue() + Offset, dl,
+                                            MVT::i16);
+    return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
   }
 
   // Generic
