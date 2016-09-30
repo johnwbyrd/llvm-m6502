@@ -29,7 +29,12 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::MUL,       MVT::i8, LibCall);
   setOperationAction(ISD::MULHU,     MVT::i8, LibCall);
+  setOperationAction(ISD::MULHS,     MVT::i8, LibCall);
+  setOperationAction(ISD::SMUL_LOHI, MVT::i8, LibCall);
   setOperationAction(ISD::UMUL_LOHI, MVT::i8, LibCall);
+  setOperationAction(ISD::SHL_PARTS, MVT::i8, Expand);
+  setOperationAction(ISD::SRA_PARTS, MVT::i8, Expand);
+  setOperationAction(ISD::SRL_PARTS, MVT::i8, Expand);
 
   setOperationAction(ISD::BR_CC,     MVT::i8,    Custom);
   setOperationAction(ISD::BRCOND,    MVT::Other, Expand);
