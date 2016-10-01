@@ -7,6 +7,8 @@
 #include "llvm/ADT/StringRef.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "m6502";
+
 namespace llvm {
 extern Target TheM6502Target;
 }
@@ -38,11 +40,11 @@ public:
     return getTM<M6502TargetMachine>();
   }
 
-  bool addInstSelector() override;
+  FunctionPass *createTargetRegisterAllocator(bool Optimized) override;
 
-  /// This method may be implemented by targets that want to run passes
-  /// immediately before register allocation.
-  virtual void addPreRegAlloc() override;
+  bool addInstSelector() override;
+  void addPostRegAlloc() override;
+  void addPreEmitPass() override;
 };
 } // namespace
 
@@ -50,10 +52,43 @@ TargetPassConfig *M6502TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new M6502PassConfig(this, PM);
 }
 
+FunctionPass *M6502PassConfig::createTargetRegisterAllocator(bool Optimized) {
+  // M6502 does not use LLVM's standard register allocator.
+  return nullptr; // No reg alloc
+}
+
 bool M6502PassConfig::addInstSelector() {
+  TargetPassConfig::addInstSelector();
   addPass(createM6502ISelDag(getM6502TargetMachine(), getOptLevel()));
   return false;
 }
 
-void M6502PassConfig::addPreRegAlloc() {
+void M6502PassConfig::addPostRegAlloc() {
+  // Adapted from WebAssemblyTargetMachine.cpp. WebAssembly is another backend
+  // that disables LLVM's standard register allocator.
+  
+  // TODO: The following CodeGen passes don't currently support code containing
+  // virtual registers. Consider removing their restrictions and re-enabling
+  // them.
+
+  // Has no asserts of its own, but was not written to handle virtual regs.
+  disablePass(&ShrinkWrapID);
+
+  // These functions all require the AllVRegsAllocated property.
+  disablePass(&MachineCopyPropagationID);
+  disablePass(&PostRASchedulerID);
+  disablePass(&FuncletLayoutID);
+  disablePass(&StackMapLivenessID);
+  disablePass(&LiveDebugValuesID);
+  disablePass(&PatchableFunctionID);
+
+  addPrintPass("This banner is humble.");
+
+  TargetPassConfig::addPostRegAlloc();
+}
+
+void M6502PassConfig::addPreEmitPass() {
+  TargetPassConfig::addPreEmitPass();
+
+  addPass(createM6502RegNumbering());
 }

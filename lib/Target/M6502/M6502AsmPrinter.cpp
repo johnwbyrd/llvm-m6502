@@ -4,6 +4,7 @@
 // finds this file in the target subdirectory.
 
 #include "M6502.h"
+#include "M6502MachineFunctionInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCStreamer.h"
@@ -69,12 +70,16 @@ void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &
       MI->dump();
       llvm_unreachable("unknown operand type");
       break;
-    case MachineOperand::MO_Register:
+    case MachineOperand::MO_Register: {
       // Ignore all implicit register operands.
       if (MO.isImplicit())
         continue;
-      MCOp = MCOperand::createReg(MO.getReg());
+      const M6502FunctionInfo &MFI =
+          *MI->getParent()->getParent()->getInfo<M6502FunctionInfo>();
+      unsigned M6502Reg = MFI.getM6502Reg(MO.getReg());
+      MCOp = MCOperand::createReg(M6502Reg);
       break;
+    }
     case MachineOperand::MO_Immediate:
       MCOp = MCOperand::createImm(MO.getImm());
       break;

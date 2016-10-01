@@ -29,6 +29,8 @@ public:
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }
+
+  bool usesPhysRegsForPEI() const override { return false; }
 };
 
 } // end namespace llvm
