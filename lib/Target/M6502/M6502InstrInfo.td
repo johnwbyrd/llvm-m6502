@@ -78,7 +78,7 @@ def M6502filo : SDNode<"M6502ISD::FILO", SDT_M6502AddrElement, []>;
 
 // Indirect branch nodes
 def M6502brind : SDNode<"M6502ISD::BRIND", SDT_M6502BrInd,
-                        [SDNPHasChain, SDNPMayLoad]>;
+                        [SDNPHasChain]>;
 
 
 // Call-related nodes
@@ -319,7 +319,7 @@ def LD_addr_lo : I {
 def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
 def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
 def : Pat<(M6502addrhi tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
-def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
+def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_lo tjumptable:$jt)>;
 // TODO: texternalsym, tblockaddress, etc.
 
 // Get hi byte of address of stack variable
@@ -403,16 +403,15 @@ def ST_stack : I {
   let mayStore = 1;
 }
 
-// Read pointer from address formed by Hi, Lo bytes, then branch to pointer
-def JMP_ind_hi_lo : I {
+// Jump to address formed by Hi, Lo elements
+def JMP_hi_lo : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$hi, General:$lo);
-  let AsmString = "JMP_ind_hi_lo ($hi, $lo)";
+  let AsmString = "JMP_hi_lo ($hi, $lo)";
   let Pattern = [(M6502brind (M6502hiloaddr General:$hi, General:$lo))];
   let isBranch = 1; // This is a branch instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
-  let mayLoad = 1;
 }
 
 def LSR_reg : I {
