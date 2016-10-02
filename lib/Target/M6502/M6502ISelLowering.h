@@ -22,6 +22,7 @@ enum NodeType : unsigned {
   FILO, // lo element of frame index address
   LOADFROM,
   STORETO,
+  BRIND,
   CALL,
   RETURN,
   CMP,
@@ -80,8 +81,17 @@ public:
       const override;
 
 private:
+  void LegalizeLoad(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                    SelectionDAG &DAG) const;
+  void LegalizeStore(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                     SelectionDAG &DAG) const;
+  void LegalizeBR_JT(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                     SelectionDAG &DAG) const;
+  void LegalizeBRIND(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                     SelectionDAG &DAG) const;
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;

@@ -7,6 +7,7 @@
 #include "M6502MachineFunctionInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -89,16 +90,21 @@ void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &
       break;
     case MachineOperand::MO_RegisterMask:
       continue;
-    case MachineOperand::MO_GlobalAddress:
+    case MachineOperand::MO_JumpTableIndex:
       assert(MO.getTargetFlags() == 0 &&
-             "M6502 does not use target flags on GlobalAddresses");
-      MCOp = LowerSymbolOperand(getSymbol(MO.getGlobal()), MO.getOffset());
+             "M6502 does not use target flags on JumpTableIndexes");
+      MCOp = LowerSymbolOperand(GetJTISymbol(MO.getIndex()), 0);
       break;
     case MachineOperand::MO_ExternalSymbol:
       assert(MO.getTargetFlags() == 0 &&
              "M6502 does not use target flags on ExternalSymbols");
       MCOp = LowerSymbolOperand(GetExternalSymbolSymbol(MO.getSymbolName()),
                                 MO.getOffset());
+      break;
+    case MachineOperand::MO_GlobalAddress:
+      assert(MO.getTargetFlags() == 0 &&
+             "M6502 does not use target flags on GlobalAddresses");
+      MCOp = LowerSymbolOperand(getSymbol(MO.getGlobal()), MO.getOffset());
       break;
     }
 

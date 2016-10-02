@@ -29,8 +29,7 @@ void M6502InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                     raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isImm()) {
-    O << "#$";
-    O.write_hex(Op.getImm());
+    O << Op.getImm();
   } else if (Op.isReg()) {
     printRegName(O, Op.getReg());
   } else if (Op.isExpr()) {

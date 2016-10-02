@@ -245,11 +245,16 @@ private:
 
   struct JumpTable {
     JumpTable(unsigned R, unsigned J, MachineBasicBlock *M,
-              MachineBasicBlock *D): Reg(R), JTI(J), MBB(M), Default(D) {}
+              MachineBasicBlock *D)
+        : Reg(R), UseFI(false), FI(0), JTI(J), MBB(M), Default(D) {}
 
     /// Reg - the virtual register containing the index of the jump table entry
     //. to jump to.
     unsigned Reg;
+    /// FI - (if Reg is not used) the stack frame index containing the index of
+    /// the jump table entry to jump to.
+    bool UseFI;
+    unsigned FI;
     /// JTI - the JumpTableIndex for this jump table in the function.
     unsigned JTI;
     /// MBB - the MBB into which to emit the code for the indirect jump.

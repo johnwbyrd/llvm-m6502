@@ -39,6 +39,7 @@ def SDT_M6502LoadFrom : SDTypeProfile<1, 1,
 def SDT_M6502StoreTo : SDTypeProfile<0, 2,
                                     [SDTCisVT<0, i8>,
                                      SDTCisVT<1, OtherVT>]>;
+def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
@@ -74,6 +75,10 @@ def M6502filo : SDNode<"M6502ISD::FILO", SDT_M6502AddrElement, []>;
                             [SDNPHasChain, SDNPMayLoad]>; // load from pointer
  def M6502storeto : SDNode<"M6502ISD::STORETO", SDT_M6502StoreTo,
                            [SDNPHasChain, SDNPMayStore]>; // store to pointer
+
+// Indirect branch nodes
+def M6502brind : SDNode<"M6502ISD::BRIND", SDT_M6502BrInd,
+                        [SDNPHasChain, SDNPMayLoad]>;
 
 
 // Call-related nodes
@@ -313,6 +318,9 @@ def LD_addr_lo : I {
 
 def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
 def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
+def : Pat<(M6502addrhi tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
+def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
+// TODO: texternalsym, tblockaddress, etc.
 
 // Get hi byte of address of stack variable
 def LD_stack_addr_hi : I {
@@ -393,6 +401,18 @@ def ST_stack : I {
   let AsmString = "ST_stack $r, [$fi]+$offs";
   let Pattern = [(M6502storeto General:$r, (M6502fiaddr timm:$fi, timm:$offs))];
   let mayStore = 1;
+}
+
+// Read pointer from address formed by Hi, Lo bytes, then branch to pointer
+def JMP_ind_hi_lo : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$hi, General:$lo);
+  let AsmString = "JMP_ind_hi_lo ($hi, $lo)";
+  let Pattern = [(M6502brind (M6502hiloaddr General:$hi, General:$lo))];
+  let isBranch = 1; // This is a branch instruction
+  let isTerminator = 1; // This instruction is part of the terminator for a basic block
+  let isBarrier = 1; // Control flow cannot fall through this instruction
+  let mayLoad = 1;
 }
 
 def LSR_reg : I {
