@@ -223,7 +223,6 @@ bool DAGTypeLegalizer::run() {
     if (CustomLegalizeTypes(N)) {
       // FIXME: Reanalyze when N is modified in place.
       Changed = true;
-      DEBUG(dbgs() << "Custom legally typed node: "; N->dump(&DAG); dbgs() << "\n");
       goto NodeDone;
     }
 
