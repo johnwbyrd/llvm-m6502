@@ -367,7 +367,7 @@ def LD_stack : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr timm:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -399,11 +399,11 @@ def ST_stack : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$r, iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(M6502storeto General:$r, (M6502fiaddr timm:$fi, timm:$offs))];
+  let Pattern = [(M6502storeto General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
-// Jump to address formed by Hi, Lo elements
+// Jump to address formed by Hi, Lo bytes
 def JMP_hi_lo : I {
   let OutOperandList = (outs);
   let InOperandList = (ins General:$hi, General:$lo);
@@ -412,6 +412,7 @@ def JMP_hi_lo : I {
   let isBranch = 1; // This is a branch instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
+  let isIndirectBranch = 1; // This is an indirect branch instruction
 }
 
 def LSR_reg : I {
