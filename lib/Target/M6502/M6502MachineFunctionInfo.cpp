@@ -20,3 +20,7 @@ unsigned M6502FunctionInfo::getM6502Reg(unsigned Reg) const {
   assert(TargetRegisterInfo::virtReg2Index(Reg) < M6502Regs.size());
   return M6502Regs[TargetRegisterInfo::virtReg2Index(Reg)];
 }
+
+size_t M6502FunctionInfo::getNumM6502Regs() const {
+  return M6502Regs.size();
+}

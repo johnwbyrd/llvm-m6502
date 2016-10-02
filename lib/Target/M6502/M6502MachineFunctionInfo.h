@@ -23,6 +23,7 @@ public:
   void initM6502Regs();
   void setM6502Reg(unsigned VReg, unsigned M6502Reg);
   unsigned getM6502Reg(unsigned Reg) const;
+  size_t getNumM6502Regs() const;
 };
 
 } // end namespace llvm
