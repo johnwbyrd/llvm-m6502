@@ -1903,10 +1903,17 @@ void SelectionDAGBuilder::visitSwitchCase(CaseBlock &CB,
 /// visitJumpTable - Emit JumpTable node in the current MBB
 void SelectionDAGBuilder::visitJumpTable(JumpTable &JT) {
   // Emit the code for the jump table
-  assert(JT.Reg != -1U && "Should lower JT Header first!");
+  assert((JT.Reg != -1U || JT.UseFI) && "Should lower JT Header first!");
   EVT PTy = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
-  SDValue Index = DAG.getCopyFromReg(getControlRoot(), getCurSDLoc(),
-                                     JT.Reg, PTy);
+  SDValue Index;
+  if (JT.UseFI) {
+    SDValue FrameIndex = DAG.getFrameIndex(JT.FI, PTy);
+    Index = DAG.getLoad(PTy, getCurSDLoc(), getControlRoot(), FrameIndex,
+                        MachinePointerInfo());
+  } else {
+    Index = DAG.getCopyFromReg(getControlRoot(), getCurSDLoc(),
+                               JT.Reg, PTy);
+  }
   SDValue Table = DAG.getJumpTable(JT.JTI, PTy);
   SDValue BrJumpTable = DAG.getNode(ISD::BR_JT, getCurSDLoc(),
                                     MVT::Other, Index.getValue(1),
@@ -1934,14 +1941,34 @@ void SelectionDAGBuilder::visitJumpTableHeader(JumpTable &JT,
   // can be used as an index into the jump table in a subsequent basic block.
   // This value may be smaller or larger than the target's pointer type, and
   // therefore require extension or truncating.
+  // TODO: use SwitchOp type smaller than pointer size if possible (i.e. use i8
+  // in M6502 backend)
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   SwitchOp = DAG.getZExtOrTrunc(Sub, dl, TLI.getPointerTy(DAG.getDataLayout()));
 
-  unsigned JumpTableReg =
-      FuncInfo.CreateReg(TLI.getPointerTy(DAG.getDataLayout()));
-  SDValue CopyTo = DAG.getCopyToReg(getControlRoot(), dl,
-                                    JumpTableReg, SwitchOp);
-  JT.Reg = JumpTableReg;
+  SDValue CopyTo;
+  if (TLI.isTypeLegal(TLI.getPointerTy(DAG.getDataLayout()))) {
+    unsigned JumpTableReg =
+        FuncInfo.CreateReg(TLI.getPointerTy(DAG.getDataLayout()));
+    CopyTo = DAG.getCopyToReg(getControlRoot(), dl,
+                              JumpTableReg, SwitchOp);
+    JT.Reg = JumpTableReg;
+  } else {
+    // SwitchOp cannot be stored in a virtual register, so store it on the
+    // stack instead.
+    // TODO: find a better solution
+    int FI = SwitchBB->getParent()->getFrameInfo()->CreateStackObject(
+        TLI.getPointerTy(DAG.getDataLayout()).getStoreSize(),
+        DAG.getDataLayout().getPointerPrefAlignment(),
+        false);
+    SDValue FrameIndex = DAG.getFrameIndex(
+        FI, TLI.getPointerTy(DAG.getDataLayout()));
+    CopyTo = DAG.getStore(getControlRoot(), dl, SwitchOp, FrameIndex,
+                          MachinePointerInfo());
+    JT.Reg = -1;
+    JT.UseFI = true;
+    JT.FI = FI;
+  }
 
   // Emit the range check for the jump table, and branch to the default block
   // for the switch statement if the value being switched on exceeds the largest

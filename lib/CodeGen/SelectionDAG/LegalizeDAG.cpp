@@ -909,6 +909,7 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
 
   if (Node->getOpcode() == ISD::TargetConstant ||
       Node->getOpcode() == ISD::TargetGlobalAddress ||
+      Node->getOpcode() == ISD::TargetJumpTable ||
       Node->getOpcode() == ISD::TargetExternalSymbol) // Allow illegal target nodes.
     return;
 
@@ -925,6 +926,7 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
             TLI.isTypeLegal(Op.getValueType()) ||
             Op.getOpcode() == ISD::TargetConstant ||
             Op.getOpcode() == ISD::TargetGlobalAddress ||
+            Op.getOpcode() == ISD::TargetJumpTable ||
             Op.getOpcode() == ISD::TargetExternalSymbol) &&
             "Unexpected illegal type!");
 #endif

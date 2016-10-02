@@ -5,7 +5,9 @@
 #include "M6502Subtarget.h"
 #include "MCTargetDesc/M6502MCTargetDesc.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 
@@ -25,6 +27,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::GlobalAddress,  MVT::i16, Custom);
   setOperationAction(ISD::FrameIndex,     MVT::i16, Custom);
+  setOperationAction(ISD::JumpTable,      MVT::i16, Custom);
   setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
 
   setOperationAction(ISD::MUL,       MVT::i8, LibCall);
@@ -75,6 +78,7 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case M6502ISD::FILO:         return "M6502ISD::FILO";
   case M6502ISD::LOADFROM:     return "M6502ISD::LOADFROM";
   case M6502ISD::STORETO:      return "M6502ISD::STORETO";
+  case M6502ISD::BRIND:        return "M6502ISD::BRIND";
   case M6502ISD::CALL:         return "M6502ISD::CALL";
   case M6502ISD::RETURN:       return "M6502ISD::RETURN";
   case M6502ISD::CMP:          return "M6502ISD::CMP";
@@ -366,53 +370,19 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
   return DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrHi, PtrLo);
 }
 
+// This hook gives backends an opportunity to process nodes before the operands
+// are legalized. M6502 uses this hook to process nodes that take 16-bit
+// pointer operands.
 void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
                                              SmallVectorImpl<SDValue> &Results,
                                              SelectionDAG &DAG) const {
   switch (N->getOpcode()) {
   default:
     break;
-  case ISD::LOAD:
-  {
-    LoadSDNode *Load = cast<LoadSDNode>(N);
-    if (Load->getValueType(0) != MVT::i8) { // TODO: use getMemoryVT? is there a difference?
-      return; // Allow legalizer to handle non-i8 loads
-    }
-    SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
-    DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
-    if (BasePtr->getValueType(0) != MVT::i16) {
-      return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-    }
-
-    SDLoc dl(N);
-    SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
-    SDValue Result = DAG.getNode(M6502ISD::LOADFROM, dl,
-                                 DAG.getVTList(MVT::i8, MVT::Other),
-                                 Load->getChain(), Address);
-    Results.push_back(Result.getValue(0)); // Value
-    Results.push_back(Result.getValue(1)); // Chain
-    break;
-  }
-  case ISD::STORE:
-  {
-    StoreSDNode *Store = cast<StoreSDNode>(N);
-    if (Store->getMemoryVT() != MVT::i8) {
-      return; // Allow legalizer to handle non-i8 stores
-    }
-    SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
-    DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
-    if (BasePtr->getValueType(0) != MVT::i16) {
-      return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-    }
-
-    SDLoc dl(N);
-    SDValue Value = Store->getValue();
-    SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
-    SDValue Result = DAG.getNode(M6502ISD::STORETO, dl, MVT::Other,
-                                 Store->getChain(), Value, Address);
-    Results.push_back(Result);
-    break;
-  }
+  case ISD::LOAD: return LegalizeLoad(N, Results, DAG);
+  case ISD::STORE: return LegalizeStore(N, Results, DAG);
+  case ISD::BR_JT: return LegalizeBR_JT(N, Results, DAG);
+  case ISD::BRIND: return LegalizeBRIND(N, Results, DAG);
   }
 }
 
@@ -421,6 +391,7 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   case ISD::GlobalAddress: return LowerGlobalAddress(Op, DAG);
   case ISD::FrameIndex: return LowerFrameIndex(Op, DAG);
+  case ISD::JumpTable: return LowerJumpTable(Op, DAG);
   case ISD::ExternalSymbol: return LowerExternalSymbol(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   case ISD::SELECT_CC: return LowerSELECT_CC(Op, DAG);
@@ -445,6 +416,10 @@ void M6502TargetLowering::ReplaceNodeResults(SDNode *N,
     // FIXME: this work is repeated from LowerOperation?
     Results.push_back(LowerFrameIndex(SDValue(N, 0), DAG));
     break;
+  case ISD::JumpTable:
+    // FIXME: this work is repeated from LowerOperation?
+    Results.push_back(LowerJumpTable(SDValue(N, 0), DAG));
+    break;
   default:
     llvm_unreachable("Do not know how to custom type legalize this operation!");
     break;
@@ -460,6 +435,103 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   }
 
   return SDValue();
+}
+
+void M6502TargetLowering::LegalizeLoad(SDNode *N,
+                                       SmallVectorImpl<SDValue> &Results,
+                                       SelectionDAG &DAG) const {
+  LoadSDNode *Load = cast<LoadSDNode>(N);
+  if (Load->getValueType(0) != MVT::i8) { // TODO: call getMemoryVT? is there a difference?
+    return; // Allow legalizer to handle non-i8 loads
+  }
+  SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
+  DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
+  if (BasePtr->getValueType(0) != MVT::i16) {
+    DEBUG(dbgs() << "Warning: Load pointer was not i16");
+    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
+  }
+
+  SDLoc dl(N);
+  SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
+  SDValue Result = DAG.getNode(M6502ISD::LOADFROM, dl,
+                                DAG.getVTList(MVT::i8, MVT::Other),
+                                Load->getChain(), Address);
+  Results.push_back(Result.getValue(0)); // Value
+  Results.push_back(Result.getValue(1)); // Chain
+}
+
+void M6502TargetLowering::LegalizeStore(SDNode *N,
+                                        SmallVectorImpl<SDValue> &Results,
+                                        SelectionDAG &DAG) const {
+  StoreSDNode *Store = cast<StoreSDNode>(N);
+  if (Store->getMemoryVT() != MVT::i8) {
+    return; // Allow legalizer to handle non-i8 stores
+  }
+  SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
+  DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
+  if (BasePtr->getValueType(0) != MVT::i16) {
+    DEBUG(dbgs() << "Warning: Store pointer was not i16");
+    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
+  }
+
+  SDLoc dl(N);
+  SDValue Value = Store->getValue();
+  SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
+  SDValue Result = DAG.getNode(M6502ISD::STORETO, dl, MVT::Other,
+                                Store->getChain(), Value, Address);
+  Results.push_back(Result);
+}
+
+void M6502TargetLowering::LegalizeBR_JT(SDNode *N,
+                                        SmallVectorImpl<SDValue> &Results,
+                                        SelectionDAG &DAG) const {
+  assert(N->getOpcode() == ISD::BR_JT);
+
+  SDValue Chain = N->getOperand(0);
+  SDValue Table = N->getOperand(1);
+  SDValue Index = N->getOperand(2);
+  SDLoc dl(N);
+
+  // The following is borrowed from LegalizeDAG.cpp.
+  // We cannot use LLVM's built-in BR_JT expansion because it cannot
+  // legalize the i16 operand.
+  EVT PTy = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
+
+  const DataLayout &TD = DAG.getDataLayout();
+  unsigned EntrySize =
+    DAG.getMachineFunction().getJumpTableInfo()->getEntrySize(TD);
+
+  Index = DAG.getNode(ISD::MUL, dl, Index.getValueType(), Index,
+                      DAG.getConstant(EntrySize, dl, Index.getValueType()));
+  SDValue Addr = DAG.getNode(ISD::ADD, dl, Index.getValueType(),
+                              Index, Table);
+
+  EVT MemVT = EVT::getIntegerVT(*DAG.getContext(), EntrySize * 8);
+  SDValue LD = DAG.getExtLoad(
+      ISD::SEXTLOAD, dl, PTy, Chain, Addr,
+      MachinePointerInfo::getJumpTable(DAG.getMachineFunction()), MemVT);
+  Addr = LD;
+  Results.push_back(DAG.getNode(ISD::BRIND, dl, MVT::Other, LD.getValue(1),
+                                Addr));
+}
+
+void M6502TargetLowering::LegalizeBRIND(SDNode *N,
+                                        SmallVectorImpl<SDValue> &Results,
+                                        SelectionDAG &DAG) const {
+  assert(N->getOpcode() == ISD::BRIND);
+
+  SDValue Chain = N->getOperand(0);
+  SDValue Ptr = N->getOperand(1); // TODO: handle indexing and truncating here?
+  DEBUG(dbgs() << "BRIND Ptr: "; Ptr->dumprFull(&DAG));
+  if (Ptr->getValueType(0) != MVT::i16) {
+    DEBUG(dbgs() << "Warning: BRIND pointer was not i16");
+    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
+  }
+
+  SDLoc dl(N);
+  SDValue Address = ConvertPtrToAddress(Ptr, dl, DAG);
+  Results.push_back(DAG.getNode(M6502ISD::BRIND, dl, MVT::Other, Chain,
+                                Address));
 }
 
 SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
@@ -485,6 +557,19 @@ SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
   SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
   SDValue Hi = DAG.getNode(M6502ISD::FIHI, dl, MVT::i8, Index);
   SDValue Lo = DAG.getNode(M6502ISD::FILO, dl, MVT::i8, Index);
+  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
+  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
+}
+
+SDValue M6502TargetLowering::LowerJumpTable(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  // Transform JumpTable to prevent LLVM from trying to legalize the i16.
+  SDLoc dl(Op);
+  const JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
+  assert(JT->getValueType(0) == MVT::i16);
+  SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), MVT::i16);
+  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, JTI);
+  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, JTI);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
   return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
 }

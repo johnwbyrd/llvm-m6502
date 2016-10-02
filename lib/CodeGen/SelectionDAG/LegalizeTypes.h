@@ -94,6 +94,7 @@ private:
     // Does anything break if we ignore other opcodes?
     return Opcode == ISD::TargetConstant ||
         Opcode == ISD::TargetGlobalAddress ||
+        Opcode == ISD::TargetJumpTable ||
         Opcode == ISD::TargetExternalSymbol; // TODO: ignore others?
   }
 
