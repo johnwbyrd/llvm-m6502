@@ -344,7 +344,7 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
                && Lo.getOperand(0) == Hi.getOperand(0)) {
       // Recombine frameindex
       SDValue Index = Lo.getOperand(0);
-      assert(Index.getOpcode() == ISD::TargetConstant); // See LowerFrameIndex
+      assert(Index.getOpcode() == ISD::TargetFrameIndex); // See LowerFrameIndex
       return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
                           Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
     }
@@ -352,7 +352,7 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
     // Occurs in LowerCall during LibCall legalization
     FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Walker);
     assert(FI->getValueType(0) == MVT::i16);
-    SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
+    SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
     return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
                        Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
   } else if (Walker && isa<ConstantSDNode>(Walker)) {
@@ -554,7 +554,7 @@ SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
   SDLoc dl(Op);
   const FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Op);
   assert(FI->getValueType(0) == MVT::i16);
-  SDValue Index = DAG.getTargetConstant(FI->getIndex(), dl, MVT::i16);
+  SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
   SDValue Hi = DAG.getNode(M6502ISD::FIHI, dl, MVT::i8, Index);
   SDValue Lo = DAG.getNode(M6502ISD::FILO, dl, MVT::i8, Index);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
