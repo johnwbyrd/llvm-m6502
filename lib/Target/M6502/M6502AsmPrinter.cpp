@@ -6,6 +6,7 @@
 #include "M6502.h"
 #include "M6502MachineFunctionInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
@@ -28,6 +29,7 @@ public:
   }
 
   void EmitInstruction(const MachineInstr *MI) override;
+  void EmitFunctionBodyStart() override;
 
 private:
   MCOperand LowerSymbolOperand(MCSymbol *Sym, int64_t Offset);
@@ -55,6 +57,20 @@ MCOperand M6502AsmPrinter::LowerSymbolOperand(MCSymbol *Sym, int64_t Offset) {
                                    OutContext);
   }
   return MCOperand::createExpr(Expr);
+}
+
+void M6502AsmPrinter::EmitFunctionBodyStart() {
+  const M6502FunctionInfo *FuncInfo = MF->getInfo<M6502FunctionInfo>();
+  OutStreamer->AddComment("Virtual register count: " +
+                          Twine(FuncInfo->getNumM6502Regs()));
+
+  OutStreamer->AddComment("Stack objects:");
+  const MachineFrameInfo *FrameInfo = MF->getFrameInfo();
+  for (int ObjIdx = FrameInfo->getObjectIndexBegin();
+      ObjIdx < FrameInfo->getObjectIndexEnd(); ++ObjIdx) {
+    OutStreamer->AddComment("  [" + Twine(ObjIdx) + "]: size " +
+                            Twine(FrameInfo->getObjectSize(ObjIdx)));
+  }
 }
 
 void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI) {
