@@ -86,6 +86,13 @@ void DebugLoc::print(raw_ostream &OS) const {
   if (!Loc)
     return;
 
+  DILocation *DIL = dyn_cast<DILocation>(Loc.get());
+  if (!DIL) {
+    // FIXME: Why does this happen?
+    OS << "***INVALID DEBUGLOC***";
+    return;
+  }
+  
   // Print source line info.
   auto *Scope = cast<DIScope>(getScope());
   OS << Scope->getFilename();
