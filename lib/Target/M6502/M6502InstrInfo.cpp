@@ -79,7 +79,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          const TargetRegisterInfo *TRI) const {
   // TODO: test
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+  if (M6502::PhysRegRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
@@ -97,7 +97,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           const TargetRegisterInfo *TRI) const {
   // TODO: test
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+  if (M6502::PhysRegRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
       .addFrameIndex(FrameIndex)
       .addImm(0);

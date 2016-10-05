@@ -262,6 +262,7 @@ let Uses = [VF] in
 let usesCustomInserter = 1 in {
   // NOTE: Custom inserter converts SELECT to conditional branches
   // TODO: add Flag node operand to select instructions
+  // FIXME: restrict to physregs
   def SELECT : I {
     let OutOperandList = (outs General:$r);
     let InOperandList = (ins General:$a, General:$b, i8imm:$cc);
@@ -322,6 +323,7 @@ def IN_reg : I {
   let Pattern = [(set Index:$io, (add Index:$ii, 1))];
 }
 
+let isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1 in {
 // LDA, LDX, LDY
 def LD_imm : I {
   let OutOperandList = (outs PhysReg:$r);
@@ -329,7 +331,6 @@ def LD_imm : I {
   let AsmString = "LD_imm $r, $x";
   let Pattern = [(set PhysReg:$r, (i8 imm:$x))];
 }
-
 // Get hi byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_hi : I {
   let OutOperandList = (outs PhysReg:$r);
@@ -337,7 +338,6 @@ def LD_addr_hi : I {
   let AsmString = "LD_addr_hi $r, $addr";
   let Pattern = [(set PhysReg:$r, (M6502addrhi timm:$addr))];
 }
-
 // Get lo byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_lo : I {
   let OutOperandList = (outs PhysReg:$r);
@@ -345,28 +345,29 @@ def LD_addr_lo : I {
   let AsmString = "LD_addr_lo $r, $addr";
   let Pattern = [(set PhysReg:$r, (M6502addrlo timm:$addr))];
 }
-
-def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
-def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
-def : Pat<(M6502addrhi tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
-def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_lo tjumptable:$jt)>;
-// TODO: texternalsym, tblockaddress, etc.
-
 // Get hi byte of address of stack variable
+// FIXME: LD_stack_addr_hi is cheap only when stack vars are allocated statically
 def LD_stack_addr_hi : I {
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_hi $r, [$fi]";
   let Pattern = [(set PhysReg:$r, (M6502fihi timm:$fi))];
 }
-
 // Get lo byte of address of stack variable
+// FIXME: LD_stack_addr_lo is cheap only when stack vars are allocated statically
 def LD_stack_addr_lo : I {
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_lo $r, [$fi]";
   let Pattern = [(set PhysReg:$r, (M6502filo timm:$fi))];
 }
+} // isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1
+
+def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
+def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
+def : Pat<(M6502addrhi tjumptable:$jt), (LD_addr_hi tjumptable:$jt)>;
+def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_lo tjumptable:$jt)>;
+// TODO: texternalsym, tblockaddress, etc.
 
 // Load from absolute address
 def LD_abs : I {
@@ -411,8 +412,8 @@ def ST_abs : I {
   let mayStore = 1;
 }
 
-def : Pat<(M6502storeto General:$r, (M6502absaddr tglobaladdr:$addr)),
-          (ST_abs General:$r, tglobaladdr:$addr)>;
+def : Pat<(M6502storeto PhysReg:$r, (M6502absaddr tglobaladdr:$addr)),
+          (ST_abs PhysReg:$r, tglobaladdr:$addr)>;
 // TODO: texternalsym, etc.
 
 // Store to address formed by Hi, Lo bytes
