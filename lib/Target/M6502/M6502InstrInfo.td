@@ -125,8 +125,42 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
   }
 
-  // TODO: stack operand
-  // TODO: absolute address operand
+  // Stack
+  def _stack : I {
+    let OutOperandList = (outs Acc:$ao);
+    // FIXME: operands might break isCommutable rule?
+    let isCommutable = 0;
+    let InOperandList = (ins Acc:$ai, iPTRimm:$fi, iPTRimm:$offs);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "_stack $ai, [$fi]+$offs";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs))))];
+    let mayLoad = 1;
+  }
+
+  // Absolute address
+  def _abs : I {
+    let OutOperandList = (outs Acc:$ao);
+    // FIXME: operands might break isCommutable rule?
+    let isCommutable = 0;
+    let InOperandList = (ins Acc:$ai, iPTRimm:$addr);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "_abs $ai, $addr";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (M6502loadfrom (M6502absaddr timm:$addr))))];
+    let mayLoad = 1;
+  }
+
+  // Hi, Lo address
+  def _hi_lo : I {
+    let OutOperandList = (outs Acc:$ao);
+    // FIXME: operands might break isCommutable rule?
+    let isCommutable = 0; // FIXME: check whether this overrides isCommutable from defm.
+    let InOperandList = (ins Acc:$ai, MHReg:$hi, MLReg:$lo);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "_hi_lo $ai, ($hi, $lo)";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (M6502loadfrom (M6502hiloaddr MHReg:$hi, MLReg:$lo))))];
+    let mayLoad = 1;
+  }
+
   // TODO: indexed address operand
 }
 
@@ -351,19 +385,19 @@ def : Pat<(M6502loadfrom (M6502absaddr tglobaladdr:$addr)),
 // Load from address formed by Hi, Lo bytes
 def LD_hi_lo : I {
   let OutOperandList = (outs PhysReg:$r);
-  let InOperandList = (ins MemReg:$hi, MemReg:$lo);
+  let InOperandList = (ins MHReg:$hi, MLReg:$lo);
   let AsmString = "LD_hi_lo $r, ($hi, $lo)";
-  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502hiloaddr MemReg:$hi, MemReg:$lo)))];
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502hiloaddr MHReg:$hi, MLReg:$lo)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
 // Load from stack
 def LD_stack : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -384,9 +418,9 @@ def : Pat<(M6502storeto General:$r, (M6502absaddr tglobaladdr:$addr)),
 // Store to address formed by Hi, Lo bytes
 def ST_hi_lo : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins PhysReg:$r, MemReg:$hi, MemReg:$lo);
+  let InOperandList = (ins PhysReg:$r, MHReg:$hi, MLReg:$lo);
   let AsmString = "ST_hi_lo $r, ($hi, $lo)";
-  let Pattern = [(M6502storeto PhysReg:$r, (M6502hiloaddr MemReg:$hi, MemReg:$lo))];
+  let Pattern = [(M6502storeto PhysReg:$r, (M6502hiloaddr MHReg:$hi, MLReg:$lo))];
   let mayStore = 1;
 }
 
@@ -402,9 +436,9 @@ def ST_stack : I {
 // Jump to address formed by Hi, Lo bytes
 def JMP_hi_lo : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins MemReg:$hi, MemReg:$lo);
+  let InOperandList = (ins MHReg:$hi, MLReg:$lo);
   let AsmString = "JMP_hi_lo ($hi, $lo)";
-  let Pattern = [(M6502brind (M6502hiloaddr MemReg:$hi, MemReg:$lo))];
+  let Pattern = [(M6502brind (M6502hiloaddr MHReg:$hi, MLReg:$lo))];
   let isBranch = 1; // This is a branch instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
