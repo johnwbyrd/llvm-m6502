@@ -4,7 +4,7 @@
 // finds this file in the target subdirectory.
 
 #include "M6502.h"
-#include "M6502MachineFunctionInfo.h"
+#include "M6502FunctionInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -61,8 +61,6 @@ MCOperand M6502AsmPrinter::LowerSymbolOperand(MCSymbol *Sym, int64_t Offset) {
 
 void M6502AsmPrinter::EmitFunctionBodyStart() {
   const M6502FunctionInfo *FuncInfo = MF->getInfo<M6502FunctionInfo>();
-  OutStreamer->AddComment("Virtual register count: " +
-                          Twine(FuncInfo->getNumM6502Regs()));
 
   OutStreamer->AddComment("Stack objects:");
   const MachineFrameInfo *FrameInfo = MF->getFrameInfo();
@@ -91,10 +89,7 @@ void M6502AsmPrinter::LowerMachineInstrToMCInst(const MachineInstr *MI, MCInst &
       // Ignore all implicit register operands.
       if (MO.isImplicit())
         continue;
-      const M6502FunctionInfo &MFI =
-          *MI->getParent()->getParent()->getInfo<M6502FunctionInfo>();
-      unsigned M6502Reg = MFI.getM6502Reg(MO.getReg());
-      MCOp = MCOperand::createReg(M6502Reg);
+      MCOp = MCOperand::createReg(MO.getReg());
       break;
     }
     case MachineOperand::MO_Immediate:

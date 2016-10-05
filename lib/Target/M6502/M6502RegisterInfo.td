@@ -8,11 +8,14 @@ class R<string n> : Register<n> {
 // Registers
 //===----------------------------------------------------------------------===//
 
-// Register classes must have at least one register, so we define one to satisfy
-// TableGen. This is not a real register in 6502. The M6502 backend uses a
-// custom register allocator.
-// (TODO: This custom allocator is not yet implemented.)
-def G : R<"G">;
+def A : R<"A">;
+def X : R<"X">;
+def Y : R<"Y">;
+
+// These are fake 8-bit registers that reside in memory.
+// TODO: Fake MemRegs should be eliminated in favor of stack-vars.... maybe.
+foreach I = 0-31 in
+  def M#I : R<"M"#I>;
 
 // Flag registers. These registers serve to coordinate Uses and Defs of
 // instructions that modify or accept flags, such as CMP and BEQ.
@@ -25,4 +28,8 @@ def VF : R<"VF">; // overflow flag
 //  Register classes
 //===----------------------------------------------------------------------===//
 
-def General : RegisterClass<"M6502", [i8], 8, (add G)>;
+def Acc : RegisterClass<"M6502", [i8], 8, (add A)>;
+def Index : RegisterClass<"M6502", [i8], 8, (add X, Y)>;
+def PhysReg : RegisterClass<"M6502", [i8], 8, (add Acc, Index)>;
+def MemReg : RegisterClass<"M6502", [i8], 8, (sequence "M%u", 0, 31)>;
+def General : RegisterClass<"M6502", [i8], 8, (add PhysReg, MemReg)>;

@@ -9,12 +9,7 @@ let OperandType = "OPERAND_IMMEDIATE" in {
 
 let OperandNamespace = "M6502" in {
 
-//let OperandType = "OPERAND_M6502_GLOBAL_ADDRESS" in
-//def gaoperand : Operand<OtherVT>;
-
-// TODO: implement frameindex operand
-//let OperandType = "OPERAND_M6502_FRAME_INDEX" in
-//def fioperand : Operand<OtherVT>;
+// TODO: M6502-specific operand types
 
 } // OperandNamespace = "M6502"
 
@@ -112,23 +107,22 @@ class I : Instruction {
 // TODO: Add Defs and Uses for Flag registers in instructions that modify flags
 
 multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
-  // Register operand (psuedo)
-  def _reg : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, General:$r);
+  // Memory register operand (pseudo)
+  def _mem : I {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, MemReg:$m);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_reg $ai, $r";
-    let Pattern = [(set General:$ao, (Oper General:$ai, General:$r))];
+    let AsmString = AsmName # "_mem $ai, $m";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, MemReg:$m))];
   }
 
   // Immediate
   def _imm : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, i8imm:$x);
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_imm $ai, $x";
-    let Pattern = [(set General:$ao, (Oper General:$ai, imm:$x))];
-    let Size = 2;
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
   }
 
   // TODO: stack operand
@@ -139,13 +133,14 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 // XXX: Fake "AD0" instruction should generate:
 //      CLC
 //      ADC ...
-let Defs = [CF] in
+let isCommutable = 1, Defs = [CF] in
   defm AD0 : AccOperatorI<"AD0", addc>;
-let Defs = [CF], Uses = [CF] in
+let isCommutable = 1, Defs = [CF], Uses = [CF] in
   defm ADC : AccOperatorI<"ADC", adde>;
 
 // XXX: Fake instruction for regular add
-defm ADD : AccOperatorI<"ADD", add>;
+let isCommutable = 1 in
+  defm ADD : AccOperatorI<"ADD", add>;
 
 // XXX: Fake "SB1" instruction should generate:
 //      SEC
@@ -158,19 +153,22 @@ let Defs = [CF], Uses = [CF] in
 // XXX: Fake instruction for regular sub
 defm SUB : AccOperatorI<"SUB", sub>;
 
-defm AND : AccOperatorI<"AND", and>;
-defm EOR : AccOperatorI<"EOR", xor>;
-defm ORA : AccOperatorI<"ORA", or>;
+let isCommutable = 1 in
+  defm AND : AccOperatorI<"AND", and>;
+let isCommutable = 1 in
+  defm EOR : AccOperatorI<"EOR", xor>;
+let isCommutable = 1 in
+  defm ORA : AccOperatorI<"ORA", or>;
 
 // Shift left by immediate amount
 // FIXME: This is not a real instruction in 6502. The closest equivalent is
 // ASL, which shifts A left by one bit.
 def ASL_imm : I {
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASL_imm $ai, $x";
-  let Pattern = [(set General:$ao, (shl General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 imm:$x)))];
 }
 
 // Arithmetic shift right
@@ -178,22 +176,22 @@ def ASL_imm : I {
 // expanded to CMP's and ROR's. For example, see
 // <https://wiki.nesdev.com/w/index.php/6502_assembly_optimisations#Arithmetic_shift_right>
 def ASR_imm : I {
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASR_imm $ai, $x";
-  let Pattern = [(set General:$ao, (sra General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set Acc:$ao, (sra Acc:$ai, (i8 imm:$x)))];
 }
 
 // Logical shift right
 // FIXME: This is not a real instruction in 6502. The closest equivalent is
 // LSR, which shifts A right by one bit.
 def LSR_imm : I {
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR_imm $ai, $x";
-  let Pattern = [(set General:$ao, (srl General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 imm:$x)))];
 }
 
 // Branch on flag instructions
@@ -241,22 +239,24 @@ let usesCustomInserter = 1 in {
 
 // Compare Register with Immediate
 // TODO: Define CMP with a multiclass like AccOperatorI
+// NOTE: 6502 has CMP instructions for all registers (CMP, CPX, CPY). However,
+// only the first one has indexed addressing modes.
 def CMP_imm : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let InOperandList = (ins PhysReg:$ai, i8imm:$x);
   let AsmString = "CMP_imm $ai, $x";
-  let Pattern = [(M6502cmp General:$ai, imm:$x)];
+  let Pattern = [(M6502cmp PhysReg:$ai, imm:$x)];
 }
 
-// Compare Register with Register
+// Compare Register with Memory
 // TODO: Define CMP with a multiclass like AccOperatorI
-def CMP_reg : I {
+def CMP_mem : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$ai, General:$x);
-  let AsmString = "CMP_reg $ai, $x";
-  let Pattern = [(M6502cmp General:$ai, General:$x)];
+  let InOperandList = (ins PhysReg:$ai, MemReg:$x);
+  let AsmString = "CMP_mem $ai, $x";
+  let Pattern = [(M6502cmp PhysReg:$ai, MemReg:$x)];
 }
 
 // Jump
@@ -265,7 +265,6 @@ def JMP_abs : I {
   let InOperandList = (ins brtarget:$target);
   let AsmString = "JMP $target";
   let Pattern = [(br bb:$target)];
-  let Size = 3;
   let isBranch = 1; // This is a branch instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
@@ -273,47 +272,44 @@ def JMP_abs : I {
 
 // DEX, DEY
 def DE_reg : I {
-  let OutOperandList = (outs General:$io);
-  let InOperandList = (ins General:$ii);
+  let OutOperandList = (outs Index:$io);
+  let InOperandList = (ins Index:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "DE_reg $ii";
-  let Pattern = [(set General:$io, (sub General:$ii, 1))];
-  let Size = 1;
+  let Pattern = [(set Index:$io, (sub Index:$ii, 1))];
 }
 
 // INX, INY
 def IN_reg : I {
-  let OutOperandList = (outs General:$io);
-  let InOperandList = (ins General:$ii);
+  let OutOperandList = (outs Index:$io);
+  let InOperandList = (ins Index:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "IN_reg $ii";
-  let Pattern = [(set General:$io, (add General:$ii, 1))];
-  let Size = 1;
+  let Pattern = [(set Index:$io, (add Index:$ii, 1))];
 }
 
 // LDA, LDX, LDY
 def LD_imm : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins i8imm:$x);
   let AsmString = "LD_imm $r, $x";
-  let Pattern = [(set General:$r, (i8 imm:$x))];
-  let Size = 2;
+  let Pattern = [(set PhysReg:$r, (i8 imm:$x))];
 }
 
 // Get hi byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_hi : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_addr_hi $r, $addr";
-  let Pattern = [(set General:$r, (M6502addrhi timm:$addr))];
+  let Pattern = [(set PhysReg:$r, (M6502addrhi timm:$addr))];
 }
 
 // Get lo byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_lo : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_addr_lo $r, $addr";
-  let Pattern = [(set General:$r, (M6502addrlo timm:$addr))];
+  let Pattern = [(set PhysReg:$r, (M6502addrlo timm:$addr))];
 }
 
 def : Pat<(M6502addrhi tglobaladdr:$addr), (LD_addr_hi tglobaladdr:$addr)>;
@@ -324,26 +320,26 @@ def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_lo tjumptable:$jt)>;
 
 // Get hi byte of address of stack variable
 def LD_stack_addr_hi : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_hi $r, [$fi]";
-  let Pattern = [(set General:$r, (M6502fihi timm:$fi))];
+  let Pattern = [(set PhysReg:$r, (M6502fihi timm:$fi))];
 }
 
 // Get lo byte of address of stack variable
 def LD_stack_addr_lo : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_lo $r, [$fi]";
-  let Pattern = [(set General:$r, (M6502filo timm:$fi))];
+  let Pattern = [(set PhysReg:$r, (M6502filo timm:$fi))];
 }
 
 // Load from absolute address
 def LD_abs : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_abs $r, $addr";
-  let Pattern = [(set General:$r, (M6502loadfrom (M6502absaddr timm:$addr)))];
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502absaddr timm:$addr)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -354,10 +350,10 @@ def : Pat<(M6502loadfrom (M6502absaddr tglobaladdr:$addr)),
 
 // Load from address formed by Hi, Lo bytes
 def LD_hi_lo : I {
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins General:$hi, General:$lo);
+  let OutOperandList = (outs PhysReg:$r);
+  let InOperandList = (ins MemReg:$hi, MemReg:$lo);
   let AsmString = "LD_hi_lo $r, ($hi, $lo)";
-  let Pattern = [(set General:$r, (M6502loadfrom (M6502hiloaddr General:$hi, General:$lo)))];
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502hiloaddr MemReg:$hi, MemReg:$lo)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -375,9 +371,9 @@ def LD_stack : I {
 // Store to absolute address
 def ST_abs : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, iPTRimm:$addr);
+  let InOperandList = (ins PhysReg:$r, iPTRimm:$addr);
   let AsmString = "ST_abs $r, $addr";
-  let Pattern = [(M6502storeto General:$r, (M6502absaddr timm:$addr))];
+  let Pattern = [(M6502storeto PhysReg:$r, (M6502absaddr timm:$addr))];
   let mayStore = 1;
 }
 
@@ -388,27 +384,27 @@ def : Pat<(M6502storeto General:$r, (M6502absaddr tglobaladdr:$addr)),
 // Store to address formed by Hi, Lo bytes
 def ST_hi_lo : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, General:$hi, General:$lo);
+  let InOperandList = (ins PhysReg:$r, MemReg:$hi, MemReg:$lo);
   let AsmString = "ST_hi_lo $r, ($hi, $lo)";
-  let Pattern = [(M6502storeto General:$r, (M6502hiloaddr General:$hi, General:$lo))];
+  let Pattern = [(M6502storeto PhysReg:$r, (M6502hiloaddr MemReg:$hi, MemReg:$lo))];
   let mayStore = 1;
 }
 
 // Store to stack
 def ST_stack : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, iPTRimm:$fi, iPTRimm:$offs);
+  let InOperandList = (ins PhysReg:$r, iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(M6502storeto General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let Pattern = [(M6502storeto PhysReg:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
 // Jump to address formed by Hi, Lo bytes
 def JMP_hi_lo : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$hi, General:$lo);
+  let InOperandList = (ins MemReg:$hi, MemReg:$lo);
   let AsmString = "JMP_hi_lo ($hi, $lo)";
-  let Pattern = [(M6502brind (M6502hiloaddr General:$hi, General:$lo))];
+  let Pattern = [(M6502brind (M6502hiloaddr MemReg:$hi, MemReg:$lo))];
   let isBranch = 1; // This is a branch instruction
   let isTerminator = 1; // This instruction is part of the terminator for a basic block
   let isBarrier = 1; // Control flow cannot fall through this instruction
@@ -416,11 +412,11 @@ def JMP_hi_lo : I {
 }
 
 def LSR_reg : I {
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai);
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let Constraints = "$ao = $ai";
   let AsmString = "LSR $ai";
-  let Pattern = [(set General:$ao, (srl General:$ai, (i8 1)))];
-  let Size = 1;
+  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 1)))];
 }
 
 // Generic call instruction
@@ -449,11 +445,13 @@ def RETURN : I {
   let InOperandList = (ins);
   let Pattern = [(M6502return)];
   let AsmString = "RETURN";
-  let Size = 1;
 }
 
 // TAX, TAY, TXA, TYA (may compile as memory loads/stores)
 // TODO: Transfer instructions may modify flags!
+// FIXME: 6502 has a limited set of register-to-register transfer instructions.
+// X and Y cannot be transferred directly between themselves; neither can Mem
+// registers.
 def T_reg : I {
   let Defs = [NF, ZF];
   let OutOperandList = (outs General:$dst);
