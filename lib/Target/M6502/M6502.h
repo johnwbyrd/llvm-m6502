@@ -14,9 +14,6 @@ class M6502TargetMachine;
 FunctionPass *createM6502ISelDag(M6502TargetMachine &TM,
                                  CodeGenOpt::Level OptLevel);
 
-// Late passes.
-FunctionPass *createM6502RegNumbering();
-
 } // end namespace llvm
 
 #endif
