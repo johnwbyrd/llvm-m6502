@@ -26,9 +26,17 @@ def SDT_M6502AbsIndexAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
 def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                              SDTCisVT<1, i8>,
                                              SDTCisVT<2, i8>]>;
+def SDT_M6502HiLoIndexAddr : SDTypeProfile<1, 3, [SDTCisVT<0, OtherVT>,
+                                                  SDTCisVT<1, i8>,
+                                                  SDTCisVT<2, i8>,
+                                                  SDTCisVT<3, i8>]>;
 def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                            SDTCisVT<1, i16>,
                                            SDTCisVT<2, i16>]>;
+def SDT_M6502FIIndexAddr : SDTypeProfile<1, 3, [SDTCisVT<0, OtherVT>,
+                                                SDTCisVT<1, i16>,
+                                                SDTCisVT<2, i16>,
+                                                SDTCisVT<3, i8>]>;
 def SDT_M6502AddrElement : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
                                                 SDTCisVT<1, i16>]>;
 def SDT_M6502LoadFrom : SDTypeProfile<1, 1,
@@ -56,11 +64,15 @@ def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 def M6502absaddr : SDNode<"M6502ISD::ABSADDR", SDT_M6502AbsAddr,
                           []>; // get absolute address
 def M6502absindexaddr : SDNode<"M6502ISD::ABSINDEXADDR", SDT_M6502AbsIndexAddr,
-                               []>; // get absolute-indexed address
+                               []>; // get absolute address plus variable offset
 def M6502hiloaddr : SDNode<"M6502ISD::HILOADDR", SDT_M6502HiLoAddr,
                            []>; // get address from Hi, Lo bytes
+def M6502hiloindexaddr : SDNode<"M6502ISD::HILOINDEXADDR", SDT_M6502HiLoIndexAddr,
+                                []>; // get address from Hi, Lo bytes plus variable offset
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr,
                          []>; // get address of frameindex
+def M6502fiindexaddr : SDNode<"M6502ISD::FIINDEXADDR", SDT_M6502FIIndexAddr,
+                              []>; // get address of frameindex plus variable offset
 def M6502addrhi : SDNode<"M6502ISD::ADDRHI", SDT_M6502AddrElement, []>;
                       // Hi element of absolute address
 def M6502addrlo : SDNode<"M6502ISD::ADDRLO", SDT_M6502AddrElement, []>;
@@ -178,6 +190,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let mayLoad = 1;
   }
 
+  // TODO: stack plus index address
   // TODO: indirect address
   // TODO: indirect-indexed address
 }
@@ -418,7 +431,6 @@ def : Pat<(M6502loadfrom (M6502absindexaddr tglobaladdr:$addr, Index:$i)),
 // TODO: texternalsym, etc.
 
 // Load from address formed by Hi, Lo bytes
-// TODO: support indexed addressing for LD_hi_lo.
 def LD_hi_lo : I {
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins MHReg:$hi, MLReg:$lo);
@@ -428,12 +440,39 @@ def LD_hi_lo : I {
   let canFoldAsLoad = 1;
 }
 
+// Load from address formed by Hi, Lo bytes plus variable offset
+// NOTE: This instruction represents LDA with the (indirect),Y addressing mode.
+// Hi and Lo regs must be in zero-page memory. Only A may be loaded this way.
+def LD_hi_lo_index : I {
+  let OutOperandList = (outs Acc:$r);
+  let InOperandList = (ins MHReg:$hi, MLReg:$lo, YReg:$i);
+  let AsmString = "LD_hi_lo_index $r, ($hi, $lo),$i";
+  let Pattern = [(set Acc:$r, (M6502loadfrom (M6502hiloindexaddr MHReg:$hi, MLReg:$lo, YReg:$i)))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
 // Load from stack
 def LD_stack : I {
-  let OutOperandList = (outs PhysReg:$r);
+  // XXX: To support spilling of mem regs, LD_stack takes a General operand.
+  // FIXME: General is wrong. Mem regs cannot be stored directly to the stack.
+  // See storeRegToStackSlot in M6502InstrInfo.cpp.
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
+// Load from stack plus variable offset
+def LD_stack_plus_index : I {
+  let OutOperandList = (outs PhysReg:$r);
+  let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs, Index:$i);
+  // NOTE: X cannot be an index in LDX, and Y cannot be an index in LDY.
+  let Constraints = "$r != $i";
+  let AsmString = "LD_stack_plus_index $r, [$fi]+$offs,$i";
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502fiindexaddr tframeindex:$fi, timm:$offs, Index:$i)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -475,12 +514,36 @@ def ST_hi_lo : I {
   let mayStore = 1;
 }
 
+// Store to address formed by Hi, Lo bytes plus variable offset
+// NOTE: This instruction represents STA with the (indirect),Y addressing mode.
+// Hi and Lo regs must be in zero-page memory. Only A may be stored this way.
+def ST_hi_lo_index : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$a, MHReg:$hi, MLReg:$lo, YReg:$i);
+  let AsmString = "ST_hi_lo_index $a, ($hi, $lo),$i";
+  let Pattern = [(M6502storeto Acc:$a, (M6502hiloindexaddr MHReg:$hi, MLReg:$lo, YReg:$i))];
+  let mayStore = 1;
+}
+
 // Store to stack
 def ST_stack : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins PhysReg:$r, iPTRimm:$fi, iPTRimm:$offs);
+  // XXX: To support spilling of mem regs, ST_stack takes a General operand.
+  // FIXME: General is wrong. Mem regs cannot be stored directly to the stack.
+  // See storeRegToStackSlot in M6502InstrInfo.cpp.
+  let InOperandList = (ins General:$r, iPTRimm:$fi, iPTRimm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(M6502storeto PhysReg:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let Pattern = [(M6502storeto General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let mayStore = 1;
+}
+
+// Store to stack plus variable offset
+// NOTE: Only register A can be stored this way.
+def ST_stack_plus_index : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$a, iPTRimm:$fi, iPTRimm:$offs, Index:$i);
+  let AsmString = "ST_stack_plus_index $a, [$fi]+$offs,$i";
+  let Pattern = [(M6502storeto Acc:$a, (M6502fiindexaddr tframeindex:$fi, timm:$offs, Index:$i))];
   let mayStore = 1;
 }
 

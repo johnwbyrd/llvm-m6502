@@ -77,9 +77,12 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
                                          const TargetRegisterInfo *TRI) const {
-  // TODO: test
+  // FIXME: Mem regs cannot be loaded directly from the stack. The load should
+  // go through a PhysReg first. This is not possible currently, as LLVM
+  // assumes storeRegToStackSlot generates one instruction.
+  // See <https://groups.google.com/forum/#!topic/llvm-dev/Hjr5oNA0Wyc>
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::PhysRegRegClass.hasSubClassEq(RC)) {
+  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
@@ -95,9 +98,8 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           unsigned DestReg, int FrameIndex,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
-  // TODO: test
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::PhysRegRegClass.hasSubClassEq(RC)) {
+  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
       .addFrameIndex(FrameIndex)
       .addImm(0);

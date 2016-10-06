@@ -30,9 +30,10 @@ def VF : R<"VF">; // overflow flag
 //===----------------------------------------------------------------------===//
 
 def Acc : RegisterClass<"M6502", [i8], 8, (add A)>;
-def Index : RegisterClass<"M6502", [i8], 8, (add X, Y)>;
+def YReg : RegisterClass<"M6502", [i8], 8, (add Y)>;
+def Index : RegisterClass<"M6502", [i8], 8, (add X, YReg)>;
 def PhysReg : RegisterClass<"M6502", [i8], 8, (add Acc, Index)>;
-def MemReg : RegisterClass<"M6502", [i8], 8, (add M, MH, ML)>;
 def MHReg : RegisterClass<"M6502", [i8], 8, (add MH)>;
 def MLReg : RegisterClass<"M6502", [i8], 8, (add ML)>;
+def MemReg : RegisterClass<"M6502", [i8], 8, (add M, MHReg, MLReg)>;
 def General : RegisterClass<"M6502", [i8], 8, (add PhysReg, MemReg)>;
