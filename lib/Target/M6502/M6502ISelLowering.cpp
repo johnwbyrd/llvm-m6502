@@ -72,8 +72,11 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER: break;
   case M6502ISD::ABSADDR:      return "M6502ISD::ABSADDR";
+  case M6502ISD::ABSINDEXADDR: return "M6502ISD::ABSINDEXADDR";
   case M6502ISD::HILOADDR:     return "M6502ISD::HILOADDR";
+  case M6502ISD::HILOINDEXADDR: return "M6502ISD::HILOINDEXADDR";
   case M6502ISD::FIADDR:       return "M6502ISD::FIADDR";
+  case M6502ISD::FIINDEXADDR:  return "M6502ISD::FIINDEXADDR";
   case M6502ISD::ADDRHI:       return "M6502ISD::ADDRHI";
   case M6502ISD::ADDRLO:       return "M6502ISD::ADDRLO";
   case M6502ISD::FIHI:         return "M6502ISD::FIHI";
@@ -404,8 +407,11 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
     assert(FI->getValueType(0) == MVT::i16);
     SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
     if (VarOffset) {
-      // TODO: support var index in FIADDR
-      // XXX: fall back to generic
+      // FIXME: Var Offset in frame indexes might only be profitable for
+      // statically allocated stack vars.
+      return DAG.getNode(M6502ISD::FIINDEXADDR, dl, MVT::Other,
+                         Index, DAG.getTargetConstant(ConstOffset, dl, MVT::i16),
+                         VarOffset);
     } else {
       return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
                          Index, DAG.getTargetConstant(ConstOffset, dl, MVT::i16));
@@ -419,6 +425,35 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
                          VarOffset);
     } else {
       return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
+    }
+  } else if (Walker && isa<LoadSDNode>(Walker)) {
+    // Indirect addressing
+    LoadSDNode *Load = cast<LoadSDNode>(Walker);
+    // TODO: support indirect non-indexed addressing
+    // FIXME: clean up and verify correctness
+    if (Load->getMemoryVT() == MVT::i16) {
+      SDValue LoadPtr = Load->getBasePtr();
+      SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, LoadPtr,
+                                  DAG.getTargetConstant(0, dl, MVT::i8));
+      SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, LoadPtr,
+                                  DAG.getTargetConstant(1, dl, MVT::i8));
+      if (!VarOffset && ConstOffset == 0) {
+        // Indirect non-indexed addressing
+        // TODO: implement. currently falls back to generic.
+      } else if (VarOffset && ConstOffset == 0) {
+        // Indirect indexed addressing
+        return DAG.getNode(M6502ISD::HILOINDEXADDR, dl, MVT::Other,
+                           PtrHi, PtrLo, VarOffset);
+      } else if (!VarOffset && ConstOffset != 0) {
+        if (ConstOffset >= 0 && ConstOffset <= UINT8_MAX) {
+          // Indirect indexed addressing (constant in Y)
+          return DAG.getNode(M6502ISD::HILOINDEXADDR, dl, MVT::Other,
+                             PtrHi, PtrLo,
+                             DAG.getConstant(ConstOffset, dl, MVT::i8));
+        }
+      } else {
+        // Do nothing. Fall back to generic.
+      }
     }
   } else if (Walker) {
     DEBUG(dbgs() << "Cannot recombine address: "; Walker->dump(&DAG));

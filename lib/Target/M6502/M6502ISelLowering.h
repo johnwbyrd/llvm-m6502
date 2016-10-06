@@ -14,9 +14,11 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   ABSADDR, // absolute address (timm, tglobaladdr, texternalsym, tblockaddr)
-  ABSINDEXADDR, // absolute address with variable unsigned 8-bit offset
+  ABSINDEXADDR, // absolute address plus variable unsigned 8-bit offset
   HILOADDR, // address formed of Hi, Lo bytes
+  HILOINDEXADDR, // address formed of Hi, Lo bytes plus variable unsigned 8-bit offset
   FIADDR, // frame index address
+  FIINDEXADDR, // frame index address plus variable unsigned 8-bit offset
   ADDRHI, // hi element of global address
   ADDRLO, // lo element of global address
   FIHI, // hi element of frame index address
