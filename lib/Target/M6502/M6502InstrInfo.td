@@ -20,6 +20,9 @@ def brtarget : Operand<OtherVT>;
 
 def SDT_M6502AbsAddr : SDTypeProfile<1, 1, [SDTCisVT<0, OtherVT>,
                                             SDTCisVT<1, i16>]>;
+def SDT_M6502AbsIndexAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
+                                                 SDTCisVT<1, i16>,
+                                                 SDTCisVT<2, i8>]>;
 def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                              SDTCisVT<1, i8>,
                                              SDTCisVT<2, i8>]>;
@@ -52,6 +55,8 @@ def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 // Address-related nodes
 def M6502absaddr : SDNode<"M6502ISD::ABSADDR", SDT_M6502AbsAddr,
                           []>; // get absolute address
+def M6502absindexaddr : SDNode<"M6502ISD::ABSINDEXADDR", SDT_M6502AbsIndexAddr,
+                               []>; // get absolute-indexed address
 def M6502hiloaddr : SDNode<"M6502ISD::HILOADDR", SDT_M6502HiLoAddr,
                            []>; // get address from Hi, Lo bytes
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr,
@@ -149,6 +154,18 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let mayLoad = 1;
   }
 
+  // Absolute-indexed address
+  def _abs_index : I {
+    let OutOperandList = (outs Acc:$ao);
+    // FIXME: operands might break isCommutable rule?
+    let isCommutable = 0;
+    let InOperandList = (ins Acc:$ai, iPTRimm:$addr, Index:$i);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "_abs_index $ai, $addr,$i";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (M6502loadfrom (M6502absindexaddr timm:$addr, Index:$i))))];
+    let mayLoad = 1;
+  }
+
   // Hi, Lo address
   def _hi_lo : I {
     let OutOperandList = (outs Acc:$ao);
@@ -161,7 +178,8 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let mayLoad = 1;
   }
 
-  // TODO: indexed address operand
+  // TODO: indirect address
+  // TODO: indirect-indexed address
 }
 
 // XXX: Fake "AD0" instruction should generate:
@@ -383,7 +401,24 @@ def : Pat<(M6502loadfrom (M6502absaddr tglobaladdr:$addr)),
           (LD_abs tglobaladdr:$addr)>;
 // TODO: texternalsym, etc.
 
+// Load from absolute address with index
+def LD_abs_index : I {
+  let OutOperandList = (outs PhysReg:$r);
+  let InOperandList = (ins iPTRimm:$addr, Index:$i);
+  // NOTE: X cannot be an index in LDX, and Y cannot be an index in LDY.
+  let Constraints = "$r != $i";
+  let AsmString = "LD_abs_index $r, $addr,$i";
+  let Pattern = [(set PhysReg:$r, (M6502loadfrom (M6502absindexaddr timm:$addr, Index:$i)))];
+  let mayLoad = 1;
+  let canFoldAsLoad = 1;
+}
+
+def : Pat<(M6502loadfrom (M6502absindexaddr tglobaladdr:$addr, Index:$i)),
+          (LD_abs_index tglobaladdr:$addr, Index:$i)>;
+// TODO: texternalsym, etc.
+
 // Load from address formed by Hi, Lo bytes
+// TODO: support indexed addressing for LD_hi_lo.
 def LD_hi_lo : I {
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins MHReg:$hi, MLReg:$lo);
@@ -414,6 +449,21 @@ def ST_abs : I {
 
 def : Pat<(M6502storeto PhysReg:$r, (M6502absaddr tglobaladdr:$addr)),
           (ST_abs PhysReg:$r, tglobaladdr:$addr)>;
+// TODO: texternalsym, etc.
+
+// Store to absolute address with index
+// NOTE: STA has indexed addressing modes. STX and STY have indexed addressing,
+// but only if the address is in the zero-page. Only STA is implemented here.
+def ST_abs_index : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins Acc:$r, iPTRimm:$addr, Index:$i);
+  let AsmString = "ST_abs_index $r, $addr,$i";
+  let Pattern = [(M6502storeto Acc:$r, (M6502absindexaddr timm:$addr, Index:$i))];
+  let mayStore = 1;
+}
+
+def : Pat<(M6502storeto Acc:$r, (M6502absindexaddr tglobaladdr:$addr, Index:$i)),
+          (ST_abs_index Acc:$r, tglobaladdr:$addr, Index:$i)>;
 // TODO: texternalsym, etc.
 
 // Store to address formed by Hi, Lo bytes

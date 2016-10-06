@@ -44,7 +44,9 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SETCC,     MVT::i8,    Expand);
   setOperationAction(ISD::SELECT_CC, MVT::i8,    Custom);
 
-  // TODO: support pre-indexed loads and stores
+  // NOTE: LLVM's machinery for indexed loads and stores is does not work for
+  // M6502 and so is disabled.
+  // TODO: find some way to use LLVM's machinery for indexed loads and stores?
   //setIndexedLoadAction(ISD::PRE_INC, MVT::i8, Legal);
   //setIndexedStoreAction(ISD::PRE_INC, MVT::i8, Legal);
 }
@@ -294,6 +296,32 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
+// Returns true if an SDValue is usable as the index of an absolute, indexed
+// or indirect, Y-indexed address
+static bool isValidVarOffset(const SDValue &Offset) {
+  if (Offset.getValueType() == MVT::i8) {
+    return true;
+  }
+
+  if (isa<ConstantSDNode>(Offset)) {
+    ConstantSDNode *Const = cast<ConstantSDNode>(Offset);
+    int64_t ConstVal = Const->getSExtValue();
+    if (ConstVal >= 0 && ConstVal <= UINT8_MAX) {
+      return true;
+    }
+  }
+
+  if (isa<LoadSDNode>(Offset)) {
+    LoadSDNode *Load = cast<LoadSDNode>(Offset);
+    if (Load->getMemoryVT() == MVT::i8 &&
+        Load->getExtensionType() == ISD::LoadExtType::ZEXTLOAD) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Convert i16 pointer to M6502 address operand for LOADFROM and STORETO nodes.
 static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
                                    SelectionDAG &DAG) {
@@ -302,25 +330,41 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
   // Attempt to recombine an address pair to a frameindex or globaladdress,
   // possibly with one or more added constant offsets.
   SDValue Walker = Ptr;
-  int64_t Offset = 0;
+  int64_t ConstOffset = 0;
+  SDValue VarOffset = SDValue();
   // Walk down pointer nodes, accumulating offsets.
   while (Walker.getOpcode() == ISD::ADD) {
     SDValue LHS = Walker.getOperand(0);
     SDValue RHS = Walker.getOperand(1);
     if (isa<ConstantSDNode>(LHS)) {
-      Offset += cast<ConstantSDNode>(LHS)->getSExtValue();
+      ConstOffset += cast<ConstantSDNode>(LHS)->getSExtValue();
       Walker = RHS;
     } else if (isa<ConstantSDNode>(RHS)) {
-      Offset += cast<ConstantSDNode>(RHS)->getSExtValue();
+      ConstOffset += cast<ConstantSDNode>(RHS)->getSExtValue();
+      Walker = LHS;
+    } else if (!VarOffset && isValidVarOffset(LHS)) {
+      // TODO: try to combine multiple added var offsets?
+      VarOffset = LHS;
+      Walker = RHS;
+    } else if (!VarOffset && isValidVarOffset(RHS)) {
+      // TODO: try to combine multiple added var offsets?
+      VarOffset = RHS;
       Walker = LHS;
     } else {
-      // Offset was non-constant. Do not attempt to recombine.
-      // TODO: support 8-bit variable offset (Y-indexed addressing)
+      // Failed to recombine address. Fall back to generic address.
       Walker = SDValue();
       break;
     }
   }
 
+  // VarOffset must be 8 bits. If VarOffset is larger than 8 bits, it must be
+  // truncated. isValidVarOffset verifies that VarOffset fits in 8 bits, and
+  // truncation does not destroy information.
+  if (VarOffset) {
+    VarOffset = DAG.getZExtOrTrunc(VarOffset, dl, MVT::i8);
+  }
+
+  // Attempt to recombine build_pair
   if (Walker && Walker.getOpcode() == ISD::BUILD_PAIR) {
     SDValue Lo = Walker.getOperand(0);
     SDValue Hi = Walker.getOperand(1);
@@ -328,41 +372,59 @@ static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
         Hi.getOpcode() == M6502ISD::ADDRHI &&
         Lo.getOperand(0) == Hi.getOperand(0)) {
       // Recombine absolute address
-      SDValue Address = Lo.getOperand(0);
-      assert(Address.getOpcode() == ISD::TargetGlobalAddress); // TODO: support texternalsym, etc.
-      assert(Address.getValueType() == MVT::i16);
-      // Add Offset if necessary
-      if (Offset != 0) {
-        GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Address);
-        Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
-                                             GA->getOffset() + Offset,
-                                             GA->getTargetFlags());
-      }
-      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
+      Walker = Lo.getOperand(0);
+      assert(Walker.getOpcode() == ISD::TargetGlobalAddress); // TODO: support texternalsym, etc.
+      assert(Walker.getValueType() == MVT::i16);
     } else if (Lo.getOpcode() == M6502ISD::FILO &&
                Hi.getOpcode() == M6502ISD::FIHI
                && Lo.getOperand(0) == Hi.getOperand(0)) {
       // Recombine frameindex
-      SDValue Index = Lo.getOperand(0);
-      assert(Index.getOpcode() == ISD::TargetFrameIndex); // See LowerFrameIndex
-      return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
-                          Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
+      Walker = Lo.getOperand(0);
+      assert(Walker.getOpcode() == ISD::TargetFrameIndex); // See LowerFrameIndex
+    }
+  }
+  
+  if (Walker && isa<GlobalAddressSDNode>(Walker)) {
+    // Add Offset if necessary
+    SDValue Address = Walker;
+    if (ConstOffset != 0) {
+      GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Address);
+      Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
+                                          GA->getOffset() + ConstOffset,
+                                          GA->getTargetFlags());
+    }
+    if (VarOffset) {
+      return DAG.getNode(M6502ISD::ABSINDEXADDR, dl, MVT::Other, Address,
+                         VarOffset);
+    } else {
+      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
     }
   } else if (Walker && isa<FrameIndexSDNode>(Walker)) {
-    // Occurs in LowerCall during LibCall legalization
     FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Walker);
     assert(FI->getValueType(0) == MVT::i16);
     SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
-    return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
-                       Index, DAG.getTargetConstant(Offset, dl, MVT::i16));
+    if (VarOffset) {
+      // TODO: support var index in FIADDR
+      // XXX: fall back to generic
+    } else {
+      return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
+                         Index, DAG.getTargetConstant(ConstOffset, dl, MVT::i16));
+    }
   } else if (Walker && isa<ConstantSDNode>(Walker)) {
     ConstantSDNode *C = cast<ConstantSDNode>(Walker);
-    SDValue Address = DAG.getTargetConstant(C->getAPIntValue() + Offset, dl,
+    SDValue Address = DAG.getTargetConstant(C->getAPIntValue() + ConstOffset, dl,
                                             MVT::i16);
-    return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
+    if (VarOffset) {
+      return DAG.getNode(M6502ISD::ABSINDEXADDR, dl, MVT::Other, Address,
+                         VarOffset);
+    } else {
+      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
+    }
+  } else if (Walker) {
+    DEBUG(dbgs() << "Cannot recombine address: "; Walker->dump(&DAG));
   }
 
-  // Generic
+  // Generic fallback
   SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
                               DAG.getTargetConstant(0, dl, MVT::i8));
   SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
