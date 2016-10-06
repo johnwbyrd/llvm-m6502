@@ -13,6 +13,8 @@ namespace M6502ISD {
 
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
+  ASL1, // shift left one bit, leftmost bit is moved to CF
+  ROL1, // rotate left one bit, CF is moved in thru the right and out thru the left
   ABSADDR, // absolute address (timm, tglobaladdr, texternalsym, tblockaddr)
   ABSINDEXADDR, // absolute address plus variable unsigned 8-bit offset
   HILOADDR, // address formed of Hi, Lo bytes
@@ -96,6 +98,7 @@ private:
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
 };

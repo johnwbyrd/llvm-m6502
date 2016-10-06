@@ -34,7 +34,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::MULHU,     MVT::i8, LibCall);
   setOperationAction(ISD::MULHS,     MVT::i8, LibCall);
   setOperationAction(ISD::SMUL_LOHI, MVT::i8, LibCall);
-  setOperationAction(ISD::UMUL_LOHI, MVT::i8, LibCall);
+  setOperationAction(ISD::UMUL_LOHI, MVT::i8, Custom);
   setOperationAction(ISD::SHL_PARTS, MVT::i8, Expand);
   setOperationAction(ISD::SRA_PARTS, MVT::i8, Expand);
   setOperationAction(ISD::SRL_PARTS, MVT::i8, Expand);
@@ -71,6 +71,8 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (static_cast<M6502ISD::NodeType>(Opcode)) {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER: break;
+  case M6502ISD::ASL1:         return "M6502ISD::ASL1";
+  case M6502ISD::ROL1:         return "M6502ISD::ROL1";
   case M6502ISD::ABSADDR:      return "M6502ISD::ABSADDR";
   case M6502ISD::ABSINDEXADDR: return "M6502ISD::ABSINDEXADDR";
   case M6502ISD::HILOADDR:     return "M6502ISD::HILOADDR";
@@ -490,6 +492,7 @@ M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FrameIndex: return LowerFrameIndex(Op, DAG);
   case ISD::JumpTable: return LowerJumpTable(Op, DAG);
   case ISD::ExternalSymbol: return LowerExternalSymbol(Op, DAG);
+  case ISD::UMUL_LOHI: return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   case ISD::SELECT_CC: return LowerSELECT_CC(Op, DAG);
   default:
@@ -682,6 +685,48 @@ SDValue M6502TargetLowering::LowerExternalSymbol(SDValue Op,
   SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
   // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
   return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
+}
+
+SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  DEBUG(dbgs() << "Lowering UMUL_LOHI: "; Op->dumprFull(&DAG));
+
+  SDValue LHS = Op.getOperand(0);
+  SDValue RHS = Op.getOperand(1);
+  SDLoc dl(Op);
+  assert(LHS.getValueType() == MVT::i8 && RHS.getValueType() == MVT::i8);
+  
+  // Lower multiplication by two; occurs commonly in e.g. switch statements
+  // TODO: Lower other kinds of multiplication?
+  SDValue MultMeByTwo;
+  if (isa<ConstantSDNode>(LHS) && (cast<ConstantSDNode>(LHS)->getSExtValue() == 2)) {
+    MultMeByTwo = RHS;
+  } else if (isa<ConstantSDNode>(RHS) && (cast<ConstantSDNode>(RHS)->getSExtValue() == 2)) {
+    MultMeByTwo = LHS;
+  }
+
+  // TODO: support 16+-bit multiplication by two?
+  if (MultMeByTwo && MultMeByTwo.getValueType() == MVT::i8) {
+    SDValue Lo = DAG.getNode(M6502ISD::ASL1, dl, DAG.getVTList(MVT::i8, MVT::Glue),
+                             MultMeByTwo);
+    SDValue LoVal = Lo.getValue(0);
+    SDValue LoGlue = Lo.getValue(1);
+    SDValue Hi = DAG.getNode(M6502ISD::ROL1, dl, DAG.getVTList(MVT::i8, MVT::Glue),
+                             DAG.getConstant(0, dl, MVT::i8), LoGlue);
+    SDValue HiVal = Hi.getValue(0);
+    return DAG.getMergeValues({LoVal, HiVal}, dl);
+  }
+
+  // Did not lower. Expand to LibCall
+  RTLIB::Libcall LC = RTLIB::MUL_I16;
+  // (return value, chain>
+  std::pair<SDValue, SDValue> Call = makeLibCall(DAG, LC, MVT::i16,
+                                                 {LHS, RHS}, false, dl);
+  SDValue LoVal = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Call.first,
+                              DAG.getConstant(0, dl, MVT::i8));
+  SDValue HiVal = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Call.first,
+                              DAG.getConstant(1, dl, MVT::i8));
+  return DAG.getMergeValues({LoVal, HiVal}, dl);
 }
 
 static SDValue EmitCMP(SDValue LHS, SDValue RHS, const SDLoc &dl,

@@ -18,6 +18,7 @@ def brtarget : Operand<OtherVT>;
 
 // Custom type profiles
 
+def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502AbsAddr : SDTypeProfile<1, 1, [SDTCisVT<0, OtherVT>,
                                             SDTCisVT<1, i16>]>;
 def SDT_M6502AbsIndexAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
@@ -59,6 +60,12 @@ def SDT_M6502SelectCC : SDTypeProfile<1, 3, [SDTCisVT<0, i8>, SDTCisVT<1, i8>,
 def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Custom nodes
+
+// Shift 1 nodes
+def M6502asl1 : SDNode<"M6502ISD::ASL1", SDT_M6502Shift1,
+                       [SDNPOutGlue]>;
+def M6502rol1 : SDNode<"M6502ISD::ROL1", SDT_M6502Shift1,
+                       [SDNPOutGlue, SDNPInGlue]>;
 
 // Address-related nodes
 def M6502absaddr : SDNode<"M6502ISD::ABSADDR", SDT_M6502AbsAddr,
@@ -198,37 +205,41 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
 // XXX: Fake "AD0" instruction should generate:
 //      CLC
 //      ADC ...
-let isCommutable = 1, Defs = [CF] in
+let isCommutable = 1, Defs = [NF, ZF, CF, VF] in
   defm AD0 : AccOperatorI<"AD0", addc>;
-let isCommutable = 1, Defs = [CF], Uses = [CF] in
+let isCommutable = 1, Defs = [NF, ZF, CF, VF], Uses = [CF] in
   defm ADC : AccOperatorI<"ADC", adde>;
 
 // XXX: Fake instruction for regular add
-let isCommutable = 1 in
+// TODO: delete
+let isCommutable = 1, Defs = [NF, ZF, CF, VF] in
   defm ADD : AccOperatorI<"ADD", add>;
 
 // XXX: Fake "SB1" instruction should generate:
 //      SEC
 //      SBC ...
-let Defs = [CF] in
+let Defs = [NF, ZF, CF, VF] in
   defm SB1 : AccOperatorI<"SB1", subc>;
-let Defs = [CF], Uses = [CF] in
+let Defs = [NF, ZF, CF, VF], Uses = [CF] in
   defm SBC : AccOperatorI<"SBC", sube>;
 
 // XXX: Fake instruction for regular sub
-defm SUB : AccOperatorI<"SUB", sub>;
+// TODO: delete
+let Defs = [NF, ZF, CF, VF] in
+  defm SUB : AccOperatorI<"SUB", sub>;
 
-let isCommutable = 1 in
+let isCommutable = 1, Defs = [NF, ZF] in
   defm AND : AccOperatorI<"AND", and>;
-let isCommutable = 1 in
+let isCommutable = 1, Defs = [NF, ZF] in
   defm EOR : AccOperatorI<"EOR", xor>;
-let isCommutable = 1 in
+let isCommutable = 1, Defs = [NF, ZF] in
   defm ORA : AccOperatorI<"ORA", or>;
 
 // Shift left by immediate amount
 // FIXME: This is not a real instruction in 6502. The closest equivalent is
 // ASL, which shifts A left by one bit.
 def ASL_imm : I {
+  let Defs = [NF, ZF, CF];
   let OutOperandList = (outs Acc:$ao);
   let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
@@ -241,6 +252,7 @@ def ASL_imm : I {
 // expanded to CMP's and ROR's. For example, see
 // <https://wiki.nesdev.com/w/index.php/6502_assembly_optimisations#Arithmetic_shift_right>
 def ASR_imm : I {
+  let Defs = [NF, ZF, CF];
   let OutOperandList = (outs Acc:$ao);
   let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
@@ -252,11 +264,35 @@ def ASR_imm : I {
 // FIXME: This is not a real instruction in 6502. The closest equivalent is
 // LSR, which shifts A right by one bit.
 def LSR_imm : I {
+  let Defs = [ZF, CF];
   let OutOperandList = (outs Acc:$ao);
   let InOperandList = (ins Acc:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR_imm $ai, $x";
   let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 imm:$x)))];
+}
+
+// Shift left one bit, move highest bit to CF
+// TODO: memory operands
+def ASL_1 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let Constraints = "$ao = $ai";
+  let AsmString = "ASL $ai";
+  let Pattern = [(set Acc:$ao, (M6502asl1 Acc:$ai))];
+}
+
+// Rotate left one bit through CF
+// TODO: memory operands
+def ROL_1 : I {
+  let Defs = [NF, ZF, CF];
+  let Uses = [CF];
+  let OutOperandList = (outs Acc:$ao);
+  let InOperandList = (ins Acc:$ai);
+  let Constraints = "$ao = $ai";
+  let AsmString = "ROL $ai";
+  let Pattern = [(set Acc:$ao, (M6502rol1 Acc:$ai))];
 }
 
 // Branch on flag instructions
@@ -337,7 +373,9 @@ def JMP_abs : I {
 }
 
 // DEX, DEY
+// TODO: DEC instruction: decrement memory by one
 def DE_reg : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs Index:$io);
   let InOperandList = (ins Index:$ii);
   let Constraints = "$io = $ii";
@@ -346,7 +384,9 @@ def DE_reg : I {
 }
 
 // INX, INY
+// TODO: INC instruction: increment memory by one
 def IN_reg : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs Index:$io);
   let InOperandList = (ins Index:$ii);
   let Constraints = "$io = $ii";
@@ -357,6 +397,7 @@ def IN_reg : I {
 let isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1 in {
 // LDA, LDX, LDY
 def LD_imm : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins i8imm:$x);
   let AsmString = "LD_imm $r, $x";
@@ -364,6 +405,7 @@ def LD_imm : I {
 }
 // Get hi byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_hi : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_addr_hi $r, $addr";
@@ -371,6 +413,7 @@ def LD_addr_hi : I {
 }
 // Get lo byte of address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_lo : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_addr_lo $r, $addr";
@@ -379,6 +422,7 @@ def LD_addr_lo : I {
 // Get hi byte of address of stack variable
 // FIXME: LD_stack_addr_hi is cheap only when stack vars are allocated statically
 def LD_stack_addr_hi : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_hi $r, [$fi]";
@@ -387,6 +431,7 @@ def LD_stack_addr_hi : I {
 // Get lo byte of address of stack variable
 // FIXME: LD_stack_addr_lo is cheap only when stack vars are allocated statically
 def LD_stack_addr_lo : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi);
   let AsmString = "LD_stack_addr_lo $r, [$fi]";
@@ -402,6 +447,7 @@ def : Pat<(M6502addrlo tjumptable:$jt), (LD_addr_lo tjumptable:$jt)>;
 
 // Load from absolute address
 def LD_abs : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr);
   let AsmString = "LD_abs $r, $addr";
@@ -416,6 +462,7 @@ def : Pat<(M6502loadfrom (M6502absaddr tglobaladdr:$addr)),
 
 // Load from absolute address with index
 def LD_abs_index : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$addr, Index:$i);
   // NOTE: X cannot be an index in LDX, and Y cannot be an index in LDY.
@@ -432,6 +479,7 @@ def : Pat<(M6502loadfrom (M6502absindexaddr tglobaladdr:$addr, Index:$i)),
 
 // Load from address formed by Hi, Lo bytes
 def LD_hi_lo : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins MHReg:$hi, MLReg:$lo);
   let AsmString = "LD_hi_lo $r, ($hi, $lo)";
@@ -444,6 +492,7 @@ def LD_hi_lo : I {
 // NOTE: This instruction represents LDA with the (indirect),Y addressing mode.
 // Hi and Lo regs must be in zero-page memory. Only A may be loaded this way.
 def LD_hi_lo_index : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs Acc:$r);
   let InOperandList = (ins MHReg:$hi, MLReg:$lo, YReg:$i);
   let AsmString = "LD_hi_lo_index $r, ($hi, $lo),$i";
@@ -454,6 +503,7 @@ def LD_hi_lo_index : I {
 
 // Load from stack
 def LD_stack : I {
+  let Defs = [NF, ZF];
   // XXX: To support spilling of mem regs, LD_stack takes a General operand.
   // FIXME: General is wrong. Mem regs cannot be stored directly to the stack.
   // See storeRegToStackSlot in M6502InstrInfo.cpp.
@@ -467,6 +517,7 @@ def LD_stack : I {
 
 // Load from stack plus variable offset
 def LD_stack_plus_index : I {
+  let Defs = [NF, ZF];
   let OutOperandList = (outs PhysReg:$r);
   let InOperandList = (ins iPTRimm:$fi, iPTRimm:$offs, Index:$i);
   // NOTE: X cannot be an index in LDX, and Y cannot be an index in LDY.
@@ -559,7 +610,8 @@ def JMP_hi_lo : I {
   let isIndirectBranch = 1; // This is an indirect branch instruction
 }
 
-def LSR_reg : I {
+def LSR_1 : I {
+  let Defs = [ZF, CF];
   let OutOperandList = (outs Acc:$ao);
   let InOperandList = (ins Acc:$ai);
   let Constraints = "$ao = $ai";
