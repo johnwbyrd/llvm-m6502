@@ -13,6 +13,7 @@ class M6502TargetMachine;
 // ISel passes.
 FunctionPass *createM6502ISelDag(M6502TargetMachine &TM,
                                  CodeGenOpt::Level OptLevel);
+FunctionPass *createM6502ExperimentalISel();
 
 } // end namespace llvm
 

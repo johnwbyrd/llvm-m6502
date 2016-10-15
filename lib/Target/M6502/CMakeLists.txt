@@ -10,13 +10,13 @@ add_public_tablegen_target(M6502CommonTableGen)
 
 add_llvm_target(M6502CodeGen
   M6502AsmPrinter.cpp
+  M6502ExperimentalISel.cpp
   M6502FrameLowering.cpp
   M6502InstrInfo.cpp
   M6502ISelDAGToDAG.cpp
   M6502ISelLowering.cpp
   M6502FunctionInfo.cpp
   M6502RegisterInfo.cpp
-  M6502RegNumbering.cpp
   M6502Subtarget.cpp
   M6502TargetMachine.cpp
   M6502TargetObjectFile.cpp
