@@ -120,7 +120,7 @@ struct ActionGraph {
   typedef SmallVector<ActionNode, 12> NodeVector;
   typedef NodeVector::const_iterator NodeIterator;
 
-  const Function *Fn = nullptr;
+  const BasicBlock *BB = nullptr;
   NodeVector Nodes;
   ActionNodeRef Root = 0;
 
@@ -190,7 +190,8 @@ struct DOTGraphTraits<ActionGraph *> : public DefaultDOTGraphTraits {
       : DefaultDOTGraphTraits(simple) {}
   
   static std::string getGraphName(const ActionGraph *G) {
-    return (Twine(G->Fn->getName()) + " action graph").str();
+    return (Twine(G->BB->getParent()->getName()) + "." + G->BB->getName() +
+            " action graph").str();
   }
 
   static std::string getNodeAttributes(const ActionNode *N,
@@ -235,13 +236,19 @@ static bool InstructionHasVisibleActions(const Instruction &I) {
          I.isTerminator();
 }
 
+/// Return true if a pointer is self-contained.
+/// If two different pointers are self-contained, they never alias.
+static bool IsPointerSelfContained(const Value *P) {
+  return isa<GlobalValue>(P) || isa<GlobalVariable>(P);
+}
+
 /// Return true if two pointers may alias.
 /// This performs an extremely basic alias analysis that may return false
 /// positives.
 static bool MayPointersAlias(const Value *P1, const Value *P2) {
   assert(P1->getType()->isPointerTy() && P2->getType()->isPointerTy());
 
-  if (isa<GlobalValue>(P1) && isa<GlobalValue>(P2)) {
+  if (IsPointerSelfContained(P1) && IsPointerSelfContained(P2)) {
     if (P1 != P2) {
       return false;
     }
@@ -250,6 +257,9 @@ static bool MayPointersAlias(const Value *P1, const Value *P2) {
   // TODO: analyze getelementptr
 
   // TODO: Use more sophisticated alias analysis
+  dbgs() << "Pointers may alias:\n";
+  P1->dump();
+  P2->dump();
   return true;
 }
 
@@ -257,7 +267,7 @@ static bool MayPointersAlias(const Value *P1, const Value *P2) {
 static void CreateActionGraph(ActionGraph &Graph, const BasicBlock *BB) {
   // Create graph of actions.
   // This is similar to the concept of Chains in the standard SelectionDAG.
-  Graph.Fn = BB->getParent();
+  Graph.BB = BB;
   ActionNodeRef Entry = Graph.createNode(ActionNode::EntryTy); // entry node
 
   // Map Instructions to Actions
