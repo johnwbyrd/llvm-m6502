@@ -80,6 +80,8 @@ namespace llvm {
 struct ActionGraph;
 struct ActionNode;
 
+// FIXME: clean up. It is mediocre that an ActionNodeRef has to contain an
+//        ActionGraph pointer -- it means an ActionGraph cannot be copied.
 struct ActionNodeRef {
   ActionNodeRef(ActionGraph *Graph = nullptr, size_t Num = -1)
       : Graph(Graph), Num(Num) {}
@@ -108,6 +110,10 @@ struct ActionNode {
   NodeType Type = InvalidTy;
   const Instruction *Inst = nullptr;
   DepsVector Deps;
+
+  /// An Action is Visible if it has observable effects outside of the basic
+  /// block that contains it.
+  bool Visible = false;
 };
 
 struct ActionGraph {
@@ -118,7 +124,9 @@ struct ActionGraph {
   NodeVector Nodes;
   ActionNodeRef Root = 0;
 
-  ActionGraph(const Function *Fn) : Fn(Fn) {}
+  ActionGraph() = default;
+  // Make noncopyable
+  ActionGraph(const ActionGraph &G) = delete;
 
   ActionNodeRef createNode(ActionNode::NodeType Type,
                            const Instruction *Inst = nullptr) {
@@ -182,7 +190,20 @@ struct DOTGraphTraits<ActionGraph *> : public DefaultDOTGraphTraits {
       : DefaultDOTGraphTraits(simple) {}
   
   static std::string getGraphName(const ActionGraph *G) {
-    return G->Fn->getName();
+    return (Twine(G->Fn->getName()) + " action graph").str();
+  }
+
+  static std::string getNodeAttributes(const ActionNode *N,
+                                       const ActionGraph *G) {
+    if (N->Type == ActionNode::InstTy) {
+      if (N->Visible) {
+        return "color=red";
+      } else {
+        return "color=gray";
+      }
+    }
+
+    return "";
   }
 
   std::string getNodeLabel(const ActionNode *Node,
@@ -233,22 +254,56 @@ static bool MayPointersAlias(const Value *P1, const Value *P2) {
 }
 
 /// Analyze a basic block and return its Action graph.
-static ActionGraph CreateActionGraph(const BasicBlock *BB) {
+static void CreateActionGraph(ActionGraph &Graph, const BasicBlock *BB) {
   // Create graph of actions.
   // This is similar to the concept of Chains in the standard SelectionDAG.
-  ActionGraph Graph(BB->getParent());
+  Graph.Fn = BB->getParent();
   ActionNodeRef Entry = Graph.createNode(ActionNode::EntryTy); // entry node
+
+  // Map Instructions to Actions
+  typedef DenseMap<const Instruction *, ActionNodeRef> InstrActionMap;
+  InstrActionMap InstrActions;
 
   // Track actions for individual memory locations
   ActionNodeRef MemRoot = Entry;
   SmallVector<ActionNodeRef, 12> MemEndpoints;
 
-  for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E;
-        ++I) {
-    if (InstructionHasVisibleActions(*I)) {
-      if (I->isTerminator() || I->getOpcode() == Instruction::Call) {
-        // Join all endpoints to terminator/call
-        ActionNodeRef Node = Graph.createNode(ActionNode::InstTy, &*I);
+  // Track outgoing SSA definitions
+  SmallVector<ActionNodeRef, 12> OutgoingNodes;
+
+  for (BasicBlock::const_iterator It = BB->begin(), E = BB->end(); It != E;
+       ++It) {
+    const Instruction &I = *It;
+
+    ActionNodeRef Node = Graph.createNode(ActionNode::InstTy, &I);
+    InstrActions[&I] = Node;
+
+    Node->Visible = InstructionHasVisibleActions(I);
+
+    // Hook up dependencies to node
+    for (unsigned int OpIdx = 0, NumOps = I.getNumOperands(); OpIdx < NumOps;
+         ++OpIdx) {
+      const Value *Operand = I.getOperand(OpIdx);
+      if (isa<Instruction>(Operand)) {
+        const Instruction *OperI = cast<Instruction>(Operand);
+        InstrActionMap::const_iterator amit = InstrActions.find(OperI);
+        if (amit != InstrActions.end()) {
+          Node->Deps.push_back(amit->second);
+        }
+      }
+    }
+
+    if (I.isUsedOutsideOfBlock(BB)) {
+      OutgoingNodes.push_back(Node);
+    }
+
+    // Analyze load dependencies
+    if (I.getOpcode() == Instruction::Load) {
+      const LoadInst *L = cast<LoadInst>(&I);
+      if (!L->isUnordered()) {
+        // FIXME: reduce code repetition
+        // Load is volatile, join all endpoints
+        // FIXME: not all endpoints need to be joined. analyze carefully.
         if (!MemEndpoints.empty()) {
           Node->Deps.append(MemEndpoints.begin(), MemEndpoints.end());
         } else {
@@ -256,60 +311,96 @@ static ActionGraph CreateActionGraph(const BasicBlock *BB) {
         }
         MemEndpoints.clear();
         MemRoot = Node;
-      } else if (I->getOpcode() == Instruction::Store) {
-        const StoreInst *S = cast<StoreInst>(I);
-        if (!S->isUnordered()) {
-          // Store is volatile, join all endpoints
-          // FIXME: not all endpoints need to be joined. analyze carefully.
-          ActionNodeRef Node = Graph.createNode(ActionNode::InstTy, &*I);
-          if (!MemEndpoints.empty()) {
-            Node->Deps.append(MemEndpoints.begin(), MemEndpoints.end());
-          } else {
-            Node->Deps.push_back(MemRoot);
-          }
-          MemEndpoints.clear();
-          MemRoot = Node;
-        } else {
-          ActionNodeRef Node = Graph.createNode(ActionNode::InstTy, &*I);
-          // Try to attach Store node to an existing memory endpoint
-          bool IsNewEndpt = true;
-          for (size_t i = 0; i < MemEndpoints.size(); ++i) {
-            ActionNodeRef Endpt = MemEndpoints[i];
-            assert(Endpt->Inst);
-            if (Endpt->Inst->getOpcode() == Instruction::Store) {
-              const StoreInst *OldS = cast<StoreInst>(Endpt->Inst);
-              // TODO: check if OldS and S address the same location.
-              //       This requires a more sophisticated comparison.
-              if (MayPointersAlias(OldS->getPointerOperand(),
-                                    S->getPointerOperand())) {
-                IsNewEndpt = false;
-                Node->Deps.push_back(Endpt);
-                MemEndpoints[i] = Node;
-                break;
-              }
+      } else {
+        // Try to attach Load node to an existing memory endpoint
+        bool EndptFound = false;
+        for (size_t i = 0; i < MemEndpoints.size(); ++i) {
+          ActionNodeRef Endpt = MemEndpoints[i];
+          assert(Endpt->Inst);
+          if (Endpt->Inst->getOpcode() == Instruction::Store) {
+            const StoreInst *OldS = cast<StoreInst>(Endpt->Inst);
+            // TODO: check if OldS and S address the same location.
+            //       This requires a more sophisticated comparison.
+            if (MayPointersAlias(OldS->getPointerOperand(),
+                                  L->getPointerOperand())) {
+              EndptFound = true;
+              Node->Deps.push_back(Endpt);
+              break;
             }
           }
-          // If Store node is a new endpoint, add it to the endpoint set
-          if (IsNewEndpt) {
-            Node->Deps.push_back(MemRoot);
-            MemEndpoints.push_back(Node);
+        }
+        if (!EndptFound && Node->Deps.empty()) {
+          Node->Deps.push_back(MemRoot);
+        }
+      }
+    }
+    // Analyze store dependencies
+    else if (I.getOpcode() == Instruction::Store) {
+      const StoreInst *S = cast<StoreInst>(&I);
+      if (!S->isUnordered()) {
+        // Store is volatile, join all endpoints
+        // FIXME: not all endpoints need to be joined. analyze carefully.
+        if (!MemEndpoints.empty()) {
+          Node->Deps.append(MemEndpoints.begin(), MemEndpoints.end());
+        } else {
+          Node->Deps.push_back(MemRoot);
+        }
+        MemEndpoints.clear();
+        MemRoot = Node;
+      } else {
+        // Try to attach Store node to an existing memory endpoint
+        bool IsNewEndpt = true;
+        for (size_t i = 0; i < MemEndpoints.size(); ++i) {
+          ActionNodeRef Endpt = MemEndpoints[i];
+          assert(Endpt->Inst);
+          if (Endpt->Inst->getOpcode() == Instruction::Store) {
+            const StoreInst *OldS = cast<StoreInst>(Endpt->Inst);
+            // TODO: check if OldS and S address the same location.
+            //       This requires a more sophisticated comparison.
+            if (MayPointersAlias(OldS->getPointerOperand(),
+                                  S->getPointerOperand())) {
+              IsNewEndpt = false;
+              Node->Deps.push_back(Endpt);
+              MemEndpoints[i] = Node;
+              break;
+            }
           }
         }
-      } else {
-        I->dump();
-        llvm_unreachable("Unhandled instruction with Visible actions");
+        // If Store node is a new endpoint, add it to the endpoint set
+        if (IsNewEndpt) {
+          if (Node->Deps.empty()) {
+            Node->Deps.push_back(MemRoot);
+          }
+          MemEndpoints.push_back(Node);
+        }
       }
+    }
+    // Analyze terminators and calls
+    else if (I.isTerminator() || I.getOpcode() == Instruction::Call) {
+      // Join all endpoints to terminator/call
+      if (!MemEndpoints.empty()) {
+        Node->Deps.append(MemEndpoints.begin(), MemEndpoints.end());
+      } else {
+        Node->Deps.push_back(MemRoot);
+      }
+      MemEndpoints.clear();
+      MemRoot = Node;
+    }
+
+    // If no dependencies were found, attach node to Entry
+    if (Node->Deps.empty()) {
+      Node->Deps.push_back(Entry);
     }
   }
 
   // Create Exit node and join all endpoints
   Graph.Root = Graph.createNode(ActionNode::ExitTy);
+  Graph.Root->Deps.append(OutgoingNodes.begin(), OutgoingNodes.end());
   if (!MemEndpoints.empty()) {
     Graph.Root->Deps.append(MemEndpoints.begin(), MemEndpoints.end());
   } else {
     Graph.Root->Deps.push_back(MemRoot);
   }
-    
 }
 
 bool M6502ExperimentalISel::runOnMachineFunction(MachineFunction &MF) {
@@ -326,7 +417,8 @@ bool M6502ExperimentalISel::runOnMachineFunction(MachineFunction &MF) {
     DEBUG(dbgs() << "---------- Analyzing basic block " << BB->getName() << ":\n");
     BB->dump();
 
-    ActionGraph Graph = CreateActionGraph(BB);
+    ActionGraph Graph;
+    CreateActionGraph(Graph, BB);
 
     //ViewGraph(&Graph, "actions." + MF.getName() + "." + BB->getName());
     // XXX: ViewGraph is broken...
