@@ -1,5 +1,6 @@
 // TODO: header stuff
 
+#include "ActionDAG.h"
 #include "M6502.h"
 #include "M6502FunctionInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -430,6 +431,9 @@ bool M6502ExperimentalISel::runOnMachineFunction(MachineFunction &MF) {
     ActionGraph Graph;
     CreateActionGraph(Graph, BB);
 
+    ActionDAG DAG;
+    buildActionDAG(DAG, BB);
+
     //ViewGraph(&Graph, "actions." + MF.getName() + "." + BB->getName());
     // XXX: ViewGraph is broken...
     // XXX: dump all effects graphs to a dot file
@@ -438,7 +442,8 @@ bool M6502ExperimentalISel::runOnMachineFunction(MachineFunction &MF) {
                         EC,
                         sys::fs::OpenFlags::F_Text);
     if (!EC) {
-      WriteGraph(DotO, &Graph);
+      //WriteGraph(DotO, &Graph);
+      WriteGraph(DotO, &DAG);
     } else {
       DEBUG(dbgs() << "Warning: failed to open file for graph output.\n"
                       "Please create a folder named `actions`.\n");
