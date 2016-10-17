@@ -9,6 +9,7 @@ tablegen(LLVM M6502GenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(M6502CommonTableGen)
 
 add_llvm_target(M6502CodeGen
+  ActionDAG.cpp
   M6502AsmPrinter.cpp
   M6502ExperimentalISel.cpp
   M6502FrameLowering.cpp
