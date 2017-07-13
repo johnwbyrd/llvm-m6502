@@ -1957,7 +1957,7 @@ void SelectionDAGBuilder::visitJumpTableHeader(JumpTable &JT,
     // SwitchOp cannot be stored in a virtual register, so store it on the
     // stack instead.
     // TODO: find a better solution
-    int FI = SwitchBB->getParent()->getFrameInfo()->CreateStackObject(
+    int FI = SwitchBB->getParent()->getFrameInfo().CreateStackObject(
         TLI.getPointerTy(DAG.getDataLayout()).getStoreSize(),
         DAG.getDataLayout().getPointerPrefAlignment(),
         false);

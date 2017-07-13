@@ -79,6 +79,5 @@ void M6502PassConfig::addISelPrepare() {
 bool M6502PassConfig::addInstSelector() {
   TargetPassConfig::addInstSelector();
   addPass(createM6502ISelDag(getM6502TargetMachine(), getOptLevel()));
-  addPass(createM6502ExperimentalISel());
   return false;
 }

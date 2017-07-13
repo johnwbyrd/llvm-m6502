@@ -18,7 +18,7 @@ public:
   bool SelectAddrFI(SDValue& N, SDValue &R);
   void Select(SDNode *N) override;
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "M6502 DAG->DAG Pattern Instruction Selection";
   }
 

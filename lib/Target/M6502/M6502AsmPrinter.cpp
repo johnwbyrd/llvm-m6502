@@ -24,7 +24,7 @@ public:
                            std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)) {}
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "M6502 Assembly Printer";
   }
 
@@ -63,11 +63,11 @@ void M6502AsmPrinter::EmitFunctionBodyStart() {
   const M6502FunctionInfo *FuncInfo = MF->getInfo<M6502FunctionInfo>();
 
   OutStreamer->AddComment("Stack objects:");
-  const MachineFrameInfo *FrameInfo = MF->getFrameInfo();
-  for (int ObjIdx = FrameInfo->getObjectIndexBegin();
-      ObjIdx < FrameInfo->getObjectIndexEnd(); ++ObjIdx) {
+  const MachineFrameInfo &FrameInfo = MF->getFrameInfo();
+  for (int ObjIdx = FrameInfo.getObjectIndexBegin();
+      ObjIdx < FrameInfo.getObjectIndexEnd(); ++ObjIdx) {
     OutStreamer->AddComment("  [" + Twine(ObjIdx) + "]: size " +
-                            Twine(FrameInfo->getObjectSize(ObjIdx)));
+                            Twine(FrameInfo.getObjectSize(ObjIdx)));
   }
 }
 

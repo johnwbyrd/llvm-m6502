@@ -118,7 +118,7 @@ M6502TargetLowering::LowerFormalArguments(
 
     if (VA.isMemLoc()) {
       // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
-      int FI = MF.getFrameInfo()->CreateFixedObject(
+      int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
@@ -170,7 +170,7 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
     if (VA.isMemLoc()) {
       // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
-      int FI = MF.getFrameInfo()->CreateFixedObject(
+      int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       // TODO: special support for ByVals? please test.
@@ -219,7 +219,7 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
     if (VA.isMemLoc()) {
       // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
-      int FI = MF.getFrameInfo()->CreateFixedObject(
+      int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       // TODO: special support for ByVals? please test.
@@ -281,7 +281,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     CCValAssign &VA = RVLocs[i];
 
     if (VA.isMemLoc()) {
-      int FI = MF.getFrameInfo()->CreateFixedObject(
+      int FI = MF.getFrameInfo().CreateFixedObject(
           VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIPtr, MachinePointerInfo());
