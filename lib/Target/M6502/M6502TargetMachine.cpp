@@ -23,9 +23,11 @@ M6502TargetMachine::M6502TargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        Optional<Reloc::Model> RM,
-                                       CodeModel::Model CM, CodeGenOpt::Level OL)
+                                       Optional<CodeModel::Model> CM,
+                                       CodeGenOpt::Level OL, bool JIT)
     : LLVMTargetMachine(T, "e-p:16:8-n8", TT, CPU, FS, Options,
-                        RM.getValueOr(Reloc::Model::Static), CM, OL),
+                        RM.getValueOr(Reloc::Static),
+                        CM.getValueOr(CodeModel::Small), OL),
       TLOF(std::make_unique<M6502TargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
 
@@ -35,7 +37,7 @@ M6502TargetMachine::M6502TargetMachine(const Target &T, const Triple &TT,
 namespace {
 class M6502PassConfig : public TargetPassConfig {
 public:
-  M6502PassConfig(M6502TargetMachine *TM, PassManagerBase &PM)
+  M6502PassConfig(M6502TargetMachine &TM, PassManagerBase &PM)
     : TargetPassConfig(TM, PM) {}
 
   M6502TargetMachine &getM6502TargetMachine() const {
@@ -58,7 +60,7 @@ public:
 } // namespace
 
 TargetPassConfig *M6502TargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new M6502PassConfig(this, PM);
+  return new M6502PassConfig(*this, PM);
 }
 
 void M6502PassConfig::addIRPasses() {

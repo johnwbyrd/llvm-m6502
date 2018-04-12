@@ -7,5 +7,5 @@ using namespace llvm;
 Target llvm::TheM6502Target;
 
 extern "C" void LLVMInitializeM6502TargetInfo() {
-  RegisterTarget<Triple::m6502> X(TheM6502Target, "m6502", "MOS 6502");
+  RegisterTarget<Triple::m6502> X(TheM6502Target, "m6502", "MOS 6502", "M6502");
 }

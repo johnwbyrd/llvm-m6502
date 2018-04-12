@@ -18,7 +18,8 @@ public:
                      StringRef CPU, StringRef FS,
                      const TargetOptions &Options,
                      Optional<Reloc::Model> RM,
-                     CodeModel::Model CM, CodeGenOpt::Level OL);
+                     Optional<CodeModel::Model> CM, CodeGenOpt::Level OL,
+                     bool JIT);
 
   const M6502Subtarget *getSubtargetImpl(const Function &) const override {
     return &Subtarget;

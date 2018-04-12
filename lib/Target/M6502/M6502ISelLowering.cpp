@@ -73,18 +73,6 @@ M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case M6502ISD::FIRST_NUMBER: break;
   case M6502ISD::ASL1:         return "M6502ISD::ASL1";
   case M6502ISD::ROL1:         return "M6502ISD::ROL1";
-  case M6502ISD::ABSADDR:      return "M6502ISD::ABSADDR";
-  case M6502ISD::ABSINDEXADDR: return "M6502ISD::ABSINDEXADDR";
-  case M6502ISD::HILOADDR:     return "M6502ISD::HILOADDR";
-  case M6502ISD::HILOINDEXADDR: return "M6502ISD::HILOINDEXADDR";
-  case M6502ISD::FIADDR:       return "M6502ISD::FIADDR";
-  case M6502ISD::FIINDEXADDR:  return "M6502ISD::FIINDEXADDR";
-  case M6502ISD::ADDRHI:       return "M6502ISD::ADDRHI";
-  case M6502ISD::ADDRLO:       return "M6502ISD::ADDRLO";
-  case M6502ISD::FIHI:         return "M6502ISD::FIHI";
-  case M6502ISD::FILO:         return "M6502ISD::FILO";
-  case M6502ISD::LOADFROM:     return "M6502ISD::LOADFROM";
-  case M6502ISD::STORETO:      return "M6502ISD::STORETO";
   case M6502ISD::BRIND:        return "M6502ISD::BRIND";
   case M6502ISD::CALL:         return "M6502ISD::CALL";
   case M6502ISD::RETURN:       return "M6502ISD::RETURN";
@@ -176,13 +164,7 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       // TODO: special support for ByVals? please test.
       SDValue MemOp = DAG.getStore(Chain, dl, Arg, FIPtr, MachinePointerInfo());
 
-      // XXX: Since LowerCall may be called AFTER type legalization in the case
-      // of LibCalls, LowerCall must type-legalize its output.
-      SmallVector<SDValue, 1> LegalizedMemOps;
-      LegalizeOperationTypes(MemOp.getNode(), LegalizedMemOps, DAG);
-      assert(LegalizedMemOps.size() == 1 &&
-             "LegalizeOperationTypes must legalize this operation");
-      ArgChains.push_back(LegalizedMemOps[0]);
+      ArgChains.push_back(MemOp);
     } else {
       llvm_unreachable("Invalid argument location");
     }
@@ -225,15 +207,8 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       // TODO: special support for ByVals? please test.
       SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
       
-      // XXX: Since LowerCall may be called AFTER type legalization in the case
-      // of LibCalls, LowerCall must type-legalize its output.
-      SmallVector<SDValue, 1> LegalizedMemOps;
-      LegalizeOperationTypes(Load.getNode(), LegalizedMemOps, DAG);
-      assert(LegalizedMemOps.size() == 2 &&
-             "LegalizeOperationTypes must legalize this operation");
-
-      InVals.push_back(LegalizedMemOps[0]); // Value
-      RetChains.push_back(LegalizedMemOps[1]); // Chain
+      InVals.push_back(Load.getValue(0)); // Value
+      RetChains.push_back(Load.getValue(1)); // Chain
     } else {
       llvm_unreachable("Return value must be in memory location");
     }
@@ -327,171 +302,9 @@ static bool isValidVarOffset(const SDValue &Offset) {
   return false;
 }
 
-// Convert i16 pointer to M6502 address operand for LOADFROM and STORETO nodes.
-static SDValue ConvertPtrToAddress(const SDValue &Ptr, const SDLoc &dl,
-                                   SelectionDAG &DAG) {
-  assert(Ptr.getValueType() == MVT::i16);
-
-  // Attempt to recombine an address pair to a frameindex or globaladdress,
-  // possibly with one or more added constant offsets.
-  SDValue Walker = Ptr;
-  int64_t ConstOffset = 0;
-  SDValue VarOffset = SDValue();
-  // Walk down pointer nodes, accumulating offsets.
-  while (Walker.getOpcode() == ISD::ADD) {
-    SDValue LHS = Walker.getOperand(0);
-    SDValue RHS = Walker.getOperand(1);
-    if (isa<ConstantSDNode>(LHS)) {
-      ConstOffset += cast<ConstantSDNode>(LHS)->getSExtValue();
-      Walker = RHS;
-    } else if (isa<ConstantSDNode>(RHS)) {
-      ConstOffset += cast<ConstantSDNode>(RHS)->getSExtValue();
-      Walker = LHS;
-    } else if (!VarOffset && isValidVarOffset(LHS)) {
-      // TODO: try to combine multiple added var offsets?
-      VarOffset = LHS;
-      Walker = RHS;
-    } else if (!VarOffset && isValidVarOffset(RHS)) {
-      // TODO: try to combine multiple added var offsets?
-      VarOffset = RHS;
-      Walker = LHS;
-    } else {
-      // Failed to recombine address. Fall back to generic address.
-      Walker = SDValue();
-      break;
-    }
-  }
-
-  // VarOffset must be 8 bits. If VarOffset is larger than 8 bits, it must be
-  // truncated. isValidVarOffset verifies that VarOffset fits in 8 bits, and
-  // truncation does not destroy information.
-  if (VarOffset) {
-    VarOffset = DAG.getZExtOrTrunc(VarOffset, dl, MVT::i8);
-  }
-
-  // Attempt to recombine build_pair
-  if (Walker && Walker.getOpcode() == ISD::BUILD_PAIR) {
-    SDValue Lo = Walker.getOperand(0);
-    SDValue Hi = Walker.getOperand(1);
-    if (Lo.getOpcode() == M6502ISD::ADDRLO &&
-        Hi.getOpcode() == M6502ISD::ADDRHI &&
-        Lo.getOperand(0) == Hi.getOperand(0)) {
-      // Recombine absolute address
-      Walker = Lo.getOperand(0);
-      assert(Walker.getOpcode() == ISD::TargetGlobalAddress); // TODO: support texternalsym, etc.
-      assert(Walker.getValueType() == MVT::i16);
-    } else if (Lo.getOpcode() == M6502ISD::FILO &&
-               Hi.getOpcode() == M6502ISD::FIHI
-               && Lo.getOperand(0) == Hi.getOperand(0)) {
-      // Recombine frameindex
-      Walker = Lo.getOperand(0);
-      assert(Walker.getOpcode() == ISD::TargetFrameIndex); // See LowerFrameIndex
-    }
-  }
-  
-  if (Walker && isa<GlobalAddressSDNode>(Walker)) {
-    // Add Offset if necessary
-    SDValue Address = Walker;
-    if (ConstOffset != 0) {
-      GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Address);
-      Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
-                                          GA->getOffset() + ConstOffset,
-                                          GA->getTargetFlags());
-    }
-    if (VarOffset) {
-      return DAG.getNode(M6502ISD::ABSINDEXADDR, dl, MVT::Other, Address,
-                         VarOffset);
-    } else {
-      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
-    }
-  } else if (Walker && isa<FrameIndexSDNode>(Walker)) {
-    FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Walker);
-    assert(FI->getValueType(0) == MVT::i16);
-    SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
-    if (VarOffset) {
-      // FIXME: Var Offset in frame indexes might only be profitable for
-      // statically allocated stack vars.
-      return DAG.getNode(M6502ISD::FIINDEXADDR, dl, MVT::Other,
-                         Index, DAG.getTargetConstant(ConstOffset, dl, MVT::i16),
-                         VarOffset);
-    } else {
-      return DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other,
-                         Index, DAG.getTargetConstant(ConstOffset, dl, MVT::i16));
-    }
-  } else if (Walker && isa<ConstantSDNode>(Walker)) {
-    ConstantSDNode *C = cast<ConstantSDNode>(Walker);
-    SDValue Address = DAG.getTargetConstant(C->getAPIntValue() + ConstOffset, dl,
-                                            MVT::i16);
-    if (VarOffset) {
-      return DAG.getNode(M6502ISD::ABSINDEXADDR, dl, MVT::Other, Address,
-                         VarOffset);
-    } else {
-      return DAG.getNode(M6502ISD::ABSADDR, dl, MVT::Other, Address);
-    }
-  } else if (Walker && isa<LoadSDNode>(Walker)) {
-    // Indirect addressing
-    LoadSDNode *Load = cast<LoadSDNode>(Walker);
-    // TODO: support indirect non-indexed addressing
-    // FIXME: clean up and verify correctness
-    if (Load->getMemoryVT() == MVT::i16) {
-      SDValue LoadPtr = Load->getBasePtr();
-      SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, LoadPtr,
-                                  DAG.getTargetConstant(0, dl, MVT::i8));
-      SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, LoadPtr,
-                                  DAG.getTargetConstant(1, dl, MVT::i8));
-      if (!VarOffset && ConstOffset == 0) {
-        // Indirect non-indexed addressing
-        // TODO: implement. currently falls back to generic.
-      } else if (VarOffset && ConstOffset == 0) {
-        // Indirect indexed addressing
-        return DAG.getNode(M6502ISD::HILOINDEXADDR, dl, MVT::Other,
-                           PtrHi, PtrLo, VarOffset);
-      } else if (!VarOffset && ConstOffset != 0) {
-        if (ConstOffset >= 0 && ConstOffset <= UINT8_MAX) {
-          // Indirect indexed addressing (constant in Y)
-          return DAG.getNode(M6502ISD::HILOINDEXADDR, dl, MVT::Other,
-                             PtrHi, PtrLo,
-                             DAG.getConstant(ConstOffset, dl, MVT::i8));
-        }
-      } else {
-        // Do nothing. Fall back to generic.
-      }
-    }
-  } else if (Walker) {
-    DEBUG(dbgs() << "Cannot recombine address: "; Walker->dump(&DAG));
-  }
-
-  // Generic fallback
-  SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                              DAG.getTargetConstant(0, dl, MVT::i8));
-  SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                              DAG.getTargetConstant(1, dl, MVT::i8));
-  return DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrHi, PtrLo);
-}
-
-// This hook gives backends an opportunity to process nodes before the operands
-// are legalized. M6502 uses this hook to process nodes that take 16-bit
-// pointer operands.
-void M6502TargetLowering::LegalizeOperationTypes(SDNode *N,
-                                             SmallVectorImpl<SDValue> &Results,
-                                             SelectionDAG &DAG) const {
-  switch (N->getOpcode()) {
-  default:
-    break;
-  case ISD::LOAD: return LegalizeLoad(N, Results, DAG);
-  case ISD::STORE: return LegalizeStore(N, Results, DAG);
-  case ISD::BR_JT: return LegalizeBR_JT(N, Results, DAG);
-  case ISD::BRIND: return LegalizeBRIND(N, Results, DAG);
-  }
-}
-
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
-  case ISD::GlobalAddress: return LowerGlobalAddress(Op, DAG);
-  case ISD::FrameIndex: return LowerFrameIndex(Op, DAG);
-  case ISD::JumpTable: return LowerJumpTable(Op, DAG);
-  case ISD::ExternalSymbol: return LowerExternalSymbol(Op, DAG);
   case ISD::UMUL_LOHI: return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
   case ISD::SELECT_CC: return LowerSELECT_CC(Op, DAG);
@@ -508,18 +321,6 @@ void M6502TargetLowering::ReplaceNodeResults(SDNode *N,
                                              SelectionDAG &DAG) const {
   SDLoc dl(N);
   switch (N->getOpcode()) {
-  case ISD::GlobalAddress:
-    // FIXME: this work is repeated from LowerOperation?
-    Results.push_back(LowerGlobalAddress(SDValue(N, 0), DAG));
-    break;
-  case ISD::FrameIndex:
-    // FIXME: this work is repeated from LowerOperation?
-    Results.push_back(LowerFrameIndex(SDValue(N, 0), DAG));
-    break;
-  case ISD::JumpTable:
-    // FIXME: this work is repeated from LowerOperation?
-    Results.push_back(LowerJumpTable(SDValue(N, 0), DAG));
-    break;
   default:
     llvm_unreachable("Do not know how to custom type legalize this operation!");
     break;
@@ -535,156 +336,6 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   }
 
   return SDValue();
-}
-
-void M6502TargetLowering::LegalizeLoad(SDNode *N,
-                                       SmallVectorImpl<SDValue> &Results,
-                                       SelectionDAG &DAG) const {
-  LoadSDNode *Load = cast<LoadSDNode>(N);
-  if (Load->getValueType(0) != MVT::i8) { // TODO: call getMemoryVT? is there a difference?
-    return; // Allow legalizer to handle non-i8 loads
-  }
-  SDValue BasePtr = Load->getBasePtr(); // TODO: handle indexing and truncating here?
-  DEBUG(dbgs() << "Load BasePtr: "; BasePtr->dumprFull(&DAG));
-  if (BasePtr->getValueType(0) != MVT::i16) {
-    DEBUG(dbgs() << "Warning: Load pointer was not i16");
-    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-  }
-
-  SDLoc dl(N);
-  SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
-  SDValue Result = DAG.getNode(M6502ISD::LOADFROM, dl,
-                                DAG.getVTList(MVT::i8, MVT::Other),
-                                Load->getChain(), Address);
-  Results.push_back(Result.getValue(0)); // Value
-  Results.push_back(Result.getValue(1)); // Chain
-}
-
-void M6502TargetLowering::LegalizeStore(SDNode *N,
-                                        SmallVectorImpl<SDValue> &Results,
-                                        SelectionDAG &DAG) const {
-  StoreSDNode *Store = cast<StoreSDNode>(N);
-  if (Store->getMemoryVT() != MVT::i8) {
-    return; // Allow legalizer to handle non-i8 stores
-  }
-  SDValue BasePtr = Store->getBasePtr(); // TODO: handle indexing and truncating here?
-  DEBUG(dbgs() << "Store BasePtr: "; BasePtr->dumprFull(&DAG));
-  if (BasePtr->getValueType(0) != MVT::i16) {
-    DEBUG(dbgs() << "Warning: Store pointer was not i16");
-    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-  }
-
-  SDLoc dl(N);
-  SDValue Value = Store->getValue();
-  SDValue Address = ConvertPtrToAddress(BasePtr, dl, DAG);
-  SDValue Result = DAG.getNode(M6502ISD::STORETO, dl, MVT::Other,
-                                Store->getChain(), Value, Address);
-  Results.push_back(Result);
-}
-
-void M6502TargetLowering::LegalizeBR_JT(SDNode *N,
-                                        SmallVectorImpl<SDValue> &Results,
-                                        SelectionDAG &DAG) const {
-  assert(N->getOpcode() == ISD::BR_JT);
-
-  SDValue Chain = N->getOperand(0);
-  SDValue Table = N->getOperand(1);
-  SDValue Index = N->getOperand(2);
-  SDLoc dl(N);
-
-  // The following is borrowed from LegalizeDAG.cpp.
-  // We cannot use LLVM's built-in BR_JT expansion because it cannot
-  // legalize the i16 operand.
-  EVT PTy = DAG.getTargetLoweringInfo().getPointerTy(DAG.getDataLayout());
-
-  const DataLayout &TD = DAG.getDataLayout();
-  unsigned EntrySize =
-    DAG.getMachineFunction().getJumpTableInfo()->getEntrySize(TD);
-
-  Index = DAG.getNode(ISD::MUL, dl, Index.getValueType(), Index,
-                      DAG.getConstant(EntrySize, dl, Index.getValueType()));
-  SDValue Addr = DAG.getNode(ISD::ADD, dl, Index.getValueType(),
-                              Index, Table);
-
-  EVT MemVT = EVT::getIntegerVT(*DAG.getContext(), EntrySize * 8);
-  SDValue LD = DAG.getExtLoad(
-      ISD::SEXTLOAD, dl, PTy, Chain, Addr,
-      MachinePointerInfo::getJumpTable(DAG.getMachineFunction()), MemVT);
-  Addr = LD;
-  Results.push_back(DAG.getNode(ISD::BRIND, dl, MVT::Other, LD.getValue(1),
-                                Addr));
-}
-
-void M6502TargetLowering::LegalizeBRIND(SDNode *N,
-                                        SmallVectorImpl<SDValue> &Results,
-                                        SelectionDAG &DAG) const {
-  assert(N->getOpcode() == ISD::BRIND);
-
-  SDValue Chain = N->getOperand(0);
-  SDValue Ptr = N->getOperand(1); // TODO: handle indexing and truncating here?
-  DEBUG(dbgs() << "BRIND Ptr: "; Ptr->dumprFull(&DAG));
-  if (Ptr->getValueType(0) != MVT::i16) {
-    DEBUG(dbgs() << "Warning: BRIND pointer was not i16");
-    return; // Allow legalizer to handle when pointer is not type i16... (FIXME: is this ok?)
-  }
-
-  SDLoc dl(N);
-  SDValue Address = ConvertPtrToAddress(Ptr, dl, DAG);
-  Results.push_back(DAG.getNode(M6502ISD::BRIND, dl, MVT::Other, Chain,
-                                Address));
-}
-
-SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
-                                                SelectionDAG &DAG) const {
-  // Transform GlobalAddress to prevent LLVM from trying to legalize the i16.
-  SDLoc dl(Op);
-  const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
-  SDValue Address = DAG.getTargetGlobalAddress(GA->getGlobal(), dl, MVT::i16,
-                                               GA->getOffset(),
-                                               GA->getTargetFlags());
-  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, Address);
-  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
-  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
-}
-
-SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
-                                             SelectionDAG &DAG) const {
-  // Transform FrameIndex to prevent LLVM from trying to legalize the i16.
-  SDLoc dl(Op);
-  const FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Op);
-  assert(FI->getValueType(0) == MVT::i16);
-  SDValue Index = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
-  SDValue Hi = DAG.getNode(M6502ISD::FIHI, dl, MVT::i8, Index);
-  SDValue Lo = DAG.getNode(M6502ISD::FILO, dl, MVT::i8, Index);
-  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
-}
-
-SDValue M6502TargetLowering::LowerJumpTable(SDValue Op,
-                                            SelectionDAG &DAG) const {
-  // Transform JumpTable to prevent LLVM from trying to legalize the i16.
-  SDLoc dl(Op);
-  const JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
-  assert(JT->getValueType(0) == MVT::i16);
-  SDValue JTI = DAG.getTargetJumpTable(JT->getIndex(), MVT::i16);
-  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, JTI);
-  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, JTI);
-  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
-}
-
-SDValue M6502TargetLowering::LowerExternalSymbol(SDValue Op,
-                                                 SelectionDAG &DAG) const {
-  // Transform GlobalAddress to prevent LLVM from trying to legalize the i16.
-  SDLoc dl(Op);
-  const ExternalSymbolSDNode *ES = cast<ExternalSymbolSDNode>(Op);
-  SDValue Address = DAG.getTargetExternalSymbol(ES->getSymbol(), MVT::i16,
-                                                ES->getTargetFlags());
-  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, Address);
-  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
-  // NOTE: The order of operands for BUILD_PAIR is Lo, Hi.
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
 }
 
 SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,
