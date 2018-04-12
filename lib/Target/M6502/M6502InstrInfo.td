@@ -229,15 +229,7 @@ def CMP_imm : I {
   let Pattern = [(M6502cmp PhysReg:$ai, imm:$x)];
 }
 
-// Compare Register with Memory
-// TODO: Define CMP with a multiclass like AccOperatorI
-def CMP_mem : I {
-  let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs);
-  let InOperandList = (ins PhysReg:$ai, MemReg:$x);
-  let AsmString = "CMP_mem $ai, $x";
-  let Pattern = [(M6502cmp PhysReg:$ai, MemReg:$x)];
-}
+// TODO: CMP_abs, etc.
 
 // Jump
 def JMP_abs : I {

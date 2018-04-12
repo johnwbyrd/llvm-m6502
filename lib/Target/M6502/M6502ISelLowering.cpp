@@ -22,13 +22,11 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
+  // M6502 doesn't have 16-bit registers, and pointers are stored in memory.
+  // We use a set of fake registers when generating code.
+  addRegisterClass(MVT::i16, &M6502::PtrRegRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
-
-  setOperationAction(ISD::GlobalAddress,  MVT::i16, Custom);
-  setOperationAction(ISD::FrameIndex,     MVT::i16, Custom);
-  setOperationAction(ISD::JumpTable,      MVT::i16, Custom);
-  setOperationAction(ISD::ExternalSymbol, MVT::i16, Custom);
 
   setOperationAction(ISD::MUL,       MVT::i8, LibCall);
   setOperationAction(ISD::MULHU,     MVT::i8, LibCall);
