@@ -13,6 +13,7 @@ namespace M6502ISD {
 
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
+  FIADDR,
   ASL1, // shift left one bit, leftmost bit is moved to CF
   ROL1, // rotate left one bit, CF is moved in thru the right and out thru the left
   BRIND,

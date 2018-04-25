@@ -9,6 +9,9 @@ def imm_addr : Operand<i16>; // FIXME: is this needed?
 
 // Custom type profiles
 
+def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
+                                           SDTCisVT<1, i16>,
+                                           SDTCisVT<2, i16>]>;
 def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
@@ -24,6 +27,10 @@ def SDT_M6502SelectCC : SDTypeProfile<1, 3, [SDTCisVT<0, i8>, SDTCisVT<1, i8>,
 def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Custom nodes
+
+// Address-related nodes
+def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr,
+                         []>; // get absolute address of stack object
 
 // Shift 1 nodes
 def M6502asl1 : SDNode<"M6502ISD::ASL1", SDT_M6502Shift1,
@@ -299,6 +306,7 @@ def LD_stack : I {
   let AsmString = "LD_stack $r, [$fi]+$offs";
   // TODO: stack?
   //let Pattern = [(set General:$r, (M6502loadfrom (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (load (M6502fiaddr imm:$fi, imm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -323,6 +331,7 @@ def ST_stack : I {
   let AsmString = "ST_stack $r, [$fi]+$offs";
   // TODO: pattern?
   //let Pattern = [(M6502storeto General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let Pattern = [(store General:$r, (M6502fiaddr imm:$fi, imm:$offs))];
   let mayStore = 1;
 }
 
