@@ -107,8 +107,10 @@ M6502TargetLowering::LowerFormalArguments(
       // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
       int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
-      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr, MachinePointerInfo());
+      //SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      //SDValue FIPtr = DAG.getConstant(FI, dl, MVT::i16);
+      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, DAG.getConstant(FI, dl, MVT::i16), DAG.getConstant(0, dl, MVT::i16));
+      SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr, MachinePointerInfo());
       InVals.push_back(Val);
     } else {
       llvm_unreachable("Argument must be located in memory");
