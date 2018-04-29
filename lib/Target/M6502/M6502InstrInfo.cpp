@@ -39,7 +39,7 @@ unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
     const MachineOperand &FI = MI.getOperand(1);
     const MachineOperand &Offset = MI.getOperand(2);
     // FIXME: can offset be non-zero?
-    if (Dest.isReg() && FI.isImm() && Offset.isImm() && Offset.getImm() == 0) {
+    if (Dest.isReg() && FI.isFI() && Offset.isImm() && Offset.getImm() == 0) {
       FrameIndex = FI.getImm(); // ???
       return Dest.getReg();
     }
@@ -62,7 +62,7 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
     const MachineOperand &FI = MI.getOperand(1);
     const MachineOperand &Offset = MI.getOperand(2);
     // FIXME: can offset be non-zero?
-    if (Src.isReg() && FI.isImm() && Offset.isImm() && Offset.getImm() == 0) {
+    if (Src.isReg() && FI.isFI() && Offset.isImm() && Offset.getImm() == 0) {
       FrameIndex = FI.getImm(); // ???
       return Src.getReg();
     }

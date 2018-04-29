@@ -52,7 +52,8 @@ M6502RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   const M6502FrameLowering *TFI = getFrameLowering(MF);
 
   int Index = MI.getOperand(FIOperandNum).getIndex();
-  MI.getOperand(FIOperandNum).ChangeToImmediate(FrameInfo.getObjectOffset(Index));
+  MI.getOperand(FIOperandNum).ChangeToImmediate(Index); // ????
+  //MI.getOperand(FIOperandNum).ChangeToImmediate(FrameInfo.getObjectOffset(Index));
 }
 
 unsigned
