@@ -24,7 +24,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
   // M6502 doesn't have 16-bit registers, and pointers are stored in memory.
   // We use a set of fake registers when generating code.
-  addRegisterClass(MVT::i16, &M6502::PtrRegRegClass);
+  //addRegisterClass(MVT::i16, &M6502::PtrRegRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
@@ -108,7 +108,7 @@ M6502TargetLowering::LowerFormalArguments(
       int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr, DAG.getConstant(0, dl, MVT::i16));
+      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr, DAG.getTargetConstant(0, dl, MVT::i16));
       SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr, MachinePointerInfo());
       InVals.push_back(Val);
     } else {
@@ -203,8 +203,8 @@ M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       // FIXME: CreateFixedObject might be the wrong solution here. Do the research.
       int FI = MF.getFrameInfo().CreateFixedObject(
         VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
-      //SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, DAG.getConstant(FI, dl, MVT::i16), DAG.getConstant(0, dl, MVT::i16));
+      SDValue FIPtr = DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr, DAG.getTargetConstant(0, dl, MVT::i16));
       // TODO: special support for ByVals? please test.
       SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr, MachinePointerInfo());
       
@@ -260,7 +260,7 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       int FI = MF.getFrameInfo().CreateFixedObject(
           VA.getValVT().getStoreSize(), VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr, DAG.getConstant(0, dl, MVT::i16));
+      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr, DAG.getTargetConstant(0, dl, MVT::i16));
       SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIAddr, MachinePointerInfo());
       // FIXME: type-legalize store here?
       RetOps.push_back(RetOp);

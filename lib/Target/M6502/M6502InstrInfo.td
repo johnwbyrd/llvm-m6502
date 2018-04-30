@@ -304,7 +304,7 @@ def LD_stack : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
+  let Pattern = [(set General:$r, (load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
@@ -327,7 +327,7 @@ def ST_stack : I {
   // See storeRegToStackSlot in M6502InstrInfo.cpp.
   let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(store General:$r, (M6502fiaddr tframeindex:$fi, imm:$offs))];
+  let Pattern = [(store General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
