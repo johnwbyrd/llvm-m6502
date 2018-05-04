@@ -14,6 +14,9 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   FIADDR,
+  HILOADDR,
+  LOAD,
+  STORE,
   ASL1, // shift left one bit, leftmost bit is moved to CF
   ROL1, // rotate left one bit, CF is moved in thru the right and out thru the left
   BRIND,
@@ -72,6 +75,8 @@ public:
       const override;
 
 private:
+  SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;

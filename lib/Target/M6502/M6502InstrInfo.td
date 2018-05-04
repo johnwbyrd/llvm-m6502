@@ -12,6 +12,11 @@ def imm_addr : Operand<i16>; // FIXME: is this needed?
 def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                            SDTCisVT<1, i16>,
                                            SDTCisVT<2, i16>]>;
+def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
+                                             SDTCisVT<1, i8>,
+                                             SDTCisVT<2, i8>]>;
+def SDT_M6502Load : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, OtherVT>]>;
+def SDT_M6502Store : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, OtherVT>]>;
 def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
@@ -30,7 +35,15 @@ def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Address-related nodes
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr,
-                         []>; // get absolute address of stack object
+                         []>;
+def M6502hiloaddr : SDNode<"M6502ISD::HILOADDR", SDT_M6502HiLoAddr,
+                           []>;
+
+// Load and store nodes
+def M6502load : SDNode<"M6502ISD::LOAD", SDT_M6502Load,
+                       [SDNPHasChain, SDNPMayLoad]>;
+def M6502store : SDNode<"M6502ISD::STORE", SDT_M6502Store,
+                        [SDNPHasChain, SDNPMayStore]>;
 
 // Shift 1 nodes
 def M6502asl1 : SDNode<"M6502ISD::ASL1", SDT_M6502Shift1,
@@ -295,6 +308,32 @@ def LD_abs : I {
   let canFoldAsLoad = 1;
 }
 
+// Load from address in Pointer registers
+def LD_hilo : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins Pointer:$pl, Pointer:$ph);
+  let AsmString = "LD_hilo $r, $pl, $ph";
+  let Pattern = [(set General:$r, (M6502load (M6502hiloaddr Pointer:$pl, Pointer:$ph)))];
+  let mayLoad = 1;
+}
+
+// Store to address in Pointer registers
+def ST_hilo : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, Pointer:$pl, Pointer:$ph);
+  let AsmString = "ST_hilo $r, $pl, $ph";
+  let Pattern = [(M6502store General:$r, (M6502hiloaddr Pointer:$pl, Pointer:$ph))];
+  let mayStore = 1;
+}
+
+// Set Pointer register
+def LD_preg : I {
+  let OutOperandList = (outs Pointer:$p);
+  let InOperandList = (ins i8imm:$v);
+  let AsmString = "LD_preg $v, $p";
+  let Pattern = [(set Pointer:$p, imm:$v)];
+}
+
 // Load from stack
 def LD_stack : I {
   let Defs = [NF, ZF];
@@ -304,9 +343,8 @@ def LD_stack : I {
   let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (M6502load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
   let mayLoad = 1;
-  let canFoldAsLoad = 1;
 }
 
 // Store to absolute address
@@ -327,7 +365,7 @@ def ST_stack : I {
   // See storeRegToStackSlot in M6502InstrInfo.cpp.
   let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(store General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let Pattern = [(M6502store General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 

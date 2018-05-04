@@ -11,10 +11,13 @@ class R<string n> : Register<n> {
 def A : R<"A">;
 def X : R<"X">;
 def Y : R<"Y">;
-def P0 : R<"P0">;
-def P1 : R<"P1">;
-def P2 : R<"P2">;
-def P3 : R<"P3">;
+
+// Fake pointer registers for holding the high and low bytes of an address.
+def PL : R<"PL">;
+def PH : R<"PH">;
+
+// XXX: Unused 16-bit register to make TableGen shut up.
+def XXX1: R<"XXX1">;
 
 // Flag registers. These registers serve to coordinate Uses and Defs of
 // instructions that modify or accept flags, such as CMP and BEQ.
@@ -32,4 +35,5 @@ def YReg : RegisterClass<"M6502", [i8], 8, (add Y)>;
 def Index : RegisterClass<"M6502", [i8], 8, (add X, YReg)>;
 def PhysReg : RegisterClass<"M6502", [i8], 8, (add Acc, Index)>;
 def General : RegisterClass<"M6502", [i8], 8, (add PhysReg)>;
-def PtrReg : RegisterClass<"M6502", [i16], 16, (add P0, P1, P2, P3)>;
+def Pointer : RegisterClass<"M6502", [i8], 8, (add PL, PH)>;
+def XXXReg : RegisterClass<"M6502", [i16], 16, (add XXX1)>;
