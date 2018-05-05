@@ -15,7 +15,8 @@ def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
 def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                              SDTCisVT<1, i8>,
                                              SDTCisVT<2, i8>]>;
-def SDT_M6502Load : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, OtherVT>]>;
+def SDT_M6502Load : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
+                                         SDTCisVT<1, OtherVT>]>;
 def SDT_M6502Store : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, OtherVT>]>;
 def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;

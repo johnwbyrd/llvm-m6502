@@ -25,7 +25,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
-  setOperationAction(ISD::LOAD,      MVT::i8, Custom);
+  setOperationAction(ISD::LOAD,      MVT::i16, Custom);
   setOperationAction(ISD::STORE,     MVT::i16, Custom);
 
   setOperationAction(ISD::MUL,       MVT::i8, LibCall);
@@ -310,10 +310,23 @@ static bool isValidVarOffset(const SDValue &Offset) {
   return false;
 }
 
+void
+M6502TargetLowering::LowerOperationWrapper(SDNode *N,
+        SmallVectorImpl<SDValue> &Results,
+        SelectionDAG &DAG) const {
+  if (N->getOpcode() == ISD::LOAD) {
+    // Handle LOAD operations in here instead of in LowerOperation, since LOAD
+    // nodes return more than one result value, and LowerOperation can't handle
+    // that.
+    LowerLOAD(N, Results, DAG);
+  } else {
+    TargetLowering::LowerOperationWrapper(N, Results, DAG);
+  }
+}
+
 SDValue
 M6502TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
-  case ISD::LOAD: return LowerLOAD(Op, DAG);
   case ISD::STORE: return LowerSTORE(Op, DAG);
   case ISD::UMUL_LOHI: return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC: return LowerBR_CC(Op, DAG);
@@ -348,15 +361,26 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
   return SDValue();
 }
 
-SDValue M6502TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
-  DEBUG(dbgs() << "Lowering LOAD: "; Op->dumprFull(&DAG); dbgs() << "\n");
+void M6502TargetLowering::LowerLOAD(SDNode *N,
+    SmallVectorImpl<SDValue> &Results,
+    SelectionDAG &DAG) const {
+  DEBUG(dbgs() << "Lowering LOAD: "; N->dumprFull(&DAG); dbgs() << "\n");
 
-  LoadSDNode* Load = cast<LoadSDNode>(Op);
+  LoadSDNode* Load = cast<LoadSDNode>(N);
   if (Load->getMemoryVT() == MVT::i8) {
-    SDLoc dl(Op);
-  }
+    SDLoc dl(N);
 
-  return SDValue();
+    SDValue Ptr = Load->getBasePtr();
+    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
+        DAG.getConstant(0, dl, MVT::i8));
+    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
+        DAG.getConstant(1, dl, MVT::i8));
+
+    SDValue HiLoAddr = DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrLo, PtrHi);
+    SDValue NewLoad = DAG.getNode(M6502ISD::LOAD, dl, DAG.getVTList(MVT::i8, MVT::Other), Load->getChain(), HiLoAddr);
+    Results.push_back(NewLoad.getValue(0)); // Value
+    Results.push_back(NewLoad.getValue(1)); // Chain
+  }
 }
 
 SDValue M6502TargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {

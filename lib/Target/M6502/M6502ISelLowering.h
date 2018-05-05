@@ -63,6 +63,9 @@ public:
                       SelectionDAG & /*DAG*/) const override;
 
   // Provide custom lowering hooks for some operations.
+  void LowerOperationWrapper(SDNode *N,
+      SmallVectorImpl<SDValue> &Results,
+      SelectionDAG &DAG) const override;
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   void ReplaceNodeResults(SDNode *N,
                           SmallVectorImpl<SDValue> &Results,
@@ -75,7 +78,9 @@ public:
       const override;
 
 private:
-  SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
+  void LowerLOAD(SDNode *N,
+      SmallVectorImpl<SDValue> &Results,
+      SelectionDAG &DAG) const;
   SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
