@@ -40,7 +40,7 @@ unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
     const MachineOperand &Offset = MI.getOperand(2);
     // FIXME: can offset be non-zero?
     if (Dest.isReg() && FI.isFI() && Offset.isImm() && Offset.getImm() == 0) {
-      FrameIndex = FI.getImm(); // ???
+      FrameIndex = FI.getIndex();
       return Dest.getReg();
     }
   }
@@ -63,7 +63,7 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
     const MachineOperand &Offset = MI.getOperand(2);
     // FIXME: can offset be non-zero?
     if (Src.isReg() && FI.isFI() && Offset.isImm() && Offset.getImm() == 0) {
-      FrameIndex = FI.getImm(); // ???
+      FrameIndex = FI.getIndex();
       return Src.getReg();
     }
   }
@@ -82,10 +82,10 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   // assumes storeRegToStackSlot generates one instruction.
   // See <https://groups.google.com/forum/#!topic/llvm-dev/Hjr5oNA0Wyc>
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+  if (M6502::AllRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
       .addReg(SrcReg, getKillRegState(isKill))
-      .addImm(FrameIndex)
+      .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
     llvm_unreachable("Register class could not be stored to stack");
@@ -99,9 +99,9 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
   DebugLoc DL = MBBI->getDebugLoc();
-  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
+  if (M6502::AllRegClass.hasSubClassEq(RC)) {
     BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
-      .addImm(FrameIndex)
+      .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
     llvm_unreachable("Register class could not be loaded from stack");

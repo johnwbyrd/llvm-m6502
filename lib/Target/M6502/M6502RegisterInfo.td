@@ -36,4 +36,5 @@ def Index : RegisterClass<"M6502", [i8], 8, (add X, YReg)>;
 def PhysReg : RegisterClass<"M6502", [i8], 8, (add Acc, Index)>;
 def General : RegisterClass<"M6502", [i8], 8, (add PhysReg)>;
 def Pointer : RegisterClass<"M6502", [i8], 8, (add PL, PH)>;
+def All : RegisterClass<"M6502", [i8], 8, (add General, Pointer)>;
 def XXXReg : RegisterClass<"M6502", [i16], 16, (add XXX1)>;

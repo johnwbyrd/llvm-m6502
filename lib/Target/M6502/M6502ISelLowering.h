@@ -15,6 +15,8 @@ enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   FIADDR,
   HILOADDR,
+  ADDRHI,
+  ADDRLO,
   LOAD,
   STORE,
   ASL1, // shift left one bit, leftmost bit is moved to CF
@@ -78,6 +80,7 @@ public:
       const override;
 
 private:
+  SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   void LowerLOAD(SDNode *N,
       SmallVectorImpl<SDValue> &Results,
       SelectionDAG &DAG) const;

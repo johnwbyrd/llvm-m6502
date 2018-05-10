@@ -984,6 +984,7 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
   // Allow illegal target nodes and illegal registers.
   if (Node->getOpcode() == ISD::TargetConstant ||
       Node->getOpcode() == ISD::TargetFrameIndex ||
+      Node->getOpcode() == ISD::TargetGlobalAddress ||
       Node->getOpcode() == ISD::Register)
     return;
 
@@ -1000,6 +1001,7 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
             TLI.isTypeLegal(Op.getValueType()) ||
             Op.getOpcode() == ISD::TargetConstant ||
             Op.getOpcode() == ISD::TargetFrameIndex ||
+            Op.getOpcode() == ISD::TargetGlobalAddress ||
             Op.getOpcode() == ISD::Register) &&
             "Unexpected illegal type!");
 #endif
