@@ -91,6 +91,7 @@ private:
   bool IgnoreNodeResults(SDNode *N) const {
     return N->getOpcode() == ISD::TargetConstant ||
            N->getOpcode() == ISD::TargetFrameIndex ||
+           N->getOpcode() == ISD::TargetGlobalAddress ||
            N->getOpcode() == ISD::Register;
   }
 

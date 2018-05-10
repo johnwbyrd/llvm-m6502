@@ -309,6 +309,15 @@ def LD_abs : I {
   let canFoldAsLoad = 1;
 }
 
+// Load from stack
+def LD_stack : I {
+  let OutOperandList = (outs General:$r);
+  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
+  let AsmString = "LD_stack $r, [$fi]+$offs";
+  let Pattern = [(set General:$r, (M6502load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let mayLoad = 1;
+}
+
 // Load from address in Pointer registers
 def LD_hilo : I {
   let OutOperandList = (outs General:$r);
@@ -316,6 +325,15 @@ def LD_hilo : I {
   let AsmString = "LD_hilo $r, $pl, $ph";
   let Pattern = [(set General:$r, (M6502load (M6502hiloaddr Pointer:$pl, Pointer:$ph)))];
   let mayLoad = 1;
+}
+
+// Store to stack
+def ST_stack : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
+  let AsmString = "ST_stack $r, [$fi]+$offs";
+  let Pattern = [(M6502store General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  let mayStore = 1;
 }
 
 // Store to address in Pointer registers
@@ -327,27 +345,6 @@ def ST_hilo : I {
   let mayStore = 1;
 }
 
-// Set Pointer register
-def LD_preg : I {
-  let OutOperandList = (outs Pointer:$p);
-  let InOperandList = (ins i8imm:$v);
-  let AsmString = "LD_preg $v, $p";
-  let Pattern = [(set Pointer:$p, imm:$v)];
-}
-
-// Load from stack
-def LD_stack : I {
-  let Defs = [NF, ZF];
-  // XXX: To support spilling of mem regs, LD_stack takes a General operand.
-  // FIXME: General is wrong. Mem regs cannot be stored directly to the stack.
-  // See storeRegToStackSlot in M6502InstrInfo.cpp.
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
-  let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (M6502load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
-  let mayLoad = 1;
-}
-
 // Store to absolute address
 def ST_abs : I {
   let OutOperandList = (outs);
@@ -355,18 +352,6 @@ def ST_abs : I {
   let AsmString = "ST_abs $r, $addr";
   // FIXME: this crashes TableGen.
   //let Pattern = [(store PhysReg:$r, imm:$addr)];
-  let mayStore = 1;
-}
-
-// Store to stack
-def ST_stack : I {
-  let OutOperandList = (outs);
-  // XXX: To support spilling of mem regs, ST_stack takes a General operand.
-  // FIXME: General is wrong. Mem regs cannot be stored directly to the stack.
-  // See storeRegToStackSlot in M6502InstrInfo.cpp.
-  let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
-  let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(M6502store General:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
