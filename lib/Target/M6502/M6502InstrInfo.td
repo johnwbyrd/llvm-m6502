@@ -17,6 +17,8 @@ def SDT_M6502HiLoAddr : SDTypeProfile<1, 2, [SDTCisVT<0, OtherVT>,
                                              SDTCisVT<2, i8>]>;
 def SDT_M6502AddrElement : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
                                                 SDTCisVT<1, i16>]>;
+def SDT_M6502FIElement : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
+                                              SDTCisVT<1, OtherVT>]>;
 def SDT_M6502Load : SDTypeProfile<1, 1, [SDTCisVT<0, i8>,
                                          SDTCisVT<1, OtherVT>]>;
 def SDT_M6502Store : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, OtherVT>]>;
@@ -43,6 +45,8 @@ def M6502hiloaddr : SDNode<"M6502ISD::HILOADDR", SDT_M6502HiLoAddr,
                            []>;
 def M6502addrhi : SDNode<"M6502ISD::ADDRHI", SDT_M6502AddrElement, []>;
 def M6502addrlo : SDNode<"M6502ISD::ADDRLO", SDT_M6502AddrElement, []>;
+def M6502fihi : SDNode<"M6502ISD::FIHI", SDT_M6502FIElement, []>;
+def M6502filo : SDNode<"M6502ISD::FILO", SDT_M6502FIElement, []>;
 
 // Load and store nodes
 def M6502load : SDNode<"M6502ISD::LOAD", SDT_M6502Load,
@@ -102,7 +106,7 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   }
 
   // Address in pointer registers
-  def _hi_lo : I {
+  def _hilo : I {
     let OutOperandList = (outs Acc:$ao);
     let isCommutable = 0; // XXX: operands might break isCommutable rule. FIXME: is this needed?
     let InOperandList = (ins Acc:$ai, Pointer:$pl, Pointer:$ph);
@@ -326,6 +330,22 @@ def LD_addr_lo : I {
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_addr_lo $r, $addr";
   let Pattern = [(set PhysReg:$r, (M6502addrlo timm:$addr))];
+}
+
+def LD_fi_hi : I {
+  let Defs = [NF, ZF];
+  let OutOperandList = (outs PhysReg:$r);
+  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
+  let AsmString = "LD_fi_hi $r, [$fi]+$offs";
+  let Pattern = [(set PhysReg:$r, (M6502fihi (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+}
+
+def LD_fi_lo : I {
+  let Defs = [NF, ZF];
+  let OutOperandList = (outs PhysReg:$r);
+  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
+  let AsmString = "LD_fi_lo $r, [$fi]+$offs";
+  let Pattern = [(set PhysReg:$r, (M6502filo (M6502fiaddr tframeindex:$fi, timm:$offs)))];
 }
 
 } // isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1
