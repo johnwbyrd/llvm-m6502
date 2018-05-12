@@ -29,10 +29,6 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setSchedulingPreference(Sched::RegPressure);
 
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
-  setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
-
-  setOperationAction(ISD::LOAD, MVT::i16, Custom);
-  setOperationAction(ISD::STORE, MVT::i16, Custom);
 
   setOperationAction(ISD::MUL, MVT::i8, LibCall);
   setOperationAction(ISD::MULHU, MVT::i8, LibCall);
@@ -77,20 +73,6 @@ const char *M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     break;
   case M6502ISD::FIADDR:
     return "M6502ISD::FIADDR";
-  case M6502ISD::HILOADDR:
-    return "M6502ISD::HILOADDR";
-  case M6502ISD::ADDRHI:
-    return "M6502ISD::ADDRHI";
-  case M6502ISD::ADDRLO:
-    return "M6502ISD::ADDRLO";
-  case M6502ISD::FIHI:
-    return "M6502ISD::FIHI";
-  case M6502ISD::FILO:
-    return "M6502ISD::FILO";
-  case M6502ISD::LOAD:
-    return "M6502ISD::LOAD";
-  case M6502ISD::STORE:
-    return "M6502ISD::STORE";
   case M6502ISD::ASL1:
     return "M6502ISD::ASL1";
   case M6502ISD::ROL1:
@@ -133,29 +115,28 @@ SDValue M6502TargetLowering::LowerFormalArguments(
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_M6502);
 
+  SmallVector<SDValue, 12> LoadChains;
+
   for (unsigned i = 0; i < ArgLocs.size(); ++i) {
     CCValAssign &VA = ArgLocs[i];
 
     if (VA.isMemLoc()) {
-      // FIXME: Handle arguments with more than one byte.
       // FIXME: CreateFixedObject might be the wrong solution here. Do the
       // research.
       int FI = MF.getFrameInfo().CreateFixedObject(VA.getValVT().getStoreSize(),
                                                    VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
-                                  MachinePointerInfo::getFixedStack(MF, FI));
-      //SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
-      //                             DAG.getTargetConstant(0, dl, MVT::i16));
-      // SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr,
-      // MachinePointerInfo());
-      //SDValue Val = DAG.getNode(M6502ISD::LOAD, dl, MVT::i8, Chain, FIAddr);
-      //InVals.push_back(Val);
-      InVals.push_back(Load.getValue(0)); // Value
-      // TODO: What should be done with Chain?
+                                 MachinePointerInfo::getFixedStack(MF, FI));
+      InVals.push_back(Load.getValue(0));     // Value
+      LoadChains.push_back(Load.getValue(1)); // Chain
     } else {
       llvm_unreachable("Argument must be located in memory");
     }
+  }
+
+  if (!LoadChains.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, LoadChains);
   }
 
   return Chain;
@@ -205,22 +186,6 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue MemOp = DAG.getStore(Chain, dl, Arg, FIPtr,
                                    MachinePointerInfo::getFixedStack(MF, FI));
-      // SDValue FIPtr = DAG.getFrameIndex(FI,
-      // getPointerTy(MF.getDataLayout()));
-      // TODO: special support for ByVals? please test.
-      // SDValue MemOp = DAG.getStore(Chain, dl, Arg, FIPtr,
-      // MachinePointerInfo());
-      // SDValue FIPtr =
-      //    DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      // FIXME: add correct offset
-      // SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
-      //                             DAG.getTargetConstant(0, dl, MVT::i16));
-      // SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIAddr,
-      // MachinePointerInfo());
-      // SDValue MemOp =
-      //   DAG.getNode(M6502ISD::STORE, dl, MVT::Other, Chain, Arg, FIAddr);
-      // FIXME: type-legalize store here?
-
       ArgChains.push_back(MemOp);
     } else {
       llvm_unreachable("Invalid argument location");
@@ -263,7 +228,7 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                                                    VA.getLocMemOffset(), true);
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
-                                   MachinePointerInfo::getFixedStack(MF, FI));
+                                 MachinePointerInfo::getFixedStack(MF, FI));
       // TODO: special support for ByVals? please test.
 
       InVals.push_back(Load.getValue(0));    // Value
@@ -317,13 +282,6 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
       SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
       SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIPtr,
                                    MachinePointerInfo::getFixedStack(MF, FI));
-      // SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
-      //                             DAG.getTargetConstant(0, dl, MVT::i16));
-      // SDValue RetOp = DAG.getStore(Chain, dl, OutVals[i], FIAddr,
-      // MachinePointerInfo());
-      // SDValue RetOp = DAG.getNode(M6502ISD::STORE, dl, MVT::Other, Chain,
-      //                            OutVals[i], FIAddr);
-      // FIXME: type-legalize store here?
       RetOps.push_back(RetOp);
     } else {
       llvm_unreachable("Return value must be located in memory");
@@ -339,58 +297,11 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
-// Returns true if an SDValue is usable as the index of an absolute, indexed
-// or indirect, Y-indexed address
-static bool isValidVarOffset(const SDValue &Offset) {
-  if (Offset.getValueType() == MVT::i8) {
-    return true;
-  }
-
-  if (isa<ConstantSDNode>(Offset)) {
-    ConstantSDNode *Const = cast<ConstantSDNode>(Offset);
-    int64_t ConstVal = Const->getSExtValue();
-    if (ConstVal >= 0 && ConstVal <= UINT8_MAX) {
-      return true;
-    }
-  }
-
-  if (isa<LoadSDNode>(Offset)) {
-    LoadSDNode *Load = cast<LoadSDNode>(Offset);
-    if (Load->getMemoryVT() == MVT::i8 &&
-        Load->getExtensionType() == ISD::LoadExtType::ZEXTLOAD) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-void M6502TargetLowering::LowerOperationWrapper(SDNode *N,
-                                                SmallVectorImpl<SDValue> &Results,
-                                                SelectionDAG &DAG) const {
-  if (N->getOpcode() == ISD::LOAD) {
-    // LOAD operations are handled separately because they return more than one
-    // result value, causing errors in the type legalizer.
-    SDValue Load = LowerLOAD(SDValue(N, 0), DAG);
-    for (unsigned I = 0, E = Load->getNumValues(); I != E; ++I) {
-      Results.push_back(Load.getValue(I));
-    }
-  } else {
-    TargetLowering::LowerOperationWrapper(N, Results, DAG);
-  }
-}
-
 SDValue M6502TargetLowering::LowerOperation(SDValue Op,
                                             SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   case ISD::FrameIndex:
     return LowerFrameIndex(Op, DAG);
-  case ISD::GlobalAddress:
-    return LowerGlobalAddress(Op, DAG);
-  case ISD::LOAD:
-    return LowerLOAD(Op, DAG);
-  case ISD::STORE:
-    return LowerSTORE(Op, DAG);
   case ISD::UMUL_LOHI:
     return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC:
@@ -434,68 +345,10 @@ SDValue M6502TargetLowering::PerformDAGCombine(SDNode *N,
 SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
                                              SelectionDAG &DAG) const {
   SDLoc dl(Op);
-  FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Op);
+  const FrameIndexSDNode *FI = cast<FrameIndexSDNode>(Op);
   SDValue TFI = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
-  SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, TFI,
-                               DAG.getTargetConstant(0, dl, MVT::i16));
-  SDValue Hi = DAG.getNode(M6502ISD::FIHI, dl, MVT::i8, FIAddr);
-  SDValue Lo = DAG.getNode(M6502ISD::FILO, dl, MVT::i8, FIAddr);
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
-}
-
-SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
-                                                SelectionDAG &DAG) const {
-  SDLoc dl(Op);
-  const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
-  SDValue Address = DAG.getTargetGlobalAddress(
-      GA->getGlobal(), dl, MVT::i16, GA->getOffset(), GA->getTargetFlags());
-  SDValue Hi = DAG.getNode(M6502ISD::ADDRHI, dl, MVT::i8, Address);
-  SDValue Lo = DAG.getNode(M6502ISD::ADDRLO, dl, MVT::i8, Address);
-  return DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i16, Lo, Hi);
-}
-
-SDValue M6502TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
-  DEBUG(dbgs() << "Lowering LOAD: "; Op->dumprFull(&DAG); dbgs() << "\n");
-
-  LoadSDNode *Load = cast<LoadSDNode>(Op);
-  if (Load->getMemoryVT() == MVT::i8) {
-    SDLoc dl(Op);
-
-    SDValue Ptr = Load->getBasePtr();
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                                DAG.getConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                                DAG.getConstant(1, dl, MVT::i8));
-
-    SDValue HiLoAddr =
-        DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrLo, PtrHi);
-    return DAG.getNode(M6502ISD::LOAD, dl, DAG.getVTList(MVT::i8, MVT::Other),
-                       Load->getChain(), HiLoAddr);
-  }
-
-  return SDValue();
-}
-
-SDValue M6502TargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
-  DEBUG(dbgs() << "Lowering STORE: "; Op->dumprFull(&DAG); dbgs() << "\n");
-
-  StoreSDNode *Store = cast<StoreSDNode>(Op);
-  if (Store->getMemoryVT() == MVT::i8) {
-    SDLoc dl(Op);
-
-    SDValue Ptr = Store->getBasePtr();
-    SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                                DAG.getConstant(0, dl, MVT::i8));
-    SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i8, Ptr,
-                                DAG.getConstant(1, dl, MVT::i8));
-
-    SDValue HiLoAddr =
-        DAG.getNode(M6502ISD::HILOADDR, dl, MVT::Other, PtrLo, PtrHi);
-    return DAG.getNode(M6502ISD::STORE, dl, MVT::Other, Store->getChain(),
-                       Store->getValue(), HiLoAddr);
-  }
-
-  return SDValue();
+  return DAG.getNode(M6502ISD::FIADDR, dl, MVT::i16, TFI,
+                     DAG.getConstant(0, dl, MVT::i16));
 }
 
 SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,

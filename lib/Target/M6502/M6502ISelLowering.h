@@ -14,13 +14,6 @@ namespace M6502ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   FIADDR,
-  HILOADDR,
-  ADDRHI,
-  ADDRLO,
-  FIHI,
-  FILO,
-  LOAD,
-  STORE,
   ASL1, // shift left one bit, leftmost bit is moved to CF
   ROL1, // rotate left one bit, CF is moved in thru the right and out thru the left
   BRIND,
@@ -67,9 +60,6 @@ public:
                       SelectionDAG & /*DAG*/) const override;
 
   // Provide custom lowering hooks for some operations.
-  void LowerOperationWrapper(SDNode *N,
-                             SmallVectorImpl<SDValue> &Results,
-                             SelectionDAG &DAG) const override;
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   void ReplaceNodeResults(SDNode *N,
                           SmallVectorImpl<SDValue> &Results,
@@ -83,9 +73,6 @@ public:
 
 private:
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
