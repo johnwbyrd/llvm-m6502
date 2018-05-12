@@ -116,6 +116,15 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
     let mayLoad = 1;
   }
 
+  // Operand in memory register
+  def _mem : I {
+    let OutOperandList = (outs Acc:$ao);
+    let InOperandList = (ins Acc:$ai, MemReg:$m);
+    let Constraints = "$ao = $ai";
+    let AsmString = AsmName # "_mem $ai, $m";
+    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, MemReg:$m))];
+  }
+
   // TODO: Register
   // TODO: Absolute address
 }

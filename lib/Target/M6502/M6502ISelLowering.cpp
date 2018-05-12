@@ -22,8 +22,11 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
+  addRegisterClass(MVT::i8, &M6502::MemRegRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
+
+  setSchedulingPreference(Sched::RegPressure);
 
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
@@ -139,14 +142,17 @@ SDValue M6502TargetLowering::LowerFormalArguments(
       // research.
       int FI = MF.getFrameInfo().CreateFixedObject(VA.getValVT().getStoreSize(),
                                                    VA.getLocMemOffset(), true);
-      SDValue FIPtr =
-          DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
-                                   DAG.getTargetConstant(0, dl, MVT::i16));
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
+                                  MachinePointerInfo::getFixedStack(MF, FI));
+      //SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
+      //                             DAG.getTargetConstant(0, dl, MVT::i16));
       // SDValue Val = DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr,
       // MachinePointerInfo());
-      SDValue Val = DAG.getNode(M6502ISD::LOAD, dl, MVT::i8, Chain, FIAddr);
-      InVals.push_back(Val);
+      //SDValue Val = DAG.getNode(M6502ISD::LOAD, dl, MVT::i8, Chain, FIAddr);
+      //InVals.push_back(Val);
+      InVals.push_back(Load.getValue(0)); // Value
+      // TODO: What should be done with Chain?
     } else {
       llvm_unreachable("Argument must be located in memory");
     }
@@ -255,13 +261,10 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       // research.
       int FI = MF.getFrameInfo().CreateFixedObject(VA.getValVT().getStoreSize(),
                                                    VA.getLocMemOffset(), true);
-      SDValue FIPtr =
-          DAG.getTargetFrameIndex(FI, getPointerTy(MF.getDataLayout()));
-      SDValue FIAddr = DAG.getNode(M6502ISD::FIADDR, dl, MVT::Other, FIPtr,
-                                   DAG.getTargetConstant(0, dl, MVT::i16));
+      SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(MF.getDataLayout()));
+      SDValue Load = DAG.getLoad(VA.getLocVT(), dl, Chain, FIPtr,
+                                   MachinePointerInfo::getFixedStack(MF, FI));
       // TODO: special support for ByVals? please test.
-      SDValue Load =
-          DAG.getLoad(VA.getLocVT(), dl, Chain, FIAddr, MachinePointerInfo());
 
       InVals.push_back(Load.getValue(0));    // Value
       RetChains.push_back(Load.getValue(1)); // Chain
