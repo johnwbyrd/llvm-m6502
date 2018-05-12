@@ -31,6 +31,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
 
+  setOperationAction(ISD::AND, MVT::i16, Expand);
+
   setOperationAction(ISD::LOAD, MVT::i16, Custom);
   setOperationAction(ISD::STORE, MVT::i16, Custom);
 
@@ -133,6 +135,8 @@ SDValue M6502TargetLowering::LowerFormalArguments(
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_M6502);
 
+  SmallVector<SDValue, 12> LoadChains;
+
   for (unsigned i = 0; i < ArgLocs.size(); ++i) {
     CCValAssign &VA = ArgLocs[i];
 
@@ -152,10 +156,14 @@ SDValue M6502TargetLowering::LowerFormalArguments(
       //SDValue Val = DAG.getNode(M6502ISD::LOAD, dl, MVT::i8, Chain, FIAddr);
       //InVals.push_back(Val);
       InVals.push_back(Load.getValue(0)); // Value
-      // TODO: What should be done with Chain?
+      LoadChains.push_back(Load.getValue(1)); // Chain
     } else {
       llvm_unreachable("Argument must be located in memory");
     }
+  }
+
+  if (!LoadChains.empty()) {
+    Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, LoadChains);
   }
 
   return Chain;
@@ -339,32 +347,6 @@ M6502TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(M6502ISD::RETURN, dl, MVT::Other, Chain);
 }
 
-// Returns true if an SDValue is usable as the index of an absolute, indexed
-// or indirect, Y-indexed address
-static bool isValidVarOffset(const SDValue &Offset) {
-  if (Offset.getValueType() == MVT::i8) {
-    return true;
-  }
-
-  if (isa<ConstantSDNode>(Offset)) {
-    ConstantSDNode *Const = cast<ConstantSDNode>(Offset);
-    int64_t ConstVal = Const->getSExtValue();
-    if (ConstVal >= 0 && ConstVal <= UINT8_MAX) {
-      return true;
-    }
-  }
-
-  if (isa<LoadSDNode>(Offset)) {
-    LoadSDNode *Load = cast<LoadSDNode>(Offset);
-    if (Load->getMemoryVT() == MVT::i8 &&
-        Load->getExtensionType() == ISD::LoadExtType::ZEXTLOAD) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 void M6502TargetLowering::LowerOperationWrapper(SDNode *N,
                                                 SmallVectorImpl<SDValue> &Results,
                                                 SelectionDAG &DAG) const {
@@ -472,6 +454,8 @@ SDValue M6502TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return DAG.getNode(M6502ISD::LOAD, dl, DAG.getVTList(MVT::i8, MVT::Other),
                        Load->getChain(), HiLoAddr);
   }
+
+  return SDValue();
 }
 
 SDValue M6502TargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
