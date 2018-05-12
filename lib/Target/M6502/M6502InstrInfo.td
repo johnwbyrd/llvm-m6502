@@ -98,31 +98,31 @@ class I : Instruction {
 multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Immediate
   def _imm : I {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, i8imm:$x);
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_imm $ai, $x";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, imm:$x))];
+    let Pattern = [(set General:$ao, (Oper General:$ai, imm:$x))];
   }
 
-  // Address in pointer registers
-  def _hilo : I {
-    let OutOperandList = (outs Acc:$ao);
+  // Address in Pointer register
+  def _ptr : I {
+    let OutOperandList = (outs General:$ao);
     let isCommutable = 0; // XXX: operands might break isCommutable rule. FIXME: is this needed?
-    let InOperandList = (ins Acc:$ai, Pointer:$pl, Pointer:$ph);
+    let InOperandList = (ins General:$ai, Pointer:$p);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_hilo $ai, $pl, $ph";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, (M6502load (M6502hiloaddr Pointer:$pl, Pointer:$ph))))];
+    let AsmString = AsmName # "_ptr $ai, $p";
+    let Pattern = [(set General:$ao, (Oper General:$ai, (load Pointer:$p)))];
     let mayLoad = 1;
   }
 
   // Operand in memory register
   def _mem : I {
-    let OutOperandList = (outs Acc:$ao);
-    let InOperandList = (ins Acc:$ai, MemReg:$m);
+    let OutOperandList = (outs General:$ao);
+    let InOperandList = (ins General:$ai, General:$m);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_mem $ai, $m";
-    let Pattern = [(set Acc:$ao, (Oper Acc:$ai, MemReg:$m))];
+    let Pattern = [(set General:$ao, (Oper General:$ai, General:$m))];
   }
 
   // TODO: Register
@@ -167,11 +167,11 @@ let isCommutable = 1, Defs = [NF, ZF] in
 // ASL, which shifts A left by one bit.
 def ASL_imm : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASL_imm $ai, $x";
-  let Pattern = [(set Acc:$ao, (shl Acc:$ai, (i8 imm:$x)))];
+  let Pattern = [(set General:$ao, (shl General:$ai, (i8 imm:$x)))];
 }
 
 // Arithmetic shift right
@@ -180,11 +180,11 @@ def ASL_imm : I {
 // <https://wiki.nesdev.com/w/index.php/6502_assembly_optimisations#Arithmetic_shift_right>
 def ASR_imm : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASR_imm $ai, $x";
-  let Pattern = [(set Acc:$ao, (sra Acc:$ai, (i8 imm:$x)))];
+  let Pattern = [(set General:$ao, (sra General:$ai, (i8 imm:$x)))];
 }
 
 // Logical shift right
@@ -192,22 +192,22 @@ def ASR_imm : I {
 // LSR, which shifts A right by one bit.
 def LSR_imm : I {
   let Defs = [ZF, CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai, i8imm:$x);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR_imm $ai, $x";
-  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 imm:$x)))];
+  let Pattern = [(set General:$ao, (srl General:$ai, (i8 imm:$x)))];
 }
 
 // Shift left one bit, move highest bit to CF
 // TODO: memory operands
 def ASL_1 : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "ASL $ai";
-  let Pattern = [(set Acc:$ao, (M6502asl1 Acc:$ai))];
+  let Pattern = [(set General:$ao, (M6502asl1 General:$ai))];
 }
 
 // Rotate left one bit through CF
@@ -215,11 +215,11 @@ def ASL_1 : I {
 def ROL_1 : I {
   let Defs = [NF, ZF, CF];
   let Uses = [CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "ROL $ai";
-  let Pattern = [(set Acc:$ao, (M6502rol1 Acc:$ai))];
+  let Pattern = [(set General:$ao, (M6502rol1 General:$ai))];
 }
 
 // Branch on flag instructions
@@ -273,9 +273,9 @@ let usesCustomInserter = 1 in {
 def CMP_imm : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins PhysReg:$ai, i8imm:$x);
+  let InOperandList = (ins General:$ai, i8imm:$x);
   let AsmString = "CMP_imm $ai, $x";
-  let Pattern = [(M6502cmp PhysReg:$ai, imm:$x)];
+  let Pattern = [(M6502cmp General:$ai, imm:$x)];
 }
 
 // TODO: CMP_abs, etc.
@@ -295,66 +295,66 @@ def JMP_abs : I {
 // TODO: DEC instruction: decrement memory by one
 def DE_reg : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs Index:$io);
-  let InOperandList = (ins Index:$ii);
+  let OutOperandList = (outs General:$io);
+  let InOperandList = (ins General:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "DE_reg $ii";
-  let Pattern = [(set Index:$io, (sub Index:$ii, 1))];
+  let Pattern = [(set General:$io, (sub General:$ii, 1))];
 }
 
 // INX, INY
 // TODO: INC instruction: increment memory by one
 def IN_reg : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs Index:$io);
-  let InOperandList = (ins Index:$ii);
+  let OutOperandList = (outs General:$io);
+  let InOperandList = (ins General:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "IN_reg $ii";
-  let Pattern = [(set Index:$io, (add Index:$ii, 1))];
+  let Pattern = [(set General:$io, (add General:$ii, 1))];
 }
 
 let isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1 in {
 // LDA, LDX, LDY
 def LD_imm : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i8imm:$x);
   let AsmString = "LD_imm $r, $x";
-  let Pattern = [(set PhysReg:$r, (i8 imm:$x))];
+  let Pattern = [(set General:$r, (i8 imm:$x))];
 }
 
 // Get hi byte of an address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_hi : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_addr_hi $r, $addr";
-  let Pattern = [(set PhysReg:$r, (M6502addrhi timm:$addr))];
+  let Pattern = [(set General:$r, (M6502addrhi timm:$addr))];
 }
 
 // Get lo byte of an address (tglobaladdr, texternalsym or tblockaddress)
 def LD_addr_lo : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_addr_lo $r, $addr";
-  let Pattern = [(set PhysReg:$r, (M6502addrlo timm:$addr))];
+  let Pattern = [(set General:$r, (M6502addrlo timm:$addr))];
 }
 
 def LD_fi_hi : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_fi_hi $r, [$fi]+$offs";
-  let Pattern = [(set PhysReg:$r, (M6502fihi (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (M6502fihi (M6502fiaddr tframeindex:$fi, timm:$offs)))];
 }
 
 def LD_fi_lo : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_fi_lo $r, [$fi]+$offs";
-  let Pattern = [(set PhysReg:$r, (M6502filo (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  let Pattern = [(set General:$r, (M6502filo (M6502fiaddr tframeindex:$fi, timm:$offs)))];
 }
 
 } // isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1
@@ -365,68 +365,67 @@ def : Pat<(M6502addrlo tglobaladdr:$addr), (LD_addr_lo tglobaladdr:$addr)>;
 // Load from absolute address
 def LD_abs : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs PhysReg:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins imm_addr:$addr); // FIXME: Declare imm16 type as in AVRInstrInfo.td?
   let AsmString = "LD_abs $r, $addr";
   // FIXME: this crashes TableGen.
-  //let Pattern = [(set PhysReg:$r, (load imm:$addr))];
+  //let Pattern = [(set General:$r, (load imm:$addr))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
 // Load from stack
 def LD_stack : I {
-  let OutOperandList = (outs All:$r);
+  let OutOperandList = (outs General:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set All:$r, (M6502load (M6502fiaddr tframeindex:$fi, timm:$offs)))];
+  //let Pattern = [(set General:$r, (load (frameindex tframeindex:$fi, timm:$offs)))];
   let mayLoad = 1;
 }
 
-// Load from address in Pointer registers
-def LD_hilo : I {
+// Load from address in Pointer register
+def LD_ptr : I {
   let OutOperandList = (outs General:$r);
-  let InOperandList = (ins Pointer:$pl, Pointer:$ph);
-  let AsmString = "LD_hilo $r, $pl, $ph";
-  let Pattern = [(set General:$r, (M6502load (M6502hiloaddr Pointer:$pl, Pointer:$ph)))];
+  let InOperandList = (ins Pointer:$p);
+  let AsmString = "LD_ptr $r, $p";
+  let Pattern = [(set General:$r, (load Pointer:$p))];
   let mayLoad = 1;
 }
 
 // Store to stack
 def ST_stack : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins All:$r, i16imm:$fi, i16imm:$offs);
+  let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(M6502store All:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
+  //let Pattern = [(M6502store All:$r, (M6502fiaddr tframeindex:$fi, timm:$offs))];
   let mayStore = 1;
 }
 
 // Store to address in Pointer registers
-def ST_hilo : I {
+def ST_ptr : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, Pointer:$pl, Pointer:$ph);
-  let AsmString = "ST_hilo $r, $pl, $ph";
-  let Pattern = [(M6502store General:$r, (M6502hiloaddr Pointer:$pl, Pointer:$ph))];
+  let InOperandList = (ins General:$r, Pointer:$p);
+  let AsmString = "ST_ptr $r, $p";
+  let Pattern = [(store General:$r, Pointer:$p)];
   let mayStore = 1;
 }
 
 // Store to absolute address
 def ST_abs : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins PhysReg:$r, i16imm:$addr);
+  let InOperandList = (ins General:$r, i16imm:$addr);
   let AsmString = "ST_abs $r, $addr";
-  // FIXME: this crashes TableGen.
-  //let Pattern = [(store PhysReg:$r, imm:$addr)];
+  let Pattern = [(store General:$r, imm:$addr)];
   let mayStore = 1;
 }
 
 def LSR_1 : I {
   let Defs = [ZF, CF];
-  let OutOperandList = (outs Acc:$ao);
-  let InOperandList = (ins Acc:$ai);
+  let OutOperandList = (outs General:$ao);
+  let InOperandList = (ins General:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR $ai";
-  let Pattern = [(set Acc:$ao, (srl Acc:$ai, (i8 1)))];
+  let Pattern = [(set General:$ao, (srl General:$ai, (i8 1)))];
 }
 
 // Generic call instruction

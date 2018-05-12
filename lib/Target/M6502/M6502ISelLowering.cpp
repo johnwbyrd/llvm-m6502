@@ -22,7 +22,7 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM) {
 
   addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  addRegisterClass(MVT::i8, &M6502::MemRegRegClass);
+  addRegisterClass(MVT::i16, &M6502::PointerRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
@@ -472,6 +472,8 @@ SDValue M6502TargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return DAG.getNode(M6502ISD::LOAD, dl, DAG.getVTList(MVT::i8, MVT::Other),
                        Load->getChain(), HiLoAddr);
   }
+
+  return SDValue();
 }
 
 SDValue M6502TargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
