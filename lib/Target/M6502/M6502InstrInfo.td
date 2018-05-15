@@ -75,48 +75,48 @@ class I : Instruction {
 multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   // Immediate
   def _imm : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, i8imm:$x);
+    let OutOperandList = (outs GPR8:$ao);
+    let InOperandList = (ins GPR8:$ai, i8imm:$x);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_imm $ai, $x";
-    let Pattern = [(set General:$ao, (Oper General:$ai, imm:$x))];
+    let Pattern = [(set GPR8:$ao, (Oper GPR8:$ai, imm:$x))];
   }
 
   // Address in Pointer register
   def _ptr : I {
-    let OutOperandList = (outs General:$ao);
+    let OutOperandList = (outs GPR8:$ao);
     let isCommutable = 0; // XXX: operands might break isCommutable rule. FIXME: is this needed?
-    let InOperandList = (ins General:$ai, Pointer:$p);
+    let InOperandList = (ins GPR8:$ai, DREGS:$p);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_ptr $ai, $p";
-    let Pattern = [(set General:$ao, (Oper General:$ai, (load Pointer:$p)))];
+    let Pattern = [(set GPR8:$ao, (Oper GPR8:$ai, (load DREGS:$p)))];
     let mayLoad = 1;
   }
 
   // Operand in memory register
   def _mem : I {
-    let OutOperandList = (outs General:$ao);
-    let InOperandList = (ins General:$ai, General:$m);
+    let OutOperandList = (outs GPR8:$ao);
+    let InOperandList = (ins GPR8:$ai, GPR8:$m);
     let Constraints = "$ao = $ai";
     let AsmString = AsmName # "_mem $ai, $m";
-    let Pattern = [(set General:$ao, (Oper General:$ai, General:$m))];
+    let Pattern = [(set GPR8:$ao, (Oper GPR8:$ai, GPR8:$m))];
   }
 
   // 16-bit pseudoinstructions
   def _16_imm : I {
-    let OutOperandList = (outs Pointer:$po);
-    let InOperandList = (ins Pointer:$pi, i16imm:$x);
+    let OutOperandList = (outs DREGS:$po);
+    let InOperandList = (ins DREGS:$pi, i16imm:$x);
     let Constraints = "$po = $pi";
     let AsmString = AsmName # "_16_imm $pi, $x";
-    let Pattern = [(set Pointer:$po, (Oper Pointer:$pi, imm:$x))];
+    let Pattern = [(set DREGS:$po, (Oper DREGS:$pi, imm:$x))];
   }
 
   def _16 : I {
-    let OutOperandList = (outs Pointer:$po);
-    let InOperandList = (ins Pointer:$pi, Pointer:$rhs);
+    let OutOperandList = (outs DREGS:$po);
+    let InOperandList = (ins DREGS:$pi, DREGS:$rhs);
     let Constraints = "$po = $pi";
     let AsmString = AsmName # "_16 $pi, $rhs";
-    let Pattern = [(set Pointer:$po, (Oper Pointer:$pi, Pointer:$rhs))];
+    let Pattern = [(set DREGS:$po, (Oper DREGS:$pi, DREGS:$rhs))];
   }
   // TODO: Register
   // TODO: Absolute address
@@ -160,11 +160,11 @@ let isCommutable = 1, Defs = [NF, ZF] in
 // ASL, which shifts A left by one bit.
 def ASL_imm : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASL_imm $ai, $x";
-  let Pattern = [(set General:$ao, (shl General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set GPR8:$ao, (shl GPR8:$ai, (i8 imm:$x)))];
 }
 
 // Arithmetic shift right
@@ -173,11 +173,11 @@ def ASL_imm : I {
 // <https://wiki.nesdev.com/w/index.php/6502_assembly_optimisations#Arithmetic_shift_right>
 def ASR_imm : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "ASR_imm $ai, $x";
-  let Pattern = [(set General:$ao, (sra General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set GPR8:$ao, (sra GPR8:$ai, (i8 imm:$x)))];
 }
 
 // Logical shift right
@@ -185,22 +185,22 @@ def ASR_imm : I {
 // LSR, which shifts A right by one bit.
 def LSR_imm : I {
   let Defs = [ZF, CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai, i8imm:$x);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR_imm $ai, $x";
-  let Pattern = [(set General:$ao, (srl General:$ai, (i8 imm:$x)))];
+  let Pattern = [(set GPR8:$ao, (srl GPR8:$ai, (i8 imm:$x)))];
 }
 
 // Shift left one bit, move highest bit to CF
 // TODO: memory operands
 def ASL_1 : I {
   let Defs = [NF, ZF, CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "ASL $ai";
-  let Pattern = [(set General:$ao, (M6502asl1 General:$ai))];
+  let Pattern = [(set GPR8:$ao, (M6502asl1 GPR8:$ai))];
 }
 
 // Rotate left one bit through CF
@@ -208,11 +208,11 @@ def ASL_1 : I {
 def ROL_1 : I {
   let Defs = [NF, ZF, CF];
   let Uses = [CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "ROL $ai";
-  let Pattern = [(set General:$ao, (M6502rol1 General:$ai))];
+  let Pattern = [(set GPR8:$ao, (M6502rol1 GPR8:$ai))];
 }
 
 // Branch on flag instructions
@@ -251,10 +251,10 @@ let usesCustomInserter = 1 in {
   // TODO: add Flag node operand to select instructions
   // FIXME: restrict to physregs
   def SELECT : I {
-    let OutOperandList = (outs General:$r);
-    let InOperandList = (ins General:$a, General:$b, i8imm:$cc);
+    let OutOperandList = (outs GPR8:$r);
+    let InOperandList = (ins GPR8:$a, GPR8:$b, i8imm:$cc);
     let AsmString = "SELECT $a, $b, $cc # Pseudo";
-    let Pattern = [(set General:$r, (M6502selectcc General:$a, General:$b,
+    let Pattern = [(set GPR8:$r, (M6502selectcc GPR8:$a, GPR8:$b,
                                                    imm:$cc))];
   }
 }
@@ -266,9 +266,9 @@ let usesCustomInserter = 1 in {
 def CMP_imm : I {
   let Defs = [NF, ZF, CF];
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$ai, i8imm:$x);
+  let InOperandList = (ins GPR8:$ai, i8imm:$x);
   let AsmString = "CMP_imm $ai, $x";
-  let Pattern = [(M6502cmp General:$ai, imm:$x)];
+  let Pattern = [(M6502cmp GPR8:$ai, imm:$x)];
 }
 
 // TODO: CMP_abs, etc.
@@ -288,32 +288,32 @@ def JMP_abs : I {
 // TODO: DEC instruction: decrement memory by one
 def DE_reg : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs General:$io);
-  let InOperandList = (ins General:$ii);
+  let OutOperandList = (outs GPR8:$io);
+  let InOperandList = (ins GPR8:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "DE_reg $ii";
-  let Pattern = [(set General:$io, (sub General:$ii, 1))];
+  let Pattern = [(set GPR8:$io, (sub GPR8:$ii, 1))];
 }
 
 // INX, INY
 // TODO: INC instruction: increment memory by one
 def IN_reg : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs General:$io);
-  let InOperandList = (ins General:$ii);
+  let OutOperandList = (outs GPR8:$io);
+  let InOperandList = (ins GPR8:$ii);
   let Constraints = "$io = $ii";
   let AsmString = "IN_reg $ii";
-  let Pattern = [(set General:$io, (add General:$ii, 1))];
+  let Pattern = [(set GPR8:$io, (add GPR8:$ii, 1))];
 }
 
 let isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1 in {
 // LDA, LDX, LDY
 def LD_imm : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs GPR8:$r);
   let InOperandList = (ins i8imm:$x);
   let AsmString = "LD_imm $r, $x";
-  let Pattern = [(set General:$r, (i8 imm:$x))];
+  let Pattern = [(set GPR8:$r, (i8 imm:$x))];
 }
 
 } // isMoveImm = 1, isAsCheapAsAMove = 1, isReMaterializable = 1
@@ -321,65 +321,68 @@ def LD_imm : I {
 // Load from absolute address
 def LD_abs : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs GPR8:$r);
   let InOperandList = (ins imm_addr:$addr); // FIXME: Declare imm16 type as in AVRInstrInfo.td?
   let AsmString = "LD_abs $r, $addr";
-  let Pattern = [(set General:$r, (load imm:$addr))];
+  let Pattern = [(set GPR8:$r, (load imm:$addr))];
   let mayLoad = 1;
   let canFoldAsLoad = 1;
 }
 
 // Load from stack
 def LD_stack : I {
-  let OutOperandList = (outs General:$r);
+  let OutOperandList = (outs GPR8:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
-  let Pattern = [(set General:$r, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
+  let Pattern = [(set GPR8:$r, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
   let mayLoad = 1;
 }
 
 // Load from address in Pointer register
 def LD_ptr : I {
-  let OutOperandList = (outs General:$r);
-  let InOperandList = (ins Pointer:$p);
+  let OutOperandList = (outs GPR8:$r);
+  let InOperandList = (ins DREGS:$p);
   let AsmString = "LD_ptr $r, $p";
-  let Pattern = [(set General:$r, (load Pointer:$p))];
+  let Pattern = [(set GPR8:$r, (load DREGS:$p))];
   let mayLoad = 1;
 }
 
 // Set Pointer register
 def LD_addr : I {
-  let OutOperandList = (outs Pointer:$p);
+  let OutOperandList = (outs DREGS:$p);
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_addr $p, $addr";
-  let Pattern = [(set Pointer:$p, imm:$addr)];
+  let Pattern = [(set DREGS:$p, imm:$addr)];
 }
+
+def : Pat<(i16 (tglobaladdr:$addr)),
+          (LD_addr tglobaladdr:$addr)>;
 
 // Set Pointer register to address of stack object
 def LD_stack_addr : I {
-  let OutOperandList = (outs Pointer:$p);
+  let OutOperandList = (outs DREGS:$p);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack_addr $p, [$fi]+$offs";
-  let Pattern = [(set Pointer:$p, (M6502fiaddr tframeindex:$fi, imm:$offs))];
+  let Pattern = [(set DREGS:$p, (M6502fiaddr tframeindex:$fi, imm:$offs))];
 }
 
 def : Pat<(i16 (M6502fiaddr tframeindex:$fi, imm:$offs)),
           (LD_stack_addr tframeindex:$fi, imm:$offs)>;
 
 def LD_ptr_reg : I {
-  let OutOperandList = (outs Pointer:$p);
+  let OutOperandList = (outs DREGS:$p);
   let InOperandList = (ins i16imm:$addr);
   let AsmString = "LD_ptr_reg $p, $addr";
-  let Pattern = [(set Pointer:$p, (load imm:$addr))];
+  let Pattern = [(set DREGS:$p, (load imm:$addr))];
   let mayLoad = 1;
 }
 
 // Load 16-bit value from stack
 def LD_stack_16 : I {
-  let OutOperandList = (outs Pointer:$p);
+  let OutOperandList = (outs DREGS:$p);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack_16 $p, [$fi]+$offs";
-  let Pattern = [(set Pointer:$p, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
+  let Pattern = [(set DREGS:$p, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
   let mayLoad = 1;
 }
 
@@ -387,46 +390,46 @@ def LD_stack_16 : I {
 // Store to stack
 def ST_stack : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, i16imm:$fi, i16imm:$offs);
+  let InOperandList = (ins GPR8:$r, i16imm:$fi, i16imm:$offs);
   let AsmString = "ST_stack $r, [$fi]+$offs";
-  let Pattern = [(store General:$r, (M6502fiaddr tframeindex:$fi, imm:$offs))];
+  let Pattern = [(store GPR8:$r, (M6502fiaddr tframeindex:$fi, imm:$offs))];
   let mayStore = 1;
 }
 
 // Store 16-bit value to stack
 def ST_stack_16 : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins Pointer:$p, i16imm:$fi, i16imm:$offs);
+  let InOperandList = (ins DREGS:$p, i16imm:$fi, i16imm:$offs);
   let AsmString = "ST_stack_16 $p, [$fi]+$offs";
-  let Pattern = [(store Pointer:$p, (M6502fiaddr tframeindex:$fi, imm:$offs))];
+  let Pattern = [(store DREGS:$p, (M6502fiaddr tframeindex:$fi, imm:$offs))];
   let mayStore = 1;
 }
 
 // Store to address in Pointer registers
 def ST_ptr : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, Pointer:$p);
+  let InOperandList = (ins GPR8:$r, DREGS:$p);
   let AsmString = "ST_ptr $r, $p";
-  let Pattern = [(store General:$r, Pointer:$p)];
+  let Pattern = [(store GPR8:$r, DREGS:$p)];
   let mayStore = 1;
 }
 
 // Store to absolute address
 def ST_abs : I {
   let OutOperandList = (outs);
-  let InOperandList = (ins General:$r, i16imm:$addr);
+  let InOperandList = (ins GPR8:$r, i16imm:$addr);
   let AsmString = "ST_abs $r, $addr";
-  let Pattern = [(store General:$r, imm:$addr)];
+  let Pattern = [(store GPR8:$r, imm:$addr)];
   let mayStore = 1;
 }
 
 def LSR_1 : I {
   let Defs = [ZF, CF];
-  let OutOperandList = (outs General:$ao);
-  let InOperandList = (ins General:$ai);
+  let OutOperandList = (outs GPR8:$ao);
+  let InOperandList = (ins GPR8:$ai);
   let Constraints = "$ao = $ai";
   let AsmString = "LSR $ai";
-  let Pattern = [(set General:$ao, (srl General:$ai, (i8 1)))];
+  let Pattern = [(set GPR8:$ao, (srl GPR8:$ai, (i8 1)))];
 }
 
 // Generic call instruction
@@ -461,8 +464,8 @@ def RETURN : I {
 // registers.
 def T_reg : I {
   let Defs = [NF, ZF];
-  let OutOperandList = (outs General:$dst);
-  let InOperandList = (ins General:$src);
+  let OutOperandList = (outs GPR8:$dst);
+  let InOperandList = (ins GPR8:$src);
   let AsmString = "T_reg $dst, $src";
   let Pattern = [];
   // NOTE: This instruction is generated by copyPhysReg.
@@ -471,5 +474,5 @@ def T_reg : I {
   // that have no other matches, leading to output like:
   //   T_reg R0, R0
   // if no other instruction that assigns the correct value to R0 can be found.
-  //let Pattern = [(set General:$dst, General:$src)];
+  //let Pattern = [(set GPR8:$dst, GPR8:$src)];
 }

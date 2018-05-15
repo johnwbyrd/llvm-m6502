@@ -31,10 +31,14 @@ M6502RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 const TargetRegisterClass *
 M6502RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC,
                                              const MachineFunction &) const {
-
-  if (M6502::GeneralRegClass.hasSubClassEq(RC)) {
-    return &M6502::GeneralRegClass;
+  if (M6502::DREGSRegClass.hasSubClassEq(RC)) {
+    return &M6502::DREGSRegClass;
   }
+
+  if (M6502::GPR8RegClass.hasSubClassEq(RC)) {
+    return &M6502::GPR8RegClass;
+  }
+
   // NOTE: Flag registers cannot be copied or spilled. Therefore, they are not
   // considered here.
 

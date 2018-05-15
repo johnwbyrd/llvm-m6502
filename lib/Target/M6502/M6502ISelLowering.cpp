@@ -21,14 +21,15 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
                                          const M6502Subtarget &Subtarget)
     : TargetLowering(TM) {
 
-  addRegisterClass(MVT::i8, &M6502::GeneralRegClass);
-  addRegisterClass(MVT::i16, &M6502::PointerRegClass);
+  addRegisterClass(MVT::i8, &M6502::GPR8RegClass);
+  addRegisterClass(MVT::i16, &M6502::DREGSRegClass);
 
   computeRegisterProperties(Subtarget.getRegisterInfo());
 
   setSchedulingPreference(Sched::RegPressure);
 
   setOperationAction(ISD::FrameIndex, MVT::i16, Custom);
+  setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
 
   setOperationAction(ISD::MUL, MVT::i8, LibCall);
   setOperationAction(ISD::MULHU, MVT::i8, LibCall);
@@ -43,6 +44,23 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::SETCC, MVT::i8, Expand);
   setOperationAction(ISD::SELECT_CC, MVT::i8, Custom);
+
+  for (MVT VT : MVT::integer_valuetypes()) {
+    for (auto N : {ISD::EXTLOAD, ISD::SEXTLOAD, ISD::ZEXTLOAD}) {
+      setLoadExtAction(N, VT, MVT::i1, Promote);
+      setLoadExtAction(N, VT, MVT::i8, Expand);
+    }
+  }
+
+  setTruncStoreAction(MVT::i16, MVT::i8, Expand);
+
+  for (MVT VT : MVT::integer_valuetypes()) {
+    setOperationAction(ISD::SIGN_EXTEND_INREG, VT, Expand);
+    // TODO: The generated code is pretty poor. Investigate using the
+    // same "shift and subtract with carry" trick that we do for
+    // extending 8-bit to 16-bit. This may require infrastructure
+    // improvements in how we treat 16-bit "registers" to be feasible.
+  }
 
   // NOTE: LLVM's machinery for indexed loads and stores is does not work for
   // M6502 and so is disabled.
@@ -302,6 +320,8 @@ SDValue M6502TargetLowering::LowerOperation(SDValue Op,
   switch (Op.getOpcode()) {
   case ISD::FrameIndex:
     return LowerFrameIndex(Op, DAG);
+  case ISD::GlobalAddress:
+    return LowerGlobalAddress(Op, DAG);
   case ISD::UMUL_LOHI:
     return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC:
@@ -349,6 +369,16 @@ SDValue M6502TargetLowering::LowerFrameIndex(SDValue Op,
   SDValue TFI = DAG.getTargetFrameIndex(FI->getIndex(), MVT::i16);
   return DAG.getNode(M6502ISD::FIADDR, dl, MVT::i16, TFI,
                      DAG.getConstant(0, dl, MVT::i16));
+}
+
+SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  SDLoc dl(Op);
+  const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
+  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl,
+                                           MVT::i16, GA->getOffset(),
+                                           GA->getTargetFlags());
+  return TGA;
 }
 
 SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,
