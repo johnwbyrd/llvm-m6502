@@ -329,12 +329,28 @@ def LD_abs : I {
   let canFoldAsLoad = 1;
 }
 
+def LD_abs_16 : I {
+  let OutOperandList = (outs DREGS:$r);
+  let InOperandList = (ins imm_addr:$addr);
+  let AsmString = "LD_abs_16 $r, $addr";
+  let Pattern = [(set DREGS:$r, (load imm:$addr))];
+  let mayLoad = 1;
+}
+
 // Load from stack
 def LD_stack : I {
   let OutOperandList = (outs GPR8:$r);
   let InOperandList = (ins i16imm:$fi, i16imm:$offs);
   let AsmString = "LD_stack $r, [$fi]+$offs";
   let Pattern = [(set GPR8:$r, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
+  let mayLoad = 1;
+}
+
+def LD_stack_16 : I {
+  let OutOperandList = (outs DREGS:$r);
+  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
+  let AsmString = "LD_stack_16 $r, [$fi]+$offs";
+  let Pattern = [(set DREGS:$r, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
   let mayLoad = 1;
 }
 
@@ -377,16 +393,6 @@ def LD_ptr_reg : I {
   let mayLoad = 1;
 }
 
-// Load 16-bit value from stack
-def LD_stack_16 : I {
-  let OutOperandList = (outs DREGS:$p);
-  let InOperandList = (ins i16imm:$fi, i16imm:$offs);
-  let AsmString = "LD_stack_16 $p, [$fi]+$offs";
-  let Pattern = [(set DREGS:$p, (load (M6502fiaddr tframeindex:$fi, imm:$offs)))];
-  let mayLoad = 1;
-}
-
-
 // Store to stack
 def ST_stack : I {
   let OutOperandList = (outs);
@@ -423,6 +429,14 @@ def ST_abs : I {
   let mayStore = 1;
 }
 
+def ST_abs_16 : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins DREGS:$r, i16imm:$addr);
+  let AsmString = "ST_abs_16 $r, $addr";
+  let Pattern = [(store DREGS:$r, imm:$addr)];
+  let mayStore = 1;
+}
+
 def LSR_1 : I {
   let Defs = [ZF, CF];
   let OutOperandList = (outs GPR8:$ao);
@@ -431,6 +445,25 @@ def LSR_1 : I {
   let AsmString = "LSR $ai";
   let Pattern = [(set GPR8:$ao, (srl GPR8:$ai, (i8 1)))];
 }
+
+// Sign- and zero-extend operations
+def SEXT : I {
+  let OutOperandList = (outs DREGS:$dst);
+  let InOperandList = (ins GPR8:$src);
+  let AsmString = "SEXT $src, $dst";
+  let Pattern = [(set DREGS:$dst, (sext GPR8:$src))];
+}
+
+def ZEXT : I {
+  let OutOperandList = (outs DREGS:$dst);
+  let InOperandList = (ins GPR8:$src);
+  let AsmString = "ZEXT $src, $dst";
+  let Pattern = [(set DREGS:$dst, (zext GPR8:$src))];
+}
+
+// `anyext`
+def : Pat<(i16 (anyext i8:$src)),
+          (INSERT_SUBREG (i16 (IMPLICIT_DEF)), i8:$src, sub_lo)>;
 
 // Generic call instruction
 // The actual instructions generated depend on the calling convention. (TODO)

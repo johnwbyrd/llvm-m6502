@@ -56,14 +56,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   for (MVT VT : MVT::integer_valuetypes()) {
     setOperationAction(ISD::SIGN_EXTEND_INREG, VT, Expand);
-    // TODO: The generated code is pretty poor. Investigate using the
-    // same "shift and subtract with carry" trick that we do for
-    // extending 8-bit to 16-bit. This may require infrastructure
-    // improvements in how we treat 16-bit "registers" to be feasible.
   }
 
-  // NOTE: LLVM's machinery for indexed loads and stores is does not work for
-  // M6502 and so is disabled.
   // TODO: find some way to use LLVM's machinery for indexed loads and stores?
   // setIndexedLoadAction(ISD::PRE_INC, MVT::i8, Legal);
   // setIndexedStoreAction(ISD::PRE_INC, MVT::i8, Legal);
