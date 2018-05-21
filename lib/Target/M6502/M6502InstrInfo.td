@@ -16,7 +16,7 @@ def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
-def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
+def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 // BSet and BClear parameters: Flag, Branch Target
 def SDT_M6502BSet : SDTypeProfile<0, 2,
                                   [SDTCisVT<0, OtherVT>, SDTCisVT<1, OtherVT>]>;
@@ -167,6 +167,15 @@ def ASL_imm : I {
   let Pattern = [(set GPR8:$ao, (shl GPR8:$ai, (i8 imm:$x)))];
 }
 
+def ASL_imm_16 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs DREGS:$po);
+  let InOperandList = (ins DREGS:$pi, i8imm:$x);
+  let Constraints = "$po = $pi";
+  let AsmString = "ASL_imm_16 $pi, $x";
+  let Pattern = [(set DREGS:$po, (shl DREGS:$pi, (i8 imm:$x)))];
+}
+
 // Arithmetic shift right
 // FIXME: This is not a real instruction in 6502. This instruction must be
 // expanded to CMP's and ROR's. For example, see
@@ -180,6 +189,15 @@ def ASR_imm : I {
   let Pattern = [(set GPR8:$ao, (sra GPR8:$ai, (i8 imm:$x)))];
 }
 
+def ASR_imm_16 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs DREGS:$po);
+  let InOperandList = (ins DREGS:$pi, i8imm:$x);
+  let Constraints = "$po = $pi";
+  let AsmString = "ASR_imm_16 $pi, $x";
+  let Pattern = [(set DREGS:$po, (sra DREGS:$pi, (i8 imm:$x)))];
+}
+
 // Logical shift right
 // FIXME: This is not a real instruction in 6502. The closest equivalent is
 // LSR, which shifts A right by one bit.
@@ -190,6 +208,15 @@ def LSR_imm : I {
   let Constraints = "$ao = $ai";
   let AsmString = "LSR_imm $ai, $x";
   let Pattern = [(set GPR8:$ao, (srl GPR8:$ai, (i8 imm:$x)))];
+}
+
+def LSR_imm_16 : I {
+  let Defs = [ZF, CF];
+  let OutOperandList = (outs DREGS:$po);
+  let InOperandList = (ins DREGS:$pi, i8imm:$x);
+  let Constraints = "$po = $pi";
+  let AsmString = "LSR_imm_16 $pi, $x";
+  let Pattern = [(set DREGS:$po, (srl DREGS:$pi, (i8 imm:$x)))];
 }
 
 // Shift left one bit, move highest bit to CF
@@ -269,6 +296,14 @@ def CMP_imm : I {
   let InOperandList = (ins GPR8:$ai, i8imm:$x);
   let AsmString = "CMP_imm $ai, $x";
   let Pattern = [(M6502cmp GPR8:$ai, imm:$x)];
+}
+
+def CMP_imm_16 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs);
+  let InOperandList = (ins DREGS:$pi, i16imm:$x);
+  let AsmString = "CMP_imm_16 $pi, $x";
+  let Pattern = [(M6502cmp DREGS:$pi, imm:$x)];
 }
 
 // TODO: CMP_abs, etc.
@@ -464,6 +499,10 @@ def ZEXT : I {
 // `anyext`
 def : Pat<(i16 (anyext i8:$src)),
           (INSERT_SUBREG (i16 (IMPLICIT_DEF)), i8:$src, sub_lo)>;
+
+// `trunc`
+def : Pat<(i8 (trunc i16:$src)),
+          (EXTRACT_SUBREG i16:$src, sub_lo)>;
 
 // Generic call instruction
 // The actual instructions generated depend on the calling convention. (TODO)

@@ -36,11 +36,12 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::MULHS, MVT::i8, LibCall);
   setOperationAction(ISD::SMUL_LOHI, MVT::i8, LibCall);
   setOperationAction(ISD::UMUL_LOHI, MVT::i8, Custom);
-  setOperationAction(ISD::SHL_PARTS, MVT::i8, Expand);
-  setOperationAction(ISD::SRA_PARTS, MVT::i8, Expand);
-  setOperationAction(ISD::SRL_PARTS, MVT::i8, Expand);
+  setOperationAction(ISD::SHL_PARTS, MVT::i16, Expand);
+  setOperationAction(ISD::SRA_PARTS, MVT::i16, Expand);
+  setOperationAction(ISD::SRL_PARTS, MVT::i16, Expand);
 
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
+  setOperationAction(ISD::BR_CC, MVT::i16, Custom);
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::SETCC, MVT::i8, Expand);
   setOperationAction(ISD::SELECT_CC, MVT::i8, Custom);
@@ -65,16 +66,12 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
 MVT M6502TargetLowering::getScalarShiftAmountTy(const DataLayout &DL,
                                                 EVT LHSTy) const {
-  // NOTE: Without this override, LLVM assumes that a shift amount
-  // is the size of a pointer. However, i16's are illegal in M6502.
   return MVT::i8;
 }
 
 EVT M6502TargetLowering::getSetCCResultType(const DataLayout &DL,
                                             LLVMContext &Context,
                                             EVT VT) const {
-  // NOTE: Without this override, LLVM assumes that a SETCC result
-  // is the size of a pointer. However, i16's are illegal in M6502.
   return MVT::i8;
 }
 
