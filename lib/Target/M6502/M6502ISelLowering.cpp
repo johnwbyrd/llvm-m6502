@@ -174,11 +174,22 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   // M6502 target does not yet support tail call optimization. (TODO)
   isTailCall = false;
 
+  // (Copied from MSP430ISelLowering.cpp)
+  // If the callee is a GlobalAddress node (quite common, every direct call is)
+  // turn it into a TargetGlobalAddress node so that legalize doesn't hack it.
+  // Likewise ExternalSymbol -> TargetExternalSymbol.
+  // FIXME: is this necessary?
+  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, MVT::i16);
+  else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee))
+    Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i16);
+
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCArgInfo(CallConv, isVarArg, MF, ArgLocs, *DAG.getContext());
   CCArgInfo.AnalyzeCallOperands(Outs, CC_M6502);
 
-  // TODO: CALLSEQ_START instruction?
+  unsigned NumBytes = CCArgInfo.getNextStackOffset();
+  Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, dl);
 
   SmallVector<SDValue, 12> ArgChains;
 
@@ -207,19 +218,11 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, ArgChains);
   }
 
-  // (Copied from MSP430ISelLowering.cpp)
-  // If the callee is a GlobalAddress node (quite common, every direct call is)
-  // turn it into a TargetGlobalAddress node so that legalize doesn't hack it.
-  // Likewise ExternalSymbol -> TargetExternalSymbol.
-  // FIXME: is this necessary?
-  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, MVT::i16);
-  else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(Callee))
-    Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i16);
-
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
   Chain = DAG.getNode(M6502ISD::CALL, dl, NodeTys, Chain, Callee);
-  // TODO: use glue?
+  SDValue Glue = Chain.getValue(1);
+
+  Chain = DAG.getCALLSEQ_END(Chain, DAG.getIntPtrConstant(NumBytes, dl, true), DAG.getIntPtrConstant(0, dl, true), Glue, dl);
 
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCReturnInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
@@ -252,8 +255,6 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (!RetChains.empty()) {
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, RetChains);
   }
-
-  // TODO: CALLSEQ_END instruction?
 
   return Chain;
 }

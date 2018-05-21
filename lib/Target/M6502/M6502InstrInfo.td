@@ -15,6 +15,8 @@ def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, i16>,
 def SDT_M6502Shift1 : SDTypeProfile<1, 1, [SDTCisVT<0, i8>, SDTCisVT<1, i8>]>;
 def SDT_M6502BrInd : SDTypeProfile<0, 1, [SDTCisVT<0, OtherVT>]>;
 
+def SDT_M6502CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i16>, SDTCisVT<1, i16>]>;
+def SDT_M6502CallSeqEnd : SDCallSeqEnd<[SDTCisVT<0, i16>, SDTCisVT<1, i16>]>;
 def SDT_M6502Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_M6502Cmp : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 // BSet and BClear parameters: Flag, Branch Target
@@ -43,6 +45,10 @@ def M6502brind : SDNode<"M6502ISD::BRIND", SDT_M6502BrInd,
 
 
 // Call-related nodes
+def M6502callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_M6502CallSeqStart,
+                                [SDNPHasChain, SDNPOutGlue]>;
+def M6502callseq_end : SDNode<"ISD::CALLSEQ_END", SDT_M6502CallSeqEnd,
+                              [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 def M6502call : SDNode<"M6502ISD::CALL", SDT_M6502Call,
                        [SDNPHasChain, SDNPOutGlue, SDNPInGlue, SDNPVariadic]>;
 def M6502return : SDNode<"M6502ISD::RETURN", SDTNone,
@@ -516,6 +522,20 @@ def CALL_imm : I {
 
 def : Pat<(M6502call (i16 tglobaladdr:$dst)),
           (CALL_imm tglobaladdr:$dst)>;
+
+def ADJCALLSTACKDOWN : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$amt, i16imm:$amt2);
+  let AsmString = "#ADJCALLSTACKDOWN";
+  let Pattern = [(M6502callseq_start timm:$amt, timm:$amt2)];
+}
+
+def ADJCALLSTACKUP : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i16imm:$amt1, i16imm:$amt2);
+  let AsmString = "#ADJCALLSTACKUP";
+  let Pattern = [(M6502callseq_end timm:$amt1, timm:$amt2)];
+}
 
 // Generic return instruction
 // This should emit RTS or JMP depending on the calling convention. (TODO)
