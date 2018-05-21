@@ -226,7 +226,7 @@ SDValue M6502TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCReturnInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
-  CCReturnInfo.AnalyzeCallResult(Ins, CC_M6502);
+  CCReturnInfo.AnalyzeCallResult(Ins, RetCC_M6502);
 
   SmallVector<SDValue, 12> RetChains;
 

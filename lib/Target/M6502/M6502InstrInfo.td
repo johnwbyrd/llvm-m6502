@@ -404,6 +404,14 @@ def LD_ptr : I {
   let mayLoad = 1;
 }
 
+def LD_ptr_16 : I {
+  let OutOperandList = (outs DREGS:$r);
+  let InOperandList = (ins DREGS:$p);
+  let AsmString = "LD_ptr_16 $r, $p";
+  let Pattern = [(set DREGS:$r, (load DREGS:$p))];
+  let mayLoad = 1;
+}
+
 // Set Pointer register
 def LD_addr : I {
   let OutOperandList = (outs DREGS:$p);
@@ -458,6 +466,14 @@ def ST_ptr : I {
   let InOperandList = (ins GPR8:$r, DREGS:$p);
   let AsmString = "ST_ptr $r, $p";
   let Pattern = [(store GPR8:$r, DREGS:$p)];
+  let mayStore = 1;
+}
+
+def ST_ptr_16 : I {
+  let OutOperandList = (outs);
+  let InOperandList = (ins DREGS:$r, DREGS:$p);
+  let AsmString = "ST_ptr_16 $r, $p";
+  let Pattern = [(store DREGS:$r, DREGS:$p)];
   let mayStore = 1;
 }
 
