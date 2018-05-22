@@ -34,7 +34,7 @@ unsigned M6502InstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   // TODO
   // FIXME: All load instructions affect N and Z flags.
   DEBUG(dbgs() << "Is Load from Stack Slot?: "; MI.dump());
-  if (MI.getOpcode() == M6502::LD_stack) {
+  if (MI.getOpcode() == M6502::LD_stack || MI.getOpcode() == M6502::LD_stack_16) {
     const MachineOperand &Dest = MI.getOperand(0);
     const MachineOperand &FI = MI.getOperand(1);
     const MachineOperand &Offset = MI.getOperand(2);
@@ -57,7 +57,7 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                             int &FrameIndex) const {
   // TODO
   DEBUG(dbgs() << "Is Store to Stack Slot?: "; MI.dump());
-  if (MI.getOpcode() == M6502::ST_stack) {
+  if (MI.getOpcode() == M6502::ST_stack || MI.getOpcode() == M6502::ST_stack_16) {
     const MachineOperand &Src = MI.getOperand(0);
     const MachineOperand &FI = MI.getOperand(1);
     const MachineOperand &Offset = MI.getOperand(2);
@@ -88,6 +88,7 @@ void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
       .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
+    // TODO: Support storing DREGS (16-bit registers)
     llvm_unreachable("Register class could not be stored to stack");
   }
 }
@@ -104,6 +105,7 @@ void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
       .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
+    // TODO: Support loading DREGS (16-bit registers)
     llvm_unreachable("Register class could not be loaded from stack");
   }
 }

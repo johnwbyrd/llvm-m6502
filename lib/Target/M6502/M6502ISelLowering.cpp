@@ -80,6 +80,8 @@ const char *M6502TargetLowering::getTargetNodeName(unsigned Opcode) const {
     // TODO: Use .def to automate this like WebAssembly
   case M6502ISD::FIRST_NUMBER:
     break;
+  case M6502ISD::WRAPPER:
+    return "M6502ISD::WRAPPER";
   case M6502ISD::FIADDR:
     return "M6502ISD::FIADDR";
   case M6502ISD::ASL1:
@@ -368,9 +370,10 @@ SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
   SDLoc dl(Op);
   const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
   SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl,
-                                           MVT::i16, GA->getOffset(),
+                                           getPointerTy(DAG.getDataLayout()),
+                                           GA->getOffset(),
                                            GA->getTargetFlags());
-  return TGA;
+  return DAG.getNode(M6502ISD::WRAPPER, dl, getPointerTy(DAG.getDataLayout()), TGA);
 }
 
 SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,

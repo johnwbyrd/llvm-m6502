@@ -9,6 +9,7 @@ def imm_addr : Operand<i16>; // FIXME: is this needed?
 
 // Custom type profiles
 
+def SDT_M6502Wrapper : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>, SDTCisPtrTy<0>]>;
 def SDT_M6502FIAddr : SDTypeProfile<1, 2, [SDTCisVT<0, i16>,
                                            SDTCisVT<1, i16>,
                                            SDTCisVT<2, i16>]>;
@@ -29,6 +30,8 @@ def SDT_M6502SelectCC : SDTypeProfile<1, 3, [SDTCisVT<0, i8>, SDTCisVT<1, i8>,
 def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Custom nodes
+
+def M6502Wrapper : SDNode<"M6502ISD::WRAPPER", SDT_M6502Wrapper>;
 
 // Address nodes
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr>;
@@ -420,8 +423,9 @@ def LD_addr : I {
   let Pattern = [(set DREGS:$p, imm:$addr)];
 }
 
-def : Pat<(i16 (tglobaladdr:$addr)),
-          (LD_addr tglobaladdr:$addr)>;
+def : Pat<(i16 (M6502Wrapper tglobaladdr:$dst)),
+          (LD_addr tglobaladdr:$dst)>;
+// TODO: Implement patterns for texternalsym, blockaddress, etc.
 
 // Set Pointer register to address of stack object
 def LD_stack_addr : I {

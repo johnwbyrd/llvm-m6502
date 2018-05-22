@@ -90,8 +90,6 @@ private:
   /// Pretend all of this node's results are legal.
   bool IgnoreNodeResults(SDNode *N) const {
     return N->getOpcode() == ISD::TargetConstant ||
-           N->getOpcode() == ISD::TargetFrameIndex ||
-           N->getOpcode() == ISD::TargetGlobalAddress ||
            N->getOpcode() == ISD::Register;
   }
 
