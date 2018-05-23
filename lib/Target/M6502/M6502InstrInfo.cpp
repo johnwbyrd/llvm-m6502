@@ -17,11 +17,15 @@ void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  const DebugLoc &DL,
                                  unsigned DestReg, unsigned SrcReg,
                                  bool KillSrc) const {
-  // FIXME: T_reg unavoidably clobbers N and Z flags. Do not insert T_reg
-  // between CMP and a branch.
-  // FIXME: Some combinations of Src and Dest regs cannot be copied directly.
-  BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
-    .addReg(SrcReg, getKillRegState(KillSrc));
+  if (M6502::GPR8RegClass.contains(DestReg, SrcReg)) {
+    BuildMI(MBB, MI, DL, get(M6502::T_reg), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  } else if (M6502::DREGSRegClass.contains(DestReg, SrcReg)) {
+    BuildMI(MBB, MI, DL, get(M6502::T_reg_16), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
+  } else {
+    llvm_unreachable("Registers could not be copied");
+  }
 }
 
 /// isLoadFromStackSlot - If the specified machine instruction is a direct
@@ -72,40 +76,55 @@ unsigned M6502InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
 }
 
 void M6502InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator MBBI,
+                                         MachineBasicBlock::iterator MI,
                                          unsigned SrcReg, bool isKill,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
                                          const TargetRegisterInfo *TRI) const {
-  // FIXME: Mem regs cannot be loaded directly from the stack. The load should
-  // go through a PhysReg first. This is not possible currently, as LLVM
-  // assumes storeRegToStackSlot generates one instruction.
-  // See <https://groups.google.com/forum/#!topic/llvm-dev/Hjr5oNA0Wyc>
-  DebugLoc DL = MBBI->getDebugLoc();
+  DebugLoc DL;
+  if (MI != MBB.end()) {
+    DL = MI->getDebugLoc();
+  }
+
+  // TODO: Use a MachineMemOperand.
+
   if (M6502::GPR8RegClass.hasSubClassEq(RC)) {
-    BuildMI(MBB, MBBI, DL, get(M6502::ST_stack))
+    BuildMI(MBB, MI, DL, get(M6502::ST_stack))
+      .addReg(SrcReg, getKillRegState(isKill))
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else if (M6502::DREGSRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MI, DL, get(M6502::ST_stack_16))
       .addReg(SrcReg, getKillRegState(isKill))
       .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
-    // TODO: Support storing DREGS (16-bit registers)
     llvm_unreachable("Register class could not be stored to stack");
   }
 }
 
 
 void M6502InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                          MachineBasicBlock::iterator MBBI,
+                                          MachineBasicBlock::iterator MI,
                                           unsigned DestReg, int FrameIndex,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const {
-  DebugLoc DL = MBBI->getDebugLoc();
+  DebugLoc DL;
+  if (MI != MBB.end()) {
+    DL = MI->getDebugLoc();
+  }
+
+  // TODO: Use a MachineMemOperand.
+
   if (M6502::GPR8RegClass.hasSubClassEq(RC)) {
-    BuildMI(MBB, MBBI, DL, get(M6502::LD_stack), DestReg)
+    BuildMI(MBB, MI, DL, get(M6502::LD_stack), DestReg)
+      .addFrameIndex(FrameIndex)
+      .addImm(0);
+  } else if (M6502::DREGSRegClass.hasSubClassEq(RC)) {
+    BuildMI(MBB, MI, DL, get(M6502::LD_stack_16), DestReg)
       .addFrameIndex(FrameIndex)
       .addImm(0);
   } else {
-    // TODO: Support loading DREGS (16-bit registers)
     llvm_unreachable("Register class could not be loaded from stack");
   }
 }
@@ -123,7 +142,7 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     int FrameIndex,
     LiveIntervals *LIS) const {
   // TODO: fold if possible
-  DEBUG(dbgs() << "Folding stack operand: "; MI.dump());
+  DEBUG(dbgs() << "Asked to fold stack operand: "; MI.dump());
   return nullptr;
 }
 
@@ -135,6 +154,6 @@ MachineInstr *M6502InstrInfo::foldMemoryOperandImpl(
     MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
     LiveIntervals *LIS) const {
   // TODO: fold if possible
-  DEBUG(dbgs() << "Folding address operand: "; MI.dump());
+  DEBUG(dbgs() << "Asked to fold address operand: "; MI.dump());
   return nullptr;
 }

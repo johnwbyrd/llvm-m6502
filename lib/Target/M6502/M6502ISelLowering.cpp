@@ -42,6 +42,8 @@ M6502TargetLowering::M6502TargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::BR_CC, MVT::i8, Custom);
   setOperationAction(ISD::BR_CC, MVT::i16, Custom);
+  setOperationAction(ISD::BR_JT, MVT::Other, Expand);
+  setOperationAction(ISD::BRIND, MVT::Other, Expand);
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::SETCC, MVT::i8, Expand);
   setOperationAction(ISD::SELECT_CC, MVT::i8, Custom);
@@ -316,6 +318,8 @@ SDValue M6502TargetLowering::LowerOperation(SDValue Op,
     return LowerFrameIndex(Op, DAG);
   case ISD::GlobalAddress:
     return LowerGlobalAddress(Op, DAG);
+  case ISD::BlockAddress:
+    return LowerBlockAddress(Op, DAG);
   case ISD::UMUL_LOHI:
     return LowerUMUL_LOHI(Op, DAG);
   case ISD::BR_CC:
@@ -373,7 +377,20 @@ SDValue M6502TargetLowering::LowerGlobalAddress(SDValue Op,
                                            getPointerTy(DAG.getDataLayout()),
                                            GA->getOffset(),
                                            GA->getTargetFlags());
-  return DAG.getNode(M6502ISD::WRAPPER, dl, getPointerTy(DAG.getDataLayout()), TGA);
+  return DAG.getNode(M6502ISD::WRAPPER, dl, getPointerTy(DAG.getDataLayout()),
+                     TGA);
+}
+
+SDValue M6502TargetLowering::LowerBlockAddress(SDValue Op,
+                                               SelectionDAG &DAG) const {
+  SDLoc dl(Op);
+  const BlockAddressSDNode *BA = cast<BlockAddressSDNode>(Op);
+  SDValue TBA = DAG.getTargetBlockAddress(BA->getBlockAddress(),
+                                          getPointerTy(DAG.getDataLayout()),
+                                          BA->getOffset(),
+                                          BA->getTargetFlags());
+  return DAG.getNode(M6502ISD::WRAPPER, dl, getPointerTy(DAG.getDataLayout()),
+                     TBA);
 }
 
 SDValue M6502TargetLowering::LowerUMUL_LOHI(SDValue Op,
@@ -510,6 +527,7 @@ SDValue M6502TargetLowering::LowerSELECT_CC(SDValue Op,
 
   SDValue Glue = EmitCMP(LHS, RHS, dl, DAG);
 
+  // TODO: support 16-bit
   return DAG.getNode(M6502ISD::SELECT_CC, dl, DAG.getVTList(MVT::i8, MVT::Glue),
                      TrueV, FalseV, DAG.getConstant(CC, dl, MVT::i8), Glue);
 }

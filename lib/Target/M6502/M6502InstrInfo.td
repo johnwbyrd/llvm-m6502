@@ -31,7 +31,7 @@ def SDT_M6502Flag : SDTypeProfile<1, 0, [SDTCisVT<0, OtherVT>]>;
 
 // Custom nodes
 
-def M6502Wrapper : SDNode<"M6502ISD::WRAPPER", SDT_M6502Wrapper>;
+def M6502wrapper : SDNode<"M6502ISD::WRAPPER", SDT_M6502Wrapper>;
 
 // Address nodes
 def M6502fiaddr : SDNode<"M6502ISD::FIADDR", SDT_M6502FIAddr>;
@@ -103,20 +103,20 @@ multiclass AccOperatorI<string AsmName, SDPatternOperator Oper> {
   }
 
   // Operand in memory register
-  def _mem : I {
+  def _8 : I {
     let OutOperandList = (outs GPR8:$ao);
     let InOperandList = (ins GPR8:$ai, GPR8:$m);
     let Constraints = "$ao = $ai";
-    let AsmString = AsmName # "_mem $ai, $m";
+    let AsmString = AsmName # "_8 $ai, $m";
     let Pattern = [(set GPR8:$ao, (Oper GPR8:$ai, GPR8:$m))];
   }
 
   // 16-bit pseudoinstructions
-  def _16_imm : I {
+  def _imm_16 : I {
     let OutOperandList = (outs DREGS:$po);
     let InOperandList = (ins DREGS:$pi, i16imm:$x);
     let Constraints = "$po = $pi";
-    let AsmString = AsmName # "_16_imm $pi, $x";
+    let AsmString = AsmName # "_imm_16 $pi, $x";
     let Pattern = [(set DREGS:$po, (Oper DREGS:$pi, imm:$x))];
   }
 
@@ -315,6 +315,22 @@ def CMP_imm_16 : I {
   let Pattern = [(M6502cmp DREGS:$pi, imm:$x)];
 }
 
+def CMP_8 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs);
+  let InOperandList = (ins GPR8:$a, GPR8:$b);
+  let AsmString = "CMP_8 $a, $b";
+  let Pattern = [(M6502cmp GPR8:$a, GPR8:$b)];
+}
+
+def CMP_16 : I {
+  let Defs = [NF, ZF, CF];
+  let OutOperandList = (outs);
+  let InOperandList = (ins DREGS:$a, DREGS:$b);
+  let AsmString = "CMP_16 $a, $b";
+  let Pattern = [(M6502cmp DREGS:$a, DREGS:$b)];
+}
+
 // TODO: CMP_abs, etc.
 
 // Jump
@@ -370,7 +386,7 @@ def LD_abs : I {
   let AsmString = "LD_abs $r, $addr";
   let Pattern = [(set GPR8:$r, (load imm:$addr))];
   let mayLoad = 1;
-  let canFoldAsLoad = 1;
+  //let canFoldAsLoad = 1;
 }
 
 def LD_abs_16 : I {
@@ -423,9 +439,12 @@ def LD_addr : I {
   let Pattern = [(set DREGS:$p, imm:$addr)];
 }
 
-def : Pat<(i16 (M6502Wrapper tglobaladdr:$dst)),
+// GlobalAddress
+def : Pat<(i16 (M6502wrapper tglobaladdr:$dst)),
           (LD_addr tglobaladdr:$dst)>;
-// TODO: Implement patterns for texternalsym, blockaddress, etc.
+// BlockAddress
+def : Pat<(i16 (M6502wrapper tblockaddress:$dst)),
+          (LD_addr tblockaddress:$dst)>;
 
 // Set Pointer register to address of stack object
 def LD_stack_addr : I {
@@ -530,6 +549,10 @@ def : Pat<(i16 (anyext i8:$src)),
 def : Pat<(i8 (trunc i16:$src)),
           (EXTRACT_SUBREG i16:$src, sub_lo)>;
 
+// sext_inreg
+def : Pat<(sext_inreg i16:$src, i8),
+          (SEXT (i8 (EXTRACT_SUBREG i16:$src, sub_lo)))>;
+
 // Generic call instruction
 // The actual instructions generated depend on the calling convention. (TODO)
 def CALL_imm : I {
@@ -575,7 +598,7 @@ def RETURN : I {
 // X and Y cannot be transferred directly between themselves; neither can Mem
 // registers.
 def T_reg : I {
-  let Defs = [NF, ZF];
+  //let Defs = [NF, ZF];
   let OutOperandList = (outs GPR8:$dst);
   let InOperandList = (ins GPR8:$src);
   let AsmString = "T_reg $dst, $src";
@@ -587,4 +610,11 @@ def T_reg : I {
   //   T_reg R0, R0
   // if no other instruction that assigns the correct value to R0 can be found.
   //let Pattern = [(set GPR8:$dst, GPR8:$src)];
+}
+
+def T_reg_16 : I {
+  let OutOperandList = (outs DREGS:$dst);
+  let InOperandList = (ins DREGS:$src);
+  let AsmString = "T_reg_16 $dst, $src";
+  let Pattern = [];
 }
