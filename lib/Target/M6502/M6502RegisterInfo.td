@@ -11,14 +11,14 @@ class M6502Reg<string name, list<Register> subregs = []> :
 //===----------------------------------------------------------------------===//
 
 // 8-bit general purpose registers located in Z-page memory
-def R0 : M6502Reg<"r0">;
-def R1 : M6502Reg<"r1">;
-def R2 : M6502Reg<"r2">;
-def R3 : M6502Reg<"r3">;
-def R4 : M6502Reg<"r4">;
-def R5 : M6502Reg<"r5">;
-def R6 : M6502Reg<"r6">;
-def R7 : M6502Reg<"r7">;
+def R0 : M6502Reg<"R0">;
+def R1 : M6502Reg<"R1">;
+def R2 : M6502Reg<"R2">;
+def R3 : M6502Reg<"R3">;
+def R4 : M6502Reg<"R4">;
+def R5 : M6502Reg<"R5">;
+def R6 : M6502Reg<"R6">;
+def R7 : M6502Reg<"R7">;
 
 // Subregister indices (inspired by the AVR target)
 let Namespace = "M6502" in
@@ -30,10 +30,10 @@ let Namespace = "M6502" in
 let SubRegIndices = [sub_lo, sub_hi],
 CoveredBySubRegs = 1 in
 {
-  def R7R6 : M6502Reg<"r7:r6", [R7, R6]>;
-  def R5R4 : M6502Reg<"r5:r4", [R4, R5]>;
-  def R3R2 : M6502Reg<"r3:r2", [R2, R3]>;
-  def R1R0 : M6502Reg<"r1:r0", [R0, R1]>;
+  def R6_7 : M6502Reg<"R6_7", [R6, R7]>;
+  def R4_5 : M6502Reg<"R4_5", [R4, R5]>;
+  def R2_3 : M6502Reg<"R2_3", [R2, R3]>;
+  def R0_1 : M6502Reg<"R0_1", [R0, R1]>;
 }
 
 // Flag registers. These registers serve to coordinate Uses and Defs of
@@ -50,4 +50,4 @@ def VF : M6502Reg<"VF">; // overflow flag
 def GPR8 : RegisterClass<"M6502", [i8], 8,
   (add R0, R1, R2, R3, R4, R5, R6, R7)>;
 def DREGS : RegisterClass<"M6502", [i16], 8,
-  (add R1R0, R3R2, R5R4, R7R6)>;
+  (add R0_1, R2_3, R4_5, R6_7)>;
