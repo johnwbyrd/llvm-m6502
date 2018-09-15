@@ -31,7 +31,7 @@ public:
   const M6502TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
-  const TargetRegisterInfo *getRegisterInfo() const override {
+  const M6502RegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
 };

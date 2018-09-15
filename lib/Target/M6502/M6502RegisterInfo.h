@@ -3,6 +3,8 @@
 #ifndef LLVM_LIB_TARGET_M6502_M6502REGISTERINFO_H
 #define LLVM_LIB_TARGET_M6502_M6502REGISTERINFO_H
 
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+
 #define GET_REGINFO_HEADER
 #include "M6502GenRegisterInfo.inc"
 
@@ -40,6 +42,10 @@ public:
                            RegScavenger *RS = nullptr) const override;
 
   unsigned getFrameRegister(const MachineFunction &MF) const override;
+
+  /// Splits a 16-bit `DREGS` register into the lo/hi register pair.
+  /// \param Reg A 16-bit register to split.
+  void splitReg(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const;
 };
 
 } // end namespace llvm

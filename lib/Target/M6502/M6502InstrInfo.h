@@ -15,7 +15,7 @@ class M6502InstrInfo : public M6502GenInstrInfo {
   const M6502RegisterInfo RI;
 
 public:
-  const TargetRegisterInfo &getRegisterInfo() const { return RI; }
+  const M6502RegisterInfo &getRegisterInfo() const { return RI; }
 
   void copyPhysReg(MachineBasicBlock &MBB,
                    MachineBasicBlock::iterator MI, const DebugLoc &DL,

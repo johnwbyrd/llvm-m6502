@@ -10,10 +10,11 @@ namespace llvm {
 class FunctionPass;
 class M6502TargetMachine;
 
-// ISel passes.
 FunctionPass *createM6502ISelDag(M6502TargetMachine &TM,
                                  CodeGenOpt::Level OptLevel);
-FunctionPass *createM6502ExperimentalISel();
+FunctionPass *createM6502Expand16BitPseudoPass();
+
+void initializeM6502Expand16BitPseudoPass(PassRegistry&);
 
 } // end namespace llvm
 

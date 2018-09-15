@@ -56,6 +56,7 @@ public:
   /// addInstSelector - This method should install an instruction selector pass,
   /// which converts from LLVM code to machine instructions.
   bool addInstSelector() override;
+  void addPreSched2() override;
 };
 } // namespace
 
@@ -82,4 +83,8 @@ bool M6502PassConfig::addInstSelector() {
   TargetPassConfig::addInstSelector();
   addPass(createM6502ISelDag(getM6502TargetMachine(), getOptLevel()));
   return false;
+}
+
+void M6502PassConfig::addPreSched2() {
+  addPass(createM6502Expand16BitPseudoPass());
 }
