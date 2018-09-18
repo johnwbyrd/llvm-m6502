@@ -48,7 +48,10 @@ private:
   bool expandMBB(Block &MBB);
   bool expandMI(Block &MBB, BlockIt MBBI);
 
-  bool expandLogic(unsigned Op, Block &MBB, BlockIt MBBI);
+  bool expandArith(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI);
+  bool expandLogic(unsigned NewOp, Block &MBB, BlockIt MBBI);
+  bool expandLogicImm(unsigned NewOp, Block &MBB, BlockIt MBBI);
+  bool isLogicImmOpRedundant(unsigned Op, unsigned ImmVal) const;
 };
 
 char M6502Expand16BitPseudo::ID = 0;
@@ -101,15 +104,62 @@ bool M6502Expand16BitPseudo::expandMI(Block &MBB, BlockIt MBBI) {
   int Opcode = MBBI->getOpcode();
 
   switch (Opcode) {
+  case M6502::ADD_16:
+    return expandArith(M6502::AD0_8, M6502::ADC_8, MBB, MBBI);
+  case M6502::AND_16:
+    return expandLogic(M6502::AND_8, MBB, MBBI);
+  case M6502::AND_imm_16:
+    return expandLogicImm(M6502::AND_imm, MBB, MBBI);
+  case M6502::EOR_16:
+    return expandLogic(M6502::EOR_8, MBB, MBBI);
+  case M6502::EOR_imm_16:
+    return expandLogicImm(M6502::EOR_imm, MBB, MBBI);
   case M6502::ORA_16:
-    return expandLogic(Opcode, MBB, MBBI);
+    return expandLogic(M6502::ORA_8, MBB, MBBI);
+  case M6502::ORA_imm_16:
+    return expandLogicImm(M6502::ORA_imm, MBB, MBBI);
+  case M6502::SUB_16:
+    return expandArith(M6502::SB1_8, M6502::SBC_8, MBB, MBBI); // FIXME: are hi and lo ops in the correct order?
   }
 
   return false;
 }
 
 bool M6502Expand16BitPseudo::
-expandLogic(unsigned Op, Block &MBB, BlockIt MBBI) {
+expandArith(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI) {
+  MachineInstr &MI = *MBBI;
+  DEBUG(dbgs() << "Expanding arithmetic instruction: "; MI.dump(););
+  unsigned SrcLoReg, SrcHiReg, DstLoReg, DstHiReg;
+  unsigned DstReg = MI.getOperand(0).getReg();
+  unsigned SrcReg = MI.getOperand(2).getReg();
+  bool DstIsDead = MI.getOperand(0).isDead();
+  bool DstIsKill = MI.getOperand(1).isKill();
+  bool SrcIsKill = MI.getOperand(2).isKill();
+  bool ImpIsDead = MI.getOperand(3).isDead();
+  TRI->splitReg(SrcReg, SrcLoReg, SrcHiReg);
+  TRI->splitReg(DstReg, DstLoReg, DstHiReg);
+
+  // FIXME: ensure carry flag is handled correctly.
+
+  buildMI(MBB, MBBI, OpLo)
+    .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+    .addReg(DstLoReg, getKillRegState(DstIsKill))
+    .addReg(SrcLoReg, getKillRegState(SrcIsKill));
+
+  auto MIBHI = buildMI(MBB, MBBI, OpHi)
+    .addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+    .addReg(DstHiReg, getKillRegState(DstIsKill))
+    .addReg(SrcHiReg, getKillRegState(SrcIsKill));
+
+  if (ImpIsDead)
+    MIBHI->getOperand(3).setIsDead();
+
+  MI.eraseFromParent();
+  return true;
+}
+
+bool M6502Expand16BitPseudo::
+expandLogic(unsigned NewOp, Block &MBB, BlockIt MBBI) {
   MachineInstr &MI = *MBBI;
   DEBUG(dbgs() << "Expanding logic instruction: "; MI.dump(););
   unsigned SrcLoReg, SrcHiReg, DstLoReg, DstHiReg;
@@ -121,24 +171,63 @@ expandLogic(unsigned Op, Block &MBB, BlockIt MBBI) {
   TRI->splitReg(SrcReg, SrcLoReg, SrcHiReg);
   TRI->splitReg(DstReg, DstLoReg, DstHiReg);
 
-  if (Op != M6502::ORA_16) {
-    llvm_unreachable("Unimplemented: expandLogic expected ORA_16");
-  }
-
-  Op = M6502::ORA_8;
-
-  auto MIBLO = buildMI(MBB, MBBI, Op)
+  auto MIBLO = buildMI(MBB, MBBI, NewOp)
     .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
     .addReg(DstLoReg, getKillRegState(DstIsKill))
     .addReg(SrcLoReg, getKillRegState(SrcIsKill));
 
-  auto MIBHI = buildMI(MBB, MBBI, Op)
+  auto MIBHI = buildMI(MBB, MBBI, NewOp)
     .addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
     .addReg(DstHiReg, getKillRegState(DstIsKill))
     .addReg(SrcHiReg, getKillRegState(SrcIsKill));
 
   MI.eraseFromParent();
   return true;
+}
+
+bool M6502Expand16BitPseudo::
+expandLogicImm(unsigned Op, Block &MBB, BlockIt MBBI) {
+  MachineInstr &MI = *MBBI;
+  DEBUG(dbgs() << "Expanding logic immediate instruction: "; MI.dump(););
+  unsigned DstLoReg, DstHiReg;
+  unsigned DstReg = MI.getOperand(0).getReg();
+  bool DstIsDead = MI.getOperand(0).isDead();
+  bool SrcIsKill = MI.getOperand(1).isKill();
+  unsigned Imm = MI.getOperand(2).getImm();
+  unsigned Lo8 = Imm & 0xff;
+  unsigned Hi8 = (Imm >> 8) & 0xff;
+  TRI->splitReg(DstReg, DstLoReg, DstHiReg);
+
+  if (!isLogicImmOpRedundant(Op, Lo8)) {
+    auto MIBLO = buildMI(MBB, MBBI, Op)
+      .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+      .addReg(DstLoReg, getKillRegState(SrcIsKill))
+      .addImm(Lo8);
+  }
+
+  if (!isLogicImmOpRedundant(Op, Hi8)) {
+    auto MIBHI = buildMI(MBB, MBBI, Op)
+      .addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+      .addReg(DstHiReg, getKillRegState(SrcIsKill))
+      .addImm(Hi8);
+  }
+
+  MI.eraseFromParent();
+  return true;
+}
+
+bool M6502Expand16BitPseudo::
+isLogicImmOpRedundant(unsigned Op, unsigned ImmVal) const {
+
+  // x AND 0xff is redundant.
+  if (Op == M6502::AND_8 && ImmVal == 0xff)
+    return true;
+
+  // x OR 0 is redundant.
+  if (Op == M6502::ORA_8 && ImmVal == 0x0)
+    return true;
+
+  return false;
 }
 
 } // end of anonymous namespace
