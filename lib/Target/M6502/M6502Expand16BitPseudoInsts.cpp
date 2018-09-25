@@ -105,10 +105,16 @@ bool M6502Expand16BitPseudo::expandMI(Block &MBB, BlockIt MBBI) {
   int Opcode = MBBI->getOpcode();
 
   switch (Opcode) {
+  case M6502::AD0_16:
   case M6502::ADD_16:
     return expandArith(M6502::AD0_8, M6502::ADC_8, MBB, MBBI);
+  case M6502::AD0_imm_16:
   case M6502::ADD_imm_16:
     return expandArithImm(M6502::AD0_imm, M6502::ADC_imm, MBB, MBBI);
+  case M6502::ADC_16:
+    return expandArith(M6502::ADC_8, M6502::ADC_8, MBB, MBBI);
+  case M6502::ADC_imm_16:
+    return expandArithImm(M6502::ADC_imm, M6502::ADC_imm, MBB, MBBI);
   case M6502::AND_16:
     return expandLogic(M6502::AND_8, MBB, MBBI);
   case M6502::AND_imm_16:
@@ -121,10 +127,16 @@ bool M6502Expand16BitPseudo::expandMI(Block &MBB, BlockIt MBBI) {
     return expandLogic(M6502::ORA_8, MBB, MBBI);
   case M6502::ORA_imm_16:
     return expandLogicImm(M6502::ORA_imm, MBB, MBBI);
+  case M6502::SB1_16:
   case M6502::SUB_16:
     return expandArith(M6502::SB1_8, M6502::SBC_8, MBB, MBBI); // FIXME: are hi and lo ops in the correct order?
+  case M6502::SB1_imm_16:
   case M6502::SUB_imm_16:
     return expandArithImm(M6502::SB1_imm, M6502::SBC_imm, MBB, MBBI);
+  case M6502::SBC_16:
+    return expandArith(M6502::SBC_8, M6502::SBC_8, MBB, MBBI);
+  case M6502::SBC_imm_16:
+    return expandArithImm(M6502::SBC_imm, M6502::SBC_imm, MBB, MBBI);
   }
 
   return false;
@@ -171,6 +183,7 @@ static void expandImmOperand(const MachineOperand &MOp, MachineInstrBuilder &MIB
     unsigned TF = MOp.getTargetFlags();
     MIBLO.addGlobalAddress(GV, Offs, TF | M6502II::MO_LO); // TODO: indicate lo/hi operands in printed assembly
     MIBHI.addGlobalAddress(GV, Offs, TF | M6502II::MO_HI);
+    MachineOperand mop();
     break;
   }
   case MachineOperand::MO_Immediate: {
@@ -249,43 +262,23 @@ expandLogicImm(unsigned Op, Block &MBB, BlockIt MBBI) {
   unsigned DstReg = MI.getOperand(0).getReg();
   bool DstIsDead = MI.getOperand(0).isDead();
   bool SrcIsKill = MI.getOperand(1).isKill();
-  unsigned Imm = MI.getOperand(2).getImm();
-  unsigned Lo8 = Imm & 0xff;
-  unsigned Hi8 = (Imm >> 8) & 0xff;
   TRI->splitReg(DstReg, DstLoReg, DstHiReg);
 
-  // FIXME: handle globaladdress operands
 
-  if (!isLogicImmOpRedundant(Op, Lo8)) {
-    auto MIBLO = buildMI(MBB, MBBI, Op)
+  auto MIBLO = buildMI(MBB, MBBI, Op)
       .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
-      .addReg(DstLoReg, getKillRegState(SrcIsKill))
-      .addImm(Lo8);
-  }
+      .addReg(DstLoReg, getKillRegState(SrcIsKill));
 
-  if (!isLogicImmOpRedundant(Op, Hi8)) {
-    auto MIBHI = buildMI(MBB, MBBI, Op)
+  auto MIBHI = buildMI(MBB, MBBI, Op)
       .addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
-      .addReg(DstHiReg, getKillRegState(SrcIsKill))
-      .addImm(Hi8);
-  }
+      .addReg(DstHiReg, getKillRegState(SrcIsKill));
+
+  expandImmOperand(MI.getOperand(2), MIBLO, MIBHI);
+
+  // TODO: filter out redundant logic instructions (i.e. AND x, 0xff; OR x, 0)
 
   MI.eraseFromParent();
   return true;
-}
-
-bool M6502Expand16BitPseudo::
-isLogicImmOpRedundant(unsigned Op, unsigned ImmVal) const {
-
-  // x AND 0xff is redundant.
-  if (Op == M6502::AND_imm && ImmVal == 0xff)
-    return true;
-
-  // x OR 0 is redundant.
-  if (Op == M6502::ORA_imm && ImmVal == 0x0)
-    return true;
-
-  return false;
 }
 
 } // end of anonymous namespace
