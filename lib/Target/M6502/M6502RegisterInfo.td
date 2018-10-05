@@ -30,10 +30,10 @@ let Namespace = "M6502" in
 let SubRegIndices = [sub_lo, sub_hi],
 CoveredBySubRegs = 1 in
 {
-  def R6_7 : M6502Reg<"R6_7", [R6, R7]>;
-  def R4_5 : M6502Reg<"R4_5", [R4, R5]>;
-  def R2_3 : M6502Reg<"R2_3", [R2, R3]>;
-  def R0_1 : M6502Reg<"R0_1", [R0, R1]>;
+  def R7_R6 : M6502Reg<"R7:R6", [R6, R7]>;
+  def R5_R4 : M6502Reg<"R5:R4", [R4, R5]>;
+  def R3_R2 : M6502Reg<"R3:R2", [R2, R3]>;
+  def R1_R0 : M6502Reg<"R1:R0", [R0, R1]>;
 }
 
 // Flag registers. These registers serve to coordinate Uses and Defs of
@@ -50,4 +50,4 @@ def VF : M6502Reg<"VF">; // overflow flag
 def GPR8 : RegisterClass<"M6502", [i8], 8,
   (add R0, R1, R2, R3, R4, R5, R6, R7)>;
 def DREGS : RegisterClass<"M6502", [i16], 8,
-  (add R0_1, R2_3, R4_5, R6_7)>;
+  (add R1_R0, R3_R2, R5_R4, R7_R6)>;

@@ -484,14 +484,14 @@ def IN_reg : I {
 def SEXT : I {
   let OutOperandList = (outs DREGS:$dst);
   let InOperandList = (ins GPR8:$src);
-  let AsmString = "SEXT $src, $dst";
+  let AsmString = "SEXT $dst, $src";
   let Pattern = [(set DREGS:$dst, (sext GPR8:$src))];
 }
 
 def ZEXT : I {
   let OutOperandList = (outs DREGS:$dst);
   let InOperandList = (ins GPR8:$src);
-  let AsmString = "ZEXT $src, $dst";
+  let AsmString = "ZEXT $dst, $src";
   let Pattern = [(set DREGS:$dst, (zext GPR8:$src))];
 }
 
