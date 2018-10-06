@@ -12,6 +12,9 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #include "M6502GenInstrInfo.inc"
 
+M6502InstrInfo::M6502InstrInfo()
+  : M6502GenInstrInfo(M6502::ADJCALLSTACKDOWN, M6502::ADJCALLSTACKUP) {}
+
 void M6502InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
                                  const DebugLoc &DL,

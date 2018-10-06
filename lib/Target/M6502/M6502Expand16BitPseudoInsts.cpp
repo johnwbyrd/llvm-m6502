@@ -146,6 +146,9 @@ bool M6502Expand16BitPseudo::
 expandArith(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI) {
   MachineInstr &MI = *MBBI;
   DEBUG(dbgs() << "Expanding arithmetic instruction: "; MI.dump(););
+
+  assert(MI.getOperand(0).getReg() == MI.getOperand(1).getReg() &&
+         "Destination and source operands must be the same");
   unsigned SrcLoReg, SrcHiReg, DstLoReg, DstHiReg;
   unsigned DstReg = MI.getOperand(0).getReg();
   unsigned SrcReg = MI.getOperand(2).getReg();
@@ -158,7 +161,7 @@ expandArith(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI) {
 
   // FIXME: ensure carry flag is handled correctly.
 
-  buildMI(MBB, MBBI, OpLo)
+  auto MIBLO = buildMI(MBB, MBBI, OpLo)
     .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
     .addReg(DstLoReg, getKillRegState(DstIsKill))
     .addReg(SrcLoReg, getKillRegState(SrcIsKill));
@@ -170,6 +173,8 @@ expandArith(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI) {
 
   if (ImpIsDead)
     MIBHI->getOperand(3).setIsDead();
+
+  DEBUG(dbgs() << "Expanded to:\nMIBLO = " << *MIBLO << "\nMIBHI = " << *MIBHI << "\n");
 
   MI.eraseFromParent();
   return true;
@@ -183,7 +188,6 @@ static void expandImmOperand(const MachineOperand &MOp, MachineInstrBuilder &MIB
     unsigned TF = MOp.getTargetFlags();
     MIBLO.addGlobalAddress(GV, Offs, TF | M6502II::MO_LO); // TODO: indicate lo/hi operands in printed assembly
     MIBHI.addGlobalAddress(GV, Offs, TF | M6502II::MO_HI);
-    MachineOperand mop();
     break;
   }
   case MachineOperand::MO_Immediate: {
@@ -201,6 +205,9 @@ bool M6502Expand16BitPseudo::
 expandArithImm(unsigned OpLo, unsigned OpHi, Block &MBB, BlockIt MBBI) {
   MachineInstr &MI = *MBBI;
   DEBUG(dbgs() << "Expanding arithmetic immediate instruction: "; MI.dump(););
+
+  assert(MI.getOperand(0).getReg() == MI.getOperand(1).getReg() &&
+         "Destination and source operands must be the same");
   unsigned DstLoReg, DstHiReg;
   unsigned DstReg = MI.getOperand(0).getReg();
   bool DstIsDead = MI.getOperand(0).isDead();
@@ -231,6 +238,9 @@ bool M6502Expand16BitPseudo::
 expandLogic(unsigned NewOp, Block &MBB, BlockIt MBBI) {
   MachineInstr &MI = *MBBI;
   DEBUG(dbgs() << "Expanding logic instruction: "; MI.dump(););
+
+  assert(MI.getOperand(0).getReg() == MI.getOperand(1).getReg() &&
+         "Destination and source operands must be the same");
   unsigned SrcLoReg, SrcHiReg, DstLoReg, DstHiReg;
   unsigned DstReg = MI.getOperand(0).getReg();
   unsigned SrcReg = MI.getOperand(2).getReg();
@@ -258,12 +268,14 @@ bool M6502Expand16BitPseudo::
 expandLogicImm(unsigned Op, Block &MBB, BlockIt MBBI) {
   MachineInstr &MI = *MBBI;
   DEBUG(dbgs() << "Expanding logic immediate instruction: "; MI.dump(););
+
+  assert(MI.getOperand(0).getReg() == MI.getOperand(1).getReg() &&
+         "Destination and source operands must be the same");
   unsigned DstLoReg, DstHiReg;
   unsigned DstReg = MI.getOperand(0).getReg();
   bool DstIsDead = MI.getOperand(0).isDead();
   bool SrcIsKill = MI.getOperand(1).isKill();
   TRI->splitReg(DstReg, DstLoReg, DstHiReg);
-
 
   auto MIBLO = buildMI(MBB, MBBI, Op)
       .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
