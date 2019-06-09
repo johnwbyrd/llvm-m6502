@@ -1,4 +1,4 @@
-//===-- SparcInstPrinter.h - Convert Sparc MCInst to assembly syntax ------===//
+//===-- MOSInstPrinter.h - Convert MOS MCInst to assembly syntax ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,27 +6,27 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This class prints an Sparc MCInst to a .s file.
+// This class prints an MOS MCInst to a .s file.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCINSTPRINTER_H
-#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCINSTPRINTER_H
+#ifndef LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSINSTPRINTER_H
+#define LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
 
-class SparcInstPrinter : public MCInstPrinter {
+class MOSInstPrinter : public MCInstPrinter {
 public:
-  SparcInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
+  MOSInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
                    const MCRegisterInfo &MRI)
       : MCInstPrinter(MAI, MII, MRI) {}
 
   void printRegName(raw_ostream &OS, unsigned RegNo) const override;
   void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot,
                  const MCSubtargetInfo &STI) override;
-  bool printSparcAliasInstr(const MCInst *MI, const MCSubtargetInfo &STI,
+  bool printMOSAliasInstr(const MCInst *MI, const MCSubtargetInfo &STI,
                             raw_ostream &OS);
   bool isV9(const MCSubtargetInfo &STI) const;
 

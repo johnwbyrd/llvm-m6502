@@ -1,4 +1,4 @@
-//===-- SparcTargetInfo.cpp - Sparc Target Implementation -----------------===//
+//===-- MOSTargetInfo.cpp - MOS Target Implementation -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,28 +6,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "TargetInfo/SparcTargetInfo.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
-Target &llvm::getTheSparcTarget() {
-  static Target TheSparcTarget;
-  return TheSparcTarget;
+Target &llvm::getTheMOSTarget() {
+  static Target TheMOSTarget;
+  return TheMOSTarget;
 }
-Target &llvm::getTheSparcV9Target() {
-  static Target TheSparcV9Target;
-  return TheSparcV9Target;
+Target &llvm::getTheMOSV9Target() {
+  static Target TheMOSV9Target;
+  return TheMOSV9Target;
 }
-Target &llvm::getTheSparcelTarget() {
-  static Target TheSparcelTarget;
-  return TheSparcelTarget;
+Target &llvm::getTheMOSelTarget() {
+  static Target TheMOSelTarget;
+  return TheMOSelTarget;
 }
 
-extern "C" void LLVMInitializeSparcTargetInfo() {
-  RegisterTarget<Triple::sparc, /*HasJIT=*/true> X(getTheSparcTarget(), "sparc",
-                                                   "Sparc", "Sparc");
-  RegisterTarget<Triple::sparcv9, /*HasJIT=*/true> Y(
-      getTheSparcV9Target(), "sparcv9", "Sparc V9", "Sparc");
-  RegisterTarget<Triple::sparcel, /*HasJIT=*/true> Z(
-      getTheSparcelTarget(), "sparcel", "Sparc LE", "Sparc");
+extern "C" void LLVMInitializeMOSTargetInfo() {
+  RegisterTarget<Triple::mos, /*HasJIT=*/true> X(getTheMOSTarget(), "mos",
+                                                   "MOS", "MOS");
+  RegisterTarget<Triple::mosv9, /*HasJIT=*/true> Y(
+      getTheMOSV9Target(), "mosv9", "MOS V9", "MOS");
+  RegisterTarget<Triple::mosel, /*HasJIT=*/true> Z(
+      getTheMOSelTarget(), "mosel", "MOS LE", "MOS");
 }

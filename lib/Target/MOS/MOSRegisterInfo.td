@@ -1,4 +1,4 @@
-//===-- SparcRegisterInfo.td - Sparc Register defs ---------*- tablegen -*-===//
+//===-- MOSRegisterInfo.td - MOS Register defs ---------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,15 +7,15 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-//  Declarations that describe the Sparc register file
+//  Declarations that describe the MOS register file
 //===----------------------------------------------------------------------===//
 
-class SparcReg<bits<16> Enc, string n> : Register<n> {
+class MOSReg<bits<16> Enc, string n> : Register<n> {
   let HWEncoding = Enc;
   let Namespace = "SP";
 }
 
-class SparcCtrlReg<bits<16> Enc, string n>: Register<n> {
+class MOSCtrlReg<bits<16> Enc, string n>: Register<n> {
   let HWEncoding = Enc;
   let Namespace = "SP";
 }
@@ -29,99 +29,99 @@ def sub_odd64  : SubRegIndex<64, 64>;
 
 // Registers are identified with 5-bit ID numbers.
 // Ri - 32-bit integer registers
-class Ri<bits<16> Enc, string n> : SparcReg<Enc, n>;
+class Ri<bits<16> Enc, string n> : MOSReg<Enc, n>;
 
 // Rdi - pairs of 32-bit integer registers
-class Rdi<bits<16> Enc, string n, list<Register> subregs> : SparcReg<Enc, n> {
+class Rdi<bits<16> Enc, string n, list<Register> subregs> : MOSReg<Enc, n> {
   let SubRegs = subregs;
   let SubRegIndices = [sub_even, sub_odd];
   let CoveredBySubRegs = 1;
 }
 // Rf - 32-bit floating-point registers
-class Rf<bits<16> Enc, string n> : SparcReg<Enc, n>;
+class Rf<bits<16> Enc, string n> : MOSReg<Enc, n>;
 
 // Rd - Slots in the FP register file for 64-bit floating-point values.
-class Rd<bits<16> Enc, string n, list<Register> subregs> : SparcReg<Enc, n> {
+class Rd<bits<16> Enc, string n, list<Register> subregs> : MOSReg<Enc, n> {
   let SubRegs = subregs;
   let SubRegIndices = [sub_even, sub_odd];
   let CoveredBySubRegs = 1;
 }
 
 // Rq - Slots in the FP register file for 128-bit floating-point values.
-class Rq<bits<16> Enc, string n, list<Register> subregs> : SparcReg<Enc, n> {
+class Rq<bits<16> Enc, string n, list<Register> subregs> : MOSReg<Enc, n> {
   let SubRegs = subregs;
   let SubRegIndices = [sub_even64, sub_odd64];
   let CoveredBySubRegs = 1;
 }
 
 // Control Registers
-def ICC : SparcCtrlReg<0, "ICC">; // This represents icc and xcc in 64-bit code.
+def ICC : MOSCtrlReg<0, "ICC">; // This represents icc and xcc in 64-bit code.
 foreach I = 0-3 in
-  def FCC#I : SparcCtrlReg<I, "FCC"#I>;
+  def FCC#I : MOSCtrlReg<I, "FCC"#I>;
 
-def FSR : SparcCtrlReg<0, "FSR">; // Floating-point state register.
+def FSR : MOSCtrlReg<0, "FSR">; // Floating-point state register.
 
-def FQ : SparcCtrlReg<0, "FQ">; // Floating-point deferred-trap queue.
+def FQ : MOSCtrlReg<0, "FQ">; // Floating-point deferred-trap queue.
 
-def CPSR : SparcCtrlReg<0, "CPSR">; // Co-processor state register.
+def CPSR : MOSCtrlReg<0, "CPSR">; // Co-processor state register.
 
-def CPQ : SparcCtrlReg<0, "CPQ">; // Co-processor queue.
+def CPQ : MOSCtrlReg<0, "CPQ">; // Co-processor queue.
 
 // Y register
-def Y : SparcCtrlReg<0, "Y">, DwarfRegNum<[64]>;
+def Y : MOSCtrlReg<0, "Y">, DwarfRegNum<[64]>;
 // Ancillary state registers (implementation defined)
-def ASR1 : SparcCtrlReg<1, "ASR1">;
-def ASR2 : SparcCtrlReg<2, "ASR2">;
-def ASR3 : SparcCtrlReg<3, "ASR3">;
-def ASR4 : SparcCtrlReg<4, "ASR4">;
-def ASR5 : SparcCtrlReg<5, "ASR5">;
-def ASR6 : SparcCtrlReg<6, "ASR6">;
-def ASR7 : SparcCtrlReg<7, "ASR7">;
-def ASR8 : SparcCtrlReg<8, "ASR8">;
-def ASR9 : SparcCtrlReg<9, "ASR9">;
-def ASR10 : SparcCtrlReg<10, "ASR10">;
-def ASR11 : SparcCtrlReg<11, "ASR11">;
-def ASR12 : SparcCtrlReg<12, "ASR12">;
-def ASR13 : SparcCtrlReg<13, "ASR13">;
-def ASR14 : SparcCtrlReg<14, "ASR14">;
-def ASR15 : SparcCtrlReg<15, "ASR15">;
-def ASR16 : SparcCtrlReg<16, "ASR16">;
-def ASR17 : SparcCtrlReg<17, "ASR17">;
-def ASR18 : SparcCtrlReg<18, "ASR18">;
-def ASR19 : SparcCtrlReg<19, "ASR19">;
-def ASR20 : SparcCtrlReg<20, "ASR20">;
-def ASR21 : SparcCtrlReg<21, "ASR21">;
-def ASR22 : SparcCtrlReg<22, "ASR22">;
-def ASR23 : SparcCtrlReg<23, "ASR23">;
-def ASR24 : SparcCtrlReg<24, "ASR24">;
-def ASR25 : SparcCtrlReg<25, "ASR25">;
-def ASR26 : SparcCtrlReg<26, "ASR26">;
-def ASR27 : SparcCtrlReg<27, "ASR27">;
-def ASR28 : SparcCtrlReg<28, "ASR28">;
-def ASR29 : SparcCtrlReg<29, "ASR29">;
-def ASR30 : SparcCtrlReg<30, "ASR30">;
-def ASR31 : SparcCtrlReg<31, "ASR31">;
+def ASR1 : MOSCtrlReg<1, "ASR1">;
+def ASR2 : MOSCtrlReg<2, "ASR2">;
+def ASR3 : MOSCtrlReg<3, "ASR3">;
+def ASR4 : MOSCtrlReg<4, "ASR4">;
+def ASR5 : MOSCtrlReg<5, "ASR5">;
+def ASR6 : MOSCtrlReg<6, "ASR6">;
+def ASR7 : MOSCtrlReg<7, "ASR7">;
+def ASR8 : MOSCtrlReg<8, "ASR8">;
+def ASR9 : MOSCtrlReg<9, "ASR9">;
+def ASR10 : MOSCtrlReg<10, "ASR10">;
+def ASR11 : MOSCtrlReg<11, "ASR11">;
+def ASR12 : MOSCtrlReg<12, "ASR12">;
+def ASR13 : MOSCtrlReg<13, "ASR13">;
+def ASR14 : MOSCtrlReg<14, "ASR14">;
+def ASR15 : MOSCtrlReg<15, "ASR15">;
+def ASR16 : MOSCtrlReg<16, "ASR16">;
+def ASR17 : MOSCtrlReg<17, "ASR17">;
+def ASR18 : MOSCtrlReg<18, "ASR18">;
+def ASR19 : MOSCtrlReg<19, "ASR19">;
+def ASR20 : MOSCtrlReg<20, "ASR20">;
+def ASR21 : MOSCtrlReg<21, "ASR21">;
+def ASR22 : MOSCtrlReg<22, "ASR22">;
+def ASR23 : MOSCtrlReg<23, "ASR23">;
+def ASR24 : MOSCtrlReg<24, "ASR24">;
+def ASR25 : MOSCtrlReg<25, "ASR25">;
+def ASR26 : MOSCtrlReg<26, "ASR26">;
+def ASR27 : MOSCtrlReg<27, "ASR27">;
+def ASR28 : MOSCtrlReg<28, "ASR28">;
+def ASR29 : MOSCtrlReg<29, "ASR29">;
+def ASR30 : MOSCtrlReg<30, "ASR30">;
+def ASR31 : MOSCtrlReg<31, "ASR31">;
 
-// Note that PSR, WIM, and TBR don't exist on the SparcV9, only the V8.
-def PSR : SparcCtrlReg<0, "PSR">;
-def WIM : SparcCtrlReg<0, "WIM">;
-def TBR : SparcCtrlReg<0, "TBR">;
+// Note that PSR, WIM, and TBR don't exist on the MOSV9, only the V8.
+def PSR : MOSCtrlReg<0, "PSR">;
+def WIM : MOSCtrlReg<0, "WIM">;
+def TBR : MOSCtrlReg<0, "TBR">;
 
-def TPC : SparcCtrlReg<0, "TPC">;
-def TNPC : SparcCtrlReg<1, "TNPC">;
-def TSTATE : SparcCtrlReg<2, "TSTATE">;
-def TT : SparcCtrlReg<3, "TT">;
-def TICK : SparcCtrlReg<4, "TICK">;
-def TBA : SparcCtrlReg<5, "TBA">;
-def PSTATE : SparcCtrlReg<6, "PSTATE">;
-def TL : SparcCtrlReg<7, "TL">;
-def PIL : SparcCtrlReg<8, "PIL">;
-def CWP : SparcCtrlReg<9, "CWP">;
-def CANSAVE : SparcCtrlReg<10, "CANSAVE">;
-def CANRESTORE : SparcCtrlReg<11, "CANRESTORE">;
-def CLEANWIN : SparcCtrlReg<12, "CLEANWIN">;
-def OTHERWIN : SparcCtrlReg<13, "OTHERWIN">;
-def WSTATE : SparcCtrlReg<14, "WSTATE">;
+def TPC : MOSCtrlReg<0, "TPC">;
+def TNPC : MOSCtrlReg<1, "TNPC">;
+def TSTATE : MOSCtrlReg<2, "TSTATE">;
+def TT : MOSCtrlReg<3, "TT">;
+def TICK : MOSCtrlReg<4, "TICK">;
+def TBA : MOSCtrlReg<5, "TBA">;
+def PSTATE : MOSCtrlReg<6, "PSTATE">;
+def TL : MOSCtrlReg<7, "TL">;
+def PIL : MOSCtrlReg<8, "PIL">;
+def CWP : MOSCtrlReg<9, "CWP">;
+def CANSAVE : MOSCtrlReg<10, "CANSAVE">;
+def CANRESTORE : MOSCtrlReg<11, "CANRESTORE">;
+def CLEANWIN : MOSCtrlReg<12, "CLEANWIN">;
+def OTHERWIN : MOSCtrlReg<13, "OTHERWIN">;
+def WSTATE : MOSCtrlReg<14, "WSTATE">;
 
 // Integer registers
 def G0 : Ri< 0, "G0">, DwarfRegNum<[0]>;
@@ -245,22 +245,22 @@ def C31 : Ri< 31, "C31">;
 
 // Unaliased double precision floating point registers.
 // FIXME: Define DwarfRegNum for these registers.
-def D16 : SparcReg< 1, "F32">;
-def D17 : SparcReg< 3, "F34">;
-def D18 : SparcReg< 5, "F36">;
-def D19 : SparcReg< 7, "F38">;
-def D20 : SparcReg< 9, "F40">;
-def D21 : SparcReg<11, "F42">;
-def D22 : SparcReg<13, "F44">;
-def D23 : SparcReg<15, "F46">;
-def D24 : SparcReg<17, "F48">;
-def D25 : SparcReg<19, "F50">;
-def D26 : SparcReg<21, "F52">;
-def D27 : SparcReg<23, "F54">;
-def D28 : SparcReg<25, "F56">;
-def D29 : SparcReg<27, "F58">;
-def D30 : SparcReg<29, "F60">;
-def D31 : SparcReg<31, "F62">;
+def D16 : MOSReg< 1, "F32">;
+def D17 : MOSReg< 3, "F34">;
+def D18 : MOSReg< 5, "F36">;
+def D19 : MOSReg< 7, "F38">;
+def D20 : MOSReg< 9, "F40">;
+def D21 : MOSReg<11, "F42">;
+def D22 : MOSReg<13, "F44">;
+def D23 : MOSReg<15, "F46">;
+def D24 : MOSReg<17, "F48">;
+def D25 : MOSReg<19, "F50">;
+def D26 : MOSReg<21, "F52">;
+def D27 : MOSReg<23, "F54">;
+def D28 : MOSReg<25, "F56">;
+def D29 : MOSReg<27, "F58">;
+def D30 : MOSReg<29, "F60">;
+def D31 : MOSReg<31, "F62">;
 
 // Aliases of the F* registers used to hold 128-bit for values (long doubles).
 def Q0  : Rq< 0,  "F0", [D0,   D1]>;

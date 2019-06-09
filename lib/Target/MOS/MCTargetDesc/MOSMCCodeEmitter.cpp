@@ -1,4 +1,4 @@
-//===-- SparcMCCodeEmitter.cpp - Convert Sparc code to machine code -------===//
+//===-- MOSMCCodeEmitter.cpp - Convert MOS code to machine code -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the SparcMCCodeEmitter class.
+// This file implements the MOSMCCodeEmitter class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SparcFixupKinds.h"
-#include "SparcMCExpr.h"
-#include "SparcMCTargetDesc.h"
+#include "MCTargetDesc/MOSFixupKinds.h"
+#include "MOSMCExpr.h"
+#include "MOSMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -42,16 +42,16 @@ STATISTIC(MCNumEmitted, "Number of MC instructions emitted");
 
 namespace {
 
-class SparcMCCodeEmitter : public MCCodeEmitter {
+class MOSMCCodeEmitter : public MCCodeEmitter {
   const MCInstrInfo &MCII;
   MCContext &Ctx;
 
 public:
-  SparcMCCodeEmitter(const MCInstrInfo &mcii, MCContext &ctx)
+  MOSMCCodeEmitter(const MCInstrInfo &mcii, MCContext &ctx)
       : MCII(mcii), Ctx(ctx) {}
-  SparcMCCodeEmitter(const SparcMCCodeEmitter &) = delete;
-  SparcMCCodeEmitter &operator=(const SparcMCCodeEmitter &) = delete;
-  ~SparcMCCodeEmitter() override = default;
+  MOSMCCodeEmitter(const MOSMCCodeEmitter &) = delete;
+  MOSMCCodeEmitter &operator=(const MOSMCCodeEmitter &) = delete;
+  ~MOSMCCodeEmitter() override = default;
 
   void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
@@ -91,7 +91,7 @@ private:
 
 } // end anonymous namespace
 
-void SparcMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
+void MOSMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                            SmallVectorImpl<MCFixup> &Fixups,
                                            const MCSubtargetInfo &STI) const {
   verifyInstructionPredicates(MI,
@@ -120,7 +120,7 @@ void SparcMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
   ++MCNumEmitted;  // Keep track of the # of mi's emitted.
 }
 
-unsigned SparcMCCodeEmitter::
+unsigned MOSMCCodeEmitter::
 getMachineOpValue(const MCInst &MI, const MCOperand &MO,
                   SmallVectorImpl<MCFixup> &Fixups,
                   const MCSubtargetInfo &STI) const {
@@ -132,7 +132,7 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
 
   assert(MO.isExpr());
   const MCExpr *Expr = MO.getExpr();
-  if (const SparcMCExpr *SExpr = dyn_cast<SparcMCExpr>(Expr)) {
+  if (const MOSMCExpr *SExpr = dyn_cast<MOSMCExpr>(Expr)) {
     MCFixupKind Kind = (MCFixupKind)SExpr->getFixupKind();
     Fixups.push_back(MCFixup::create(0, Expr, Kind));
     return 0;
@@ -146,7 +146,7 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   return 0;
 }
 
-unsigned SparcMCCodeEmitter::
+unsigned MOSMCCodeEmitter::
 getCallTargetOpValue(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups,
                      const MCSubtargetInfo &STI) const {
@@ -159,7 +159,7 @@ getCallTargetOpValue(const MCInst &MI, unsigned OpNo,
     // encodeInstruction.
 #ifndef NDEBUG
     // Verify that the callee is actually __tls_get_addr.
-    const SparcMCExpr *SExpr = dyn_cast<SparcMCExpr>(MO.getExpr());
+    const MOSMCExpr *SExpr = dyn_cast<MOSMCExpr>(MO.getExpr());
     assert(SExpr && SExpr->getSubExpr()->getKind() == MCExpr::SymbolRef &&
            "Unexpected expression in TLS_CALL");
     const MCSymbolRefExpr *SymExpr = cast<MCSymbolRefExpr>(SExpr->getSubExpr());
@@ -169,11 +169,11 @@ getCallTargetOpValue(const MCInst &MI, unsigned OpNo,
     return 0;
   }
 
-  MCFixupKind fixupKind = (MCFixupKind)Sparc::fixup_sparc_call30;
+  MCFixupKind fixupKind = (MCFixupKind)MOS::fixup_mos_call30;
 
-  if (const SparcMCExpr *SExpr = dyn_cast<SparcMCExpr>(MO.getExpr())) {
-    if (SExpr->getKind() == SparcMCExpr::VK_Sparc_WPLT30)
-      fixupKind = (MCFixupKind)Sparc::fixup_sparc_wplt30;
+  if (const MOSMCExpr *SExpr = dyn_cast<MOSMCExpr>(MO.getExpr())) {
+    if (SExpr->getKind() == MOSMCExpr::VK_MOS_WPLT30)
+      fixupKind = (MCFixupKind)MOS::fixup_mos_wplt30;
   }
 
   Fixups.push_back(MCFixup::create(0, MO.getExpr(), fixupKind));
@@ -181,7 +181,7 @@ getCallTargetOpValue(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
-unsigned SparcMCCodeEmitter::
+unsigned MOSMCCodeEmitter::
 getBranchTargetOpValue(const MCInst &MI, unsigned OpNo,
                   SmallVectorImpl<MCFixup> &Fixups,
                   const MCSubtargetInfo &STI) const {
@@ -190,11 +190,11 @@ getBranchTargetOpValue(const MCInst &MI, unsigned OpNo,
     return getMachineOpValue(MI, MO, Fixups, STI);
 
   Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                   (MCFixupKind)Sparc::fixup_sparc_br22));
+                                   (MCFixupKind)MOS::fixup_mos_br22));
   return 0;
 }
 
-unsigned SparcMCCodeEmitter::
+unsigned MOSMCCodeEmitter::
 getBranchPredTargetOpValue(const MCInst &MI, unsigned OpNo,
                            SmallVectorImpl<MCFixup> &Fixups,
                            const MCSubtargetInfo &STI) const {
@@ -203,11 +203,11 @@ getBranchPredTargetOpValue(const MCInst &MI, unsigned OpNo,
     return getMachineOpValue(MI, MO, Fixups, STI);
 
   Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                   (MCFixupKind)Sparc::fixup_sparc_br19));
+                                   (MCFixupKind)MOS::fixup_mos_br19));
   return 0;
 }
 
-unsigned SparcMCCodeEmitter::
+unsigned MOSMCCodeEmitter::
 getBranchOnRegTargetOpValue(const MCInst &MI, unsigned OpNo,
                            SmallVectorImpl<MCFixup> &Fixups,
                            const MCSubtargetInfo &STI) const {
@@ -216,18 +216,18 @@ getBranchOnRegTargetOpValue(const MCInst &MI, unsigned OpNo,
     return getMachineOpValue(MI, MO, Fixups, STI);
 
   Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                   (MCFixupKind)Sparc::fixup_sparc_br16_2));
+                                   (MCFixupKind)MOS::fixup_mos_br16_2));
   Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                   (MCFixupKind)Sparc::fixup_sparc_br16_14));
+                                   (MCFixupKind)MOS::fixup_mos_br16_14));
 
   return 0;
 }
 
 #define ENABLE_INSTR_PREDICATE_VERIFIER
-#include "SparcGenMCCodeEmitter.inc"
+#include "MOSGenMCCodeEmitter.inc"
 
-MCCodeEmitter *llvm::createSparcMCCodeEmitter(const MCInstrInfo &MCII,
+MCCodeEmitter *llvm::createMOSMCCodeEmitter(const MCInstrInfo &MCII,
                                               const MCRegisterInfo &MRI,
                                               MCContext &Ctx) {
-  return new SparcMCCodeEmitter(MCII, Ctx);
+  return new MOSMCCodeEmitter(MCII, Ctx);
 }

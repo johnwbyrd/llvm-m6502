@@ -1,4 +1,4 @@
-//===-- SparcTargetMachine.cpp - Define TargetMachine for Sparc -----------===//
+//===-- MOSTargetMachine.cpp - Define TargetMachine for MOS -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,27 +9,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcTargetMachine.h"
+#include "MOSTargetMachine.h"
 #include "LeonPasses.h"
-#include "Sparc.h"
-#include "SparcTargetObjectFile.h"
-#include "TargetInfo/SparcTargetInfo.h"
+#include "MOS.h"
+#include "MOSTargetObjectFile.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
-extern "C" void LLVMInitializeSparcTarget() {
+extern "C" void LLVMInitializeMOSTarget() {
   // Register the target.
-  RegisterTargetMachine<SparcV8TargetMachine> X(getTheSparcTarget());
-  RegisterTargetMachine<SparcV9TargetMachine> Y(getTheSparcV9Target());
-  RegisterTargetMachine<SparcelTargetMachine> Z(getTheSparcelTarget());
+  RegisterTargetMachine<MOSV8TargetMachine> X(getTheMOSTarget());
+  RegisterTargetMachine<MOSV9TargetMachine> Y(getTheMOSV9Target());
+  RegisterTargetMachine<MOSelTargetMachine> Z(getTheMOSelTarget());
 }
 
 static std::string computeDataLayout(const Triple &T, bool is64Bit) {
-  // Sparc is typically big endian, but some are little.
-  std::string Ret = T.getArch() == Triple::sparcel ? "e" : "E";
+  // MOS is typically big endian, but some are little.
+  std::string Ret = T.getArch() == Triple::mosel ? "e" : "E";
   Ret += "-m:e";
 
   // Some ABIs have 32bit pointers.
@@ -39,8 +39,8 @@ static std::string computeDataLayout(const Triple &T, bool is64Bit) {
   // Alignments for 64 bit integers.
   Ret += "-i64:64";
 
-  // On SparcV9 128 floats are aligned to 128 bits, on others only to 64.
-  // On SparcV9 registers can hold 64 or 32 bits, on others only 32.
+  // On MOSV9 128 floats are aligned to 128 bits, on others only to 64.
+  // On MOSV9 registers can hold 64 or 32 bits, on others only 32.
   if (is64Bit)
     Ret += "-n32:64";
   else
@@ -71,7 +71,7 @@ static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
 //
 // All code models require that the text segment is smaller than 2GB.
 static CodeModel::Model
-getEffectiveSparcCodeModel(Optional<CodeModel::Model> CM, Reloc::Model RM,
+getEffectiveMOSCodeModel(Optional<CodeModel::Model> CM, Reloc::Model RM,
                            bool Is64Bit, bool JIT) {
   if (CM) {
     if (*CM == CodeModel::Tiny)
@@ -89,24 +89,24 @@ getEffectiveSparcCodeModel(Optional<CodeModel::Model> CM, Reloc::Model RM,
 }
 
 /// Create an ILP32 architecture model
-SparcTargetMachine::SparcTargetMachine(
+MOSTargetMachine::MOSTargetMachine(
     const Target &T, const Triple &TT, StringRef CPU, StringRef FS,
     const TargetOptions &Options, Optional<Reloc::Model> RM,
     Optional<CodeModel::Model> CM, CodeGenOpt::Level OL, bool JIT, bool is64bit)
     : LLVMTargetMachine(T, computeDataLayout(TT, is64bit), TT, CPU, FS, Options,
                         getEffectiveRelocModel(RM),
-                        getEffectiveSparcCodeModel(
+                        getEffectiveMOSCodeModel(
                             CM, getEffectiveRelocModel(RM), is64bit, JIT),
                         OL),
-      TLOF(make_unique<SparcELFTargetObjectFile>()),
+      TLOF(make_unique<MOSELFTargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this, is64bit), is64Bit(is64bit) {
   initAsmInfo();
 }
 
-SparcTargetMachine::~SparcTargetMachine() {}
+MOSTargetMachine::~MOSTargetMachine() {}
 
-const SparcSubtarget *
-SparcTargetMachine::getSubtargetImpl(const Function &F) const {
+const MOSSubtarget *
+MOSTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
 
@@ -133,21 +133,21 @@ SparcTargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = llvm::make_unique<SparcSubtarget>(TargetTriple, CPU, FS, *this,
+    I = llvm::make_unique<MOSSubtarget>(TargetTriple, CPU, FS, *this,
                                           this->is64Bit);
   }
   return I.get();
 }
 
 namespace {
-/// Sparc Code Generator Pass Configuration Options.
-class SparcPassConfig : public TargetPassConfig {
+/// MOS Code Generator Pass Configuration Options.
+class MOSPassConfig : public TargetPassConfig {
 public:
-  SparcPassConfig(SparcTargetMachine &TM, PassManagerBase &PM)
+  MOSPassConfig(MOSTargetMachine &TM, PassManagerBase &PM)
     : TargetPassConfig(TM, PM) {}
 
-  SparcTargetMachine &getSparcTargetMachine() const {
-    return getTM<SparcTargetMachine>();
+  MOSTargetMachine &getMOSTargetMachine() const {
+    return getTM<MOSTargetMachine>();
   }
 
   void addIRPasses() override;
@@ -156,63 +156,63 @@ public:
 };
 } // namespace
 
-TargetPassConfig *SparcTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new SparcPassConfig(*this, PM);
+TargetPassConfig *MOSTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new MOSPassConfig(*this, PM);
 }
 
-void SparcPassConfig::addIRPasses() {
+void MOSPassConfig::addIRPasses() {
   addPass(createAtomicExpandPass());
 
   TargetPassConfig::addIRPasses();
 }
 
-bool SparcPassConfig::addInstSelector() {
-  addPass(createSparcISelDag(getSparcTargetMachine()));
+bool MOSPassConfig::addInstSelector() {
+  addPass(createMOSISelDag(getMOSTargetMachine()));
   return false;
 }
 
-void SparcPassConfig::addPreEmitPass(){
-  addPass(createSparcDelaySlotFillerPass());
+void MOSPassConfig::addPreEmitPass(){
+  addPass(createMOSDelaySlotFillerPass());
 
-  if (this->getSparcTargetMachine().getSubtargetImpl()->insertNOPLoad())
+  if (this->getMOSTargetMachine().getSubtargetImpl()->insertNOPLoad())
   {
     addPass(new InsertNOPLoad());
   }
-  if (this->getSparcTargetMachine().getSubtargetImpl()->detectRoundChange()) {
+  if (this->getMOSTargetMachine().getSubtargetImpl()->detectRoundChange()) {
     addPass(new DetectRoundChange());
   }
-  if (this->getSparcTargetMachine().getSubtargetImpl()->fixAllFDIVSQRT())
+  if (this->getMOSTargetMachine().getSubtargetImpl()->fixAllFDIVSQRT())
   {
     addPass(new FixAllFDIVSQRT());
   }
 }
 
-void SparcV8TargetMachine::anchor() { }
+void MOSV8TargetMachine::anchor() { }
 
-SparcV8TargetMachine::SparcV8TargetMachine(const Target &T, const Triple &TT,
+MOSV8TargetMachine::MOSV8TargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            Optional<Reloc::Model> RM,
                                            Optional<CodeModel::Model> CM,
                                            CodeGenOpt::Level OL, bool JIT)
-    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, false) {}
+    : MOSTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, false) {}
 
-void SparcV9TargetMachine::anchor() { }
+void MOSV9TargetMachine::anchor() { }
 
-SparcV9TargetMachine::SparcV9TargetMachine(const Target &T, const Triple &TT,
+MOSV9TargetMachine::MOSV9TargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            Optional<Reloc::Model> RM,
                                            Optional<CodeModel::Model> CM,
                                            CodeGenOpt::Level OL, bool JIT)
-    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, true) {}
+    : MOSTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, true) {}
 
-void SparcelTargetMachine::anchor() {}
+void MOSelTargetMachine::anchor() {}
 
-SparcelTargetMachine::SparcelTargetMachine(const Target &T, const Triple &TT,
+MOSelTargetMachine::MOSelTargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            Optional<Reloc::Model> RM,
                                            Optional<CodeModel::Model> CM,
                                            CodeGenOpt::Level OL, bool JIT)
-    : SparcTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, false) {}
+    : MOSTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, false) {}

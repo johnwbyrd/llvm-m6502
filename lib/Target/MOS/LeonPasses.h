@@ -9,21 +9,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_LEON_PASSES_H
-#define LLVM_LIB_TARGET_SPARC_LEON_PASSES_H
+#ifndef LLVM_LIB_TARGET_MOS_LEON_PASSES_H
+#define LLVM_LIB_TARGET_MOS_LEON_PASSES_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
 
-#include "Sparc.h"
-#include "SparcSubtarget.h"
+#include "MOS.h"
+#include "MOSSubtarget.h"
 
 namespace llvm {
 class LLVM_LIBRARY_VISIBILITY LEONMachineFunctionPass
     : public MachineFunctionPass {
 protected:
-  const SparcSubtarget *Subtarget;
+  const MOSSubtarget *Subtarget;
   const int LAST_OPERAND = -1;
 
   // this vector holds free registers that we allocate in groups for some of the
@@ -84,4 +84,4 @@ public:
 };
 } // namespace llvm
 
-#endif // LLVM_LIB_TARGET_SPARC_LEON_PASSES_H
+#endif // LLVM_LIB_TARGET_MOS_LEON_PASSES_H

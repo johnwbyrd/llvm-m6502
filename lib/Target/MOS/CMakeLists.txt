@@ -1,31 +1,31 @@
-set(LLVM_TARGET_DEFINITIONS Sparc.td)
+set(LLVM_TARGET_DEFINITIONS MOS.td)
 
-tablegen(LLVM SparcGenAsmMatcher.inc -gen-asm-matcher)
-tablegen(LLVM SparcGenAsmWriter.inc -gen-asm-writer)
-tablegen(LLVM SparcGenCallingConv.inc -gen-callingconv)
-tablegen(LLVM SparcGenDAGISel.inc -gen-dag-isel)
-tablegen(LLVM SparcGenDisassemblerTables.inc -gen-disassembler)
-tablegen(LLVM SparcGenInstrInfo.inc -gen-instr-info)
-tablegen(LLVM SparcGenMCCodeEmitter.inc -gen-emitter)
-tablegen(LLVM SparcGenRegisterInfo.inc -gen-register-info)
-tablegen(LLVM SparcGenSubtargetInfo.inc -gen-subtarget)
+tablegen(LLVM MOSGenAsmMatcher.inc -gen-asm-matcher)
+tablegen(LLVM MOSGenAsmWriter.inc -gen-asm-writer)
+tablegen(LLVM MOSGenCallingConv.inc -gen-callingconv)
+tablegen(LLVM MOSGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM MOSGenDisassemblerTables.inc -gen-disassembler)
+tablegen(LLVM MOSGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM MOSGenMCCodeEmitter.inc -gen-emitter)
+tablegen(LLVM MOSGenRegisterInfo.inc -gen-register-info)
+tablegen(LLVM MOSGenSubtargetInfo.inc -gen-subtarget)
 
-add_public_tablegen_target(SparcCommonTableGen)
+add_public_tablegen_target(MOSCommonTableGen)
 
-add_llvm_target(SparcCodeGen
+add_llvm_target(MOSCodeGen
   DelaySlotFiller.cpp
   LeonPasses.cpp
-  SparcAsmPrinter.cpp
-  SparcInstrInfo.cpp
-  SparcISelDAGToDAG.cpp
-  SparcISelLowering.cpp
-  SparcFrameLowering.cpp
-  SparcMachineFunctionInfo.cpp
-  SparcRegisterInfo.cpp
-  SparcSubtarget.cpp
-  SparcTargetMachine.cpp
-  SparcMCInstLower.cpp
-  SparcTargetObjectFile.cpp
+  MOSAsmPrinter.cpp
+  MOSInstrInfo.cpp
+  MOSISelDAGToDAG.cpp
+  MOSISelLowering.cpp
+  MOSFrameLowering.cpp
+  MOSMachineFunctionInfo.cpp
+  MOSRegisterInfo.cpp
+  MOSSubtarget.cpp
+  MOSTargetMachine.cpp
+  MOSMCInstLower.cpp
+  MOSTargetObjectFile.cpp
   )
 
 add_subdirectory(AsmParser)

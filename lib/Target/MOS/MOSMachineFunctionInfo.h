@@ -1,4 +1,4 @@
-//===- SparcMachineFunctionInfo.h - Sparc Machine Function Info -*- C++ -*-===//
+//===- MOSMachineFunctionInfo.h - MOS Machine Function Info -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,17 +6,17 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares  Sparc specific per-machine-function information.
+// This file declares  MOS specific per-machine-function information.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_LIB_TARGET_SPARC_SPARCMACHINEFUNCTIONINFO_H
-#define LLVM_LIB_TARGET_SPARC_SPARCMACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_MOS_MOSMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
 
-  class SparcMachineFunctionInfo : public MachineFunctionInfo {
+  class MOSMachineFunctionInfo : public MachineFunctionInfo {
     virtual void anchor();
   private:
     unsigned GlobalBaseReg;
@@ -31,10 +31,10 @@ namespace llvm {
     /// IsLeafProc - True if the function is a leaf procedure.
     bool IsLeafProc;
   public:
-    SparcMachineFunctionInfo()
+    MOSMachineFunctionInfo()
       : GlobalBaseReg(0), VarArgsFrameOffset(0), SRetReturnReg(0),
         IsLeafProc(false) {}
-    explicit SparcMachineFunctionInfo(MachineFunction &MF)
+    explicit MOSMachineFunctionInfo(MachineFunction &MF)
       : GlobalBaseReg(0), VarArgsFrameOffset(0), SRetReturnReg(0),
         IsLeafProc(false) {}
 

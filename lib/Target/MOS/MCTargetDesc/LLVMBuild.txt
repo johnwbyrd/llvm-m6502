@@ -1,4 +1,4 @@
-;===- ./lib/Target/Sparc/MCTargetDesc/LLVMBuild.txt ------------*- Conf -*--===;
+;===- ./lib/Target/MOS/MCTargetDesc/LLVMBuild.txt ------------*- Conf -*--===;
 ;
 ; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 ; See https://llvm.org/LICENSE.txt for license information.
@@ -16,7 +16,7 @@
 
 [component_0]
 type = Library
-name = SparcDesc
-parent = Sparc
-required_libraries = MC SparcInfo Support
-add_to_library_groups = Sparc
+name = MOSDesc
+parent = MOS
+required_libraries = MC MOSInfo Support
+add_to_library_groups = MOS

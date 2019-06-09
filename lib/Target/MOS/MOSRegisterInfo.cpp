@@ -1,4 +1,4 @@
-//===-- SparcRegisterInfo.cpp - SPARC Register Information ----------------===//
+//===-- MOSRegisterInfo.cpp - MOS Register Information ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the SPARC implementation of the TargetRegisterInfo class.
+// This file contains the MOS implementation of the TargetRegisterInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcRegisterInfo.h"
-#include "Sparc.h"
-#include "SparcMachineFunctionInfo.h"
-#include "SparcSubtarget.h"
+#include "MOSRegisterInfo.h"
+#include "MOS.h"
+#include "MOSMachineFunctionInfo.h"
+#include "MOSSubtarget.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -27,33 +27,33 @@
 using namespace llvm;
 
 #define GET_REGINFO_TARGET_DESC
-#include "SparcGenRegisterInfo.inc"
+#include "MOSGenRegisterInfo.inc"
 
 static cl::opt<bool>
-ReserveAppRegisters("sparc-reserve-app-registers", cl::Hidden, cl::init(false),
+ReserveAppRegisters("mos-reserve-app-registers", cl::Hidden, cl::init(false),
                     cl::desc("Reserve application registers (%g2-%g4)"));
 
-SparcRegisterInfo::SparcRegisterInfo() : SparcGenRegisterInfo(SP::O7) {}
+MOSRegisterInfo::MOSRegisterInfo() : MOSGenRegisterInfo(SP::O7) {}
 
 const MCPhysReg*
-SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+MOSRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_SaveList;
 }
 
 const uint32_t *
-SparcRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+MOSRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                         CallingConv::ID CC) const {
   return CSR_RegMask;
 }
 
 const uint32_t*
-SparcRegisterInfo::getRTCallPreservedMask(CallingConv::ID CC) const {
+MOSRegisterInfo::getRTCallPreservedMask(CallingConv::ID CC) const {
   return RTCSR_RegMask;
 }
 
-BitVector SparcRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+BitVector MOSRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const SparcSubtarget &Subtarget = MF.getSubtarget<SparcSubtarget>();
+  const MOSSubtarget &Subtarget = MF.getSubtarget<MOSSubtarget>();
   // FIXME: G1 reserved for now for large imm generation by frame code.
   Reserved.set(SP::G1);
 
@@ -102,9 +102,9 @@ BitVector SparcRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 }
 
 const TargetRegisterClass*
-SparcRegisterInfo::getPointerRegClass(const MachineFunction &MF,
+MOSRegisterInfo::getPointerRegClass(const MachineFunction &MF,
                                       unsigned Kind) const {
-  const SparcSubtarget &Subtarget = MF.getSubtarget<SparcSubtarget>();
+  const MOSSubtarget &Subtarget = MF.getSubtarget<MOSSubtarget>();
   return Subtarget.is64Bit() ? &SP::I64RegsRegClass : &SP::IntRegsRegClass;
 }
 
@@ -161,7 +161,7 @@ static void replaceFI(MachineFunction &MF, MachineBasicBlock::iterator II,
 
 
 void
-SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+MOSRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                        int SPAdj, unsigned FIOperandNum,
                                        RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
@@ -170,8 +170,8 @@ SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   DebugLoc dl = MI.getDebugLoc();
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   MachineFunction &MF = *MI.getParent()->getParent();
-  const SparcSubtarget &Subtarget = MF.getSubtarget<SparcSubtarget>();
-  const SparcFrameLowering *TFI = getFrameLowering(MF);
+  const MOSSubtarget &Subtarget = MF.getSubtarget<MOSSubtarget>();
+  const MOSFrameLowering *TFI = getFrameLowering(MF);
 
   unsigned FrameReg;
   int Offset;
@@ -212,19 +212,19 @@ SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 }
 
-unsigned SparcRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+unsigned MOSRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return SP::I6;
 }
 
-// Sparc has no architectural need for stack realignment support,
+// MOS has no architectural need for stack realignment support,
 // except that LLVM unfortunately currently implements overaligned
 // stack objects by depending upon stack realignment support.
 // If that ever changes, this can probably be deleted.
-bool SparcRegisterInfo::canRealignStack(const MachineFunction &MF) const {
+bool MOSRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   if (!TargetRegisterInfo::canRealignStack(MF))
     return false;
 
-  // Sparc always has a fixed frame pointer register, so don't need to
+  // MOS always has a fixed frame pointer register, so don't need to
   // worry about needing to reserve it. [even if we don't have a frame
   // pointer for our frame, it still cannot be used for other things,
   // or register window traps will be SADNESS.]
@@ -234,7 +234,7 @@ bool SparcRegisterInfo::canRealignStack(const MachineFunction &MF) const {
     return true;
 
   // Otherwise, we'd need a base pointer, but those aren't implemented
-  // for SPARC at the moment.
+  // for MOS at the moment.
 
   return false;
 }

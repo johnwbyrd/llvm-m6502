@@ -1,4 +1,4 @@
-//===-- SparcAsmPrinter.cpp - Sparc LLVM assembly writer ------------------===//
+//===-- MOSAsmPrinter.cpp - MOS LLVM assembly writer ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,17 +7,17 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to GAS-format SPARC assembly language.
+// of machine-dependent LLVM code to GAS-format MOS assembly language.
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SparcInstPrinter.h"
-#include "MCTargetDesc/SparcMCExpr.h"
-#include "MCTargetDesc/SparcTargetStreamer.h"
-#include "Sparc.h"
-#include "SparcInstrInfo.h"
-#include "SparcTargetMachine.h"
-#include "TargetInfo/SparcTargetInfo.h"
+#include "MCTargetDesc/MOSInstPrinter.h"
+#include "MCTargetDesc/MOSMCExpr.h"
+#include "MCTargetDesc/MOSTargetStreamer.h"
+#include "MOS.h"
+#include "MOSInstrInfo.h"
+#include "MOSTargetMachine.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
@@ -36,17 +36,17 @@ using namespace llvm;
 #define DEBUG_TYPE "asm-printer"
 
 namespace {
-  class SparcAsmPrinter : public AsmPrinter {
-    SparcTargetStreamer &getTargetStreamer() {
-      return static_cast<SparcTargetStreamer &>(
+  class MOSAsmPrinter : public AsmPrinter {
+    MOSTargetStreamer &getTargetStreamer() {
+      return static_cast<MOSTargetStreamer &>(
           *OutStreamer->getTargetStreamer());
     }
   public:
-    explicit SparcAsmPrinter(TargetMachine &TM,
+    explicit MOSAsmPrinter(TargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
         : AsmPrinter(TM, std::move(Streamer)) {}
 
-    StringRef getPassName() const override { return "Sparc Assembly Printer"; }
+    StringRef getPassName() const override { return "MOS Assembly Printer"; }
 
     void printOperand(const MachineInstr *MI, int opNum, raw_ostream &OS);
     void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &OS,
@@ -56,7 +56,7 @@ namespace {
     void EmitInstruction(const MachineInstr *MI) override;
 
     static const char *getRegisterName(unsigned RegNo) {
-      return SparcInstPrinter::getRegisterName(RegNo);
+      return MOSInstPrinter::getRegisterName(RegNo);
     }
 
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -70,20 +70,20 @@ namespace {
   };
 } // end of anonymous namespace
 
-static MCOperand createSparcMCOperand(SparcMCExpr::VariantKind Kind,
+static MCOperand createMOSMCOperand(MOSMCExpr::VariantKind Kind,
                                       MCSymbol *Sym, MCContext &OutContext) {
   const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Sym,
                                                          OutContext);
-  const SparcMCExpr *expr = SparcMCExpr::create(Kind, MCSym, OutContext);
+  const MOSMCExpr *expr = MOSMCExpr::create(Kind, MCSym, OutContext);
   return MCOperand::createExpr(expr);
 
 }
 static MCOperand createPCXCallOP(MCSymbol *Label,
                                  MCContext &OutContext) {
-  return createSparcMCOperand(SparcMCExpr::VK_Sparc_None, Label, OutContext);
+  return createMOSMCOperand(MOSMCExpr::VK_MOS_None, Label, OutContext);
 }
 
-static MCOperand createPCXRelExprOp(SparcMCExpr::VariantKind Kind,
+static MCOperand createPCXRelExprOp(MOSMCExpr::VariantKind Kind,
                                     MCSymbol *GOTLabel, MCSymbol *StartLabel,
                                     MCSymbol *CurLabel,
                                     MCContext &OutContext)
@@ -96,7 +96,7 @@ static MCOperand createPCXRelExprOp(SparcMCExpr::VariantKind Kind,
 
   const MCBinaryExpr *Sub = MCBinaryExpr::createSub(Cur, Start, OutContext);
   const MCBinaryExpr *Add = MCBinaryExpr::createAdd(GOT, Sub, OutContext);
-  const SparcMCExpr *expr = SparcMCExpr::create(Kind,
+  const MOSMCExpr *expr = MOSMCExpr::create(Kind,
                                                 Add, OutContext);
   return MCOperand::createExpr(expr);
 }
@@ -154,19 +154,19 @@ static void EmitSHL(MCStreamer &OutStreamer,
 
 
 static void EmitHiLo(MCStreamer &OutStreamer,  MCSymbol *GOTSym,
-                     SparcMCExpr::VariantKind HiKind,
-                     SparcMCExpr::VariantKind LoKind,
+                     MOSMCExpr::VariantKind HiKind,
+                     MOSMCExpr::VariantKind LoKind,
                      MCOperand &RD,
                      MCContext &OutContext,
                      const MCSubtargetInfo &STI) {
 
-  MCOperand hi = createSparcMCOperand(HiKind, GOTSym, OutContext);
-  MCOperand lo = createSparcMCOperand(LoKind, GOTSym, OutContext);
+  MCOperand hi = createMOSMCOperand(HiKind, GOTSym, OutContext);
+  MCOperand lo = createMOSMCOperand(LoKind, GOTSym, OutContext);
   EmitSETHI(OutStreamer, hi, RD, STI);
   EmitOR(OutStreamer, RD, lo, RD, STI);
 }
 
-void SparcAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI,
+void MOSAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI,
                                                 const MCSubtargetInfo &STI)
 {
   MCSymbol *GOTLabel   =
@@ -186,24 +186,24 @@ void SparcAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI,
       llvm_unreachable("Unsupported absolute code model");
     case CodeModel::Small:
       EmitHiLo(*OutStreamer, GOTLabel,
-               SparcMCExpr::VK_Sparc_HI, SparcMCExpr::VK_Sparc_LO,
+               MOSMCExpr::VK_MOS_HI, MOSMCExpr::VK_MOS_LO,
                MCRegOP, OutContext, STI);
       break;
     case CodeModel::Medium: {
       EmitHiLo(*OutStreamer, GOTLabel,
-               SparcMCExpr::VK_Sparc_H44, SparcMCExpr::VK_Sparc_M44,
+               MOSMCExpr::VK_MOS_H44, MOSMCExpr::VK_MOS_M44,
                MCRegOP, OutContext, STI);
       MCOperand imm = MCOperand::createExpr(MCConstantExpr::create(12,
                                                                    OutContext));
       EmitSHL(*OutStreamer, MCRegOP, imm, MCRegOP, STI);
-      MCOperand lo = createSparcMCOperand(SparcMCExpr::VK_Sparc_L44,
+      MCOperand lo = createMOSMCOperand(MOSMCExpr::VK_MOS_L44,
                                           GOTLabel, OutContext);
       EmitOR(*OutStreamer, MCRegOP, lo, MCRegOP, STI);
       break;
     }
     case CodeModel::Large: {
       EmitHiLo(*OutStreamer, GOTLabel,
-               SparcMCExpr::VK_Sparc_HH, SparcMCExpr::VK_Sparc_HM,
+               MOSMCExpr::VK_MOS_HH, MOSMCExpr::VK_MOS_HM,
                MCRegOP, OutContext, STI);
       MCOperand imm = MCOperand::createExpr(MCConstantExpr::create(32,
                                                                    OutContext));
@@ -211,7 +211,7 @@ void SparcAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI,
       // Use register %o7 to load the lower 32 bits.
       MCOperand RegO7 = MCOperand::createReg(SP::O7);
       EmitHiLo(*OutStreamer, GOTLabel,
-               SparcMCExpr::VK_Sparc_HI, SparcMCExpr::VK_Sparc_LO,
+               MOSMCExpr::VK_MOS_HI, MOSMCExpr::VK_MOS_LO,
                RegO7, OutContext, STI);
       EmitADD(*OutStreamer, MCRegOP, RegO7, MCRegOP, STI);
     }
@@ -237,19 +237,19 @@ void SparcAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI,
   MCOperand Callee =  createPCXCallOP(EndLabel, OutContext);
   EmitCall(*OutStreamer, Callee, STI);
   OutStreamer->EmitLabel(SethiLabel);
-  MCOperand hiImm = createPCXRelExprOp(SparcMCExpr::VK_Sparc_PC22,
+  MCOperand hiImm = createPCXRelExprOp(MOSMCExpr::VK_MOS_PC22,
                                        GOTLabel, StartLabel, SethiLabel,
                                        OutContext);
   EmitSETHI(*OutStreamer, hiImm, MCRegOP, STI);
   OutStreamer->EmitLabel(EndLabel);
-  MCOperand loImm = createPCXRelExprOp(SparcMCExpr::VK_Sparc_PC10,
+  MCOperand loImm = createPCXRelExprOp(MOSMCExpr::VK_MOS_PC10,
                                        GOTLabel, StartLabel, EndLabel,
                                        OutContext);
   EmitOR(*OutStreamer, MCRegOP, loImm, MCRegOP, STI);
   EmitADD(*OutStreamer, MCRegOP, RegO7, MCRegOP, STI);
 }
 
-void SparcAsmPrinter::EmitInstruction(const MachineInstr *MI)
+void MOSAsmPrinter::EmitInstruction(const MachineInstr *MI)
 {
 
   switch (MI->getOpcode()) {
@@ -265,13 +265,13 @@ void SparcAsmPrinter::EmitInstruction(const MachineInstr *MI)
   MachineBasicBlock::const_instr_iterator E = MI->getParent()->instr_end();
   do {
     MCInst TmpInst;
-    LowerSparcMachineInstrToMCInst(&*I, TmpInst, *this);
+    LowerMOSMachineInstrToMCInst(&*I, TmpInst, *this);
     EmitToStreamer(*OutStreamer, TmpInst);
   } while ((++I != E) && I->isInsideBundle()); // Delay slot check.
 }
 
-void SparcAsmPrinter::EmitFunctionBodyStart() {
-  if (!MF->getSubtarget<SparcSubtarget>().is64Bit())
+void MOSAsmPrinter::EmitFunctionBodyStart() {
+  if (!MF->getSubtarget<MOSSubtarget>().is64Bit())
     return;
 
   const MachineRegisterInfo &MRI = MF->getRegInfo();
@@ -282,69 +282,69 @@ void SparcAsmPrinter::EmitFunctionBodyStart() {
       continue;
 
     if  (reg == SP::G6 || reg == SP::G7)
-      getTargetStreamer().emitSparcRegisterIgnore(reg);
+      getTargetStreamer().emitMOSRegisterIgnore(reg);
     else
-      getTargetStreamer().emitSparcRegisterScratch(reg);
+      getTargetStreamer().emitMOSRegisterScratch(reg);
   }
 }
 
-void SparcAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
+void MOSAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
                                    raw_ostream &O) {
   const DataLayout &DL = getDataLayout();
   const MachineOperand &MO = MI->getOperand (opNum);
-  SparcMCExpr::VariantKind TF = (SparcMCExpr::VariantKind) MO.getTargetFlags();
+  MOSMCExpr::VariantKind TF = (MOSMCExpr::VariantKind) MO.getTargetFlags();
 
 #ifndef NDEBUG
   // Verify the target flags.
   if (MO.isGlobal() || MO.isSymbol() || MO.isCPI()) {
     if (MI->getOpcode() == SP::CALL)
-      assert(TF == SparcMCExpr::VK_Sparc_None &&
+      assert(TF == MOSMCExpr::VK_MOS_None &&
              "Cannot handle target flags on call address");
     else if (MI->getOpcode() == SP::SETHIi || MI->getOpcode() == SP::SETHIXi)
-      assert((TF == SparcMCExpr::VK_Sparc_HI
-              || TF == SparcMCExpr::VK_Sparc_H44
-              || TF == SparcMCExpr::VK_Sparc_HH
-              || TF == SparcMCExpr::VK_Sparc_TLS_GD_HI22
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_HI22
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDO_HIX22
-              || TF == SparcMCExpr::VK_Sparc_TLS_IE_HI22
-              || TF == SparcMCExpr::VK_Sparc_TLS_LE_HIX22) &&
+      assert((TF == MOSMCExpr::VK_MOS_HI
+              || TF == MOSMCExpr::VK_MOS_H44
+              || TF == MOSMCExpr::VK_MOS_HH
+              || TF == MOSMCExpr::VK_MOS_TLS_GD_HI22
+              || TF == MOSMCExpr::VK_MOS_TLS_LDM_HI22
+              || TF == MOSMCExpr::VK_MOS_TLS_LDO_HIX22
+              || TF == MOSMCExpr::VK_MOS_TLS_IE_HI22
+              || TF == MOSMCExpr::VK_MOS_TLS_LE_HIX22) &&
              "Invalid target flags for address operand on sethi");
     else if (MI->getOpcode() == SP::TLS_CALL)
-      assert((TF == SparcMCExpr::VK_Sparc_None
-              || TF == SparcMCExpr::VK_Sparc_TLS_GD_CALL
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_CALL) &&
+      assert((TF == MOSMCExpr::VK_MOS_None
+              || TF == MOSMCExpr::VK_MOS_TLS_GD_CALL
+              || TF == MOSMCExpr::VK_MOS_TLS_LDM_CALL) &&
              "Cannot handle target flags on tls call address");
     else if (MI->getOpcode() == SP::TLS_ADDrr)
-      assert((TF == SparcMCExpr::VK_Sparc_TLS_GD_ADD
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_ADD
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDO_ADD
-              || TF == SparcMCExpr::VK_Sparc_TLS_IE_ADD) &&
+      assert((TF == MOSMCExpr::VK_MOS_TLS_GD_ADD
+              || TF == MOSMCExpr::VK_MOS_TLS_LDM_ADD
+              || TF == MOSMCExpr::VK_MOS_TLS_LDO_ADD
+              || TF == MOSMCExpr::VK_MOS_TLS_IE_ADD) &&
              "Cannot handle target flags on add for TLS");
     else if (MI->getOpcode() == SP::TLS_LDrr)
-      assert(TF == SparcMCExpr::VK_Sparc_TLS_IE_LD &&
+      assert(TF == MOSMCExpr::VK_MOS_TLS_IE_LD &&
              "Cannot handle target flags on ld for TLS");
     else if (MI->getOpcode() == SP::TLS_LDXrr)
-      assert(TF == SparcMCExpr::VK_Sparc_TLS_IE_LDX &&
+      assert(TF == MOSMCExpr::VK_MOS_TLS_IE_LDX &&
              "Cannot handle target flags on ldx for TLS");
     else if (MI->getOpcode() == SP::XORri || MI->getOpcode() == SP::XORXri)
-      assert((TF == SparcMCExpr::VK_Sparc_TLS_LDO_LOX10
-              || TF == SparcMCExpr::VK_Sparc_TLS_LE_LOX10) &&
+      assert((TF == MOSMCExpr::VK_MOS_TLS_LDO_LOX10
+              || TF == MOSMCExpr::VK_MOS_TLS_LE_LOX10) &&
              "Cannot handle target flags on xor for TLS");
     else
-      assert((TF == SparcMCExpr::VK_Sparc_LO
-              || TF == SparcMCExpr::VK_Sparc_M44
-              || TF == SparcMCExpr::VK_Sparc_L44
-              || TF == SparcMCExpr::VK_Sparc_HM
-              || TF == SparcMCExpr::VK_Sparc_TLS_GD_LO10
-              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_LO10
-              || TF == SparcMCExpr::VK_Sparc_TLS_IE_LO10 ) &&
+      assert((TF == MOSMCExpr::VK_MOS_LO
+              || TF == MOSMCExpr::VK_MOS_M44
+              || TF == MOSMCExpr::VK_MOS_L44
+              || TF == MOSMCExpr::VK_MOS_HM
+              || TF == MOSMCExpr::VK_MOS_TLS_GD_LO10
+              || TF == MOSMCExpr::VK_MOS_TLS_LDM_LO10
+              || TF == MOSMCExpr::VK_MOS_TLS_IE_LO10 ) &&
              "Invalid target flags for small address operand");
   }
 #endif
 
 
-  bool CloseParen = SparcMCExpr::printVariantKind(O, TF);
+  bool CloseParen = MOSMCExpr::printVariantKind(O, TF);
 
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
@@ -379,7 +379,7 @@ void SparcAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
   if (CloseParen) O << ")";
 }
 
-void SparcAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum,
+void MOSAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum,
                                       raw_ostream &O, const char *Modifier) {
   printOperand(MI, opNum, O);
 
@@ -403,7 +403,7 @@ void SparcAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum,
 
 /// PrintAsmOperand - Print out an operand for an inline asm expression.
 ///
-bool SparcAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+bool MOSAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                       const char *ExtraCode,
                                       raw_ostream &O) {
   if (ExtraCode && ExtraCode[0]) {
@@ -424,7 +424,7 @@ bool SparcAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
   return false;
 }
 
-bool SparcAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
+bool MOSAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
                                             unsigned OpNo,
                                             const char *ExtraCode,
                                             raw_ostream &O) {
@@ -439,8 +439,8 @@ bool SparcAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeSparcAsmPrinter() {
-  RegisterAsmPrinter<SparcAsmPrinter> X(getTheSparcTarget());
-  RegisterAsmPrinter<SparcAsmPrinter> Y(getTheSparcV9Target());
-  RegisterAsmPrinter<SparcAsmPrinter> Z(getTheSparcelTarget());
+extern "C" void LLVMInitializeMOSAsmPrinter() {
+  RegisterAsmPrinter<MOSAsmPrinter> X(getTheMOSTarget());
+  RegisterAsmPrinter<MOSAsmPrinter> Y(getTheMOSV9Target());
+  RegisterAsmPrinter<MOSAsmPrinter> Z(getTheMOSelTarget());
 }

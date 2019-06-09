@@ -1,4 +1,4 @@
-;===- ./lib/Target/Sparc/Disassembler/LLVMBuild.txt ------------*- Conf -*--===;
+;===- ./lib/Target/MOS/Disassembler/LLVMBuild.txt ------------*- Conf -*--===;
 ;
 ; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 ; See https://llvm.org/LICENSE.txt for license information.
@@ -16,7 +16,7 @@
 
 [component_0]
 type = Library
-name = SparcDisassembler
-parent = Sparc
-required_libraries = MCDisassembler SparcInfo Support
-add_to_library_groups = Sparc
+name = MOSDisassembler
+parent = MOS
+required_libraries = MCDisassembler MOSInfo Support
+add_to_library_groups = MOS

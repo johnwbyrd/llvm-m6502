@@ -1,4 +1,4 @@
-//===-- SparcInstrInfo.td - Target Description for Sparc Target -----------===//
+//===-- MOSInstrInfo.td - Target Description for MOS Target -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file describes the Sparc instructions in TableGen format.
+// This file describes the MOS instructions in TableGen format.
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,7 +14,7 @@
 // Instruction format superclass
 //===----------------------------------------------------------------------===//
 
-include "SparcInstrFormats.td"
+include "MOSInstrFormats.td"
 
 //===----------------------------------------------------------------------===//
 // Feature predicates.
@@ -114,12 +114,12 @@ def ADDRrr : ComplexPattern<iPTR, 2, "SelectADDRrr", [], []>;
 def ADDRri : ComplexPattern<iPTR, 2, "SelectADDRri", [frameindex], []>;
 
 // Address operands
-def SparcMEMrrAsmOperand : AsmOperandClass {
+def MOSMEMrrAsmOperand : AsmOperandClass {
   let Name = "MEMrr";
   let ParserMethod = "parseMEMOperand";
 }
 
-def SparcMEMriAsmOperand : AsmOperandClass {
+def MOSMEMriAsmOperand : AsmOperandClass {
   let Name = "MEMri";
   let ParserMethod = "parseMEMOperand";
 }
@@ -127,24 +127,24 @@ def SparcMEMriAsmOperand : AsmOperandClass {
 def MEMrr : Operand<iPTR> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, ptr_rc);
-  let ParserMatchClass = SparcMEMrrAsmOperand;
+  let ParserMatchClass = MOSMEMrrAsmOperand;
 }
 def MEMri : Operand<iPTR> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops ptr_rc, i32imm);
-  let ParserMatchClass = SparcMEMriAsmOperand;
+  let ParserMatchClass = MOSMEMriAsmOperand;
 }
 
 def TLSSym : Operand<iPTR>;
 
-def SparcMembarTagAsmOperand : AsmOperandClass {
+def MOSMembarTagAsmOperand : AsmOperandClass {
   let Name = "MembarTag";
   let ParserMethod = "parseMembarTag";
 }
 
 def MembarTag : Operand<i32> {
   let PrintMethod = "printMembarTag";
-  let ParserMatchClass = SparcMembarTagAsmOperand;
+  let ParserMatchClass = MOSMembarTagAsmOperand;
 }
 
 // Branch targets have OtherVT type.
@@ -247,7 +247,7 @@ def getPCX        : Operand<iPTR> {
 }
 
 //===----------------------------------------------------------------------===//
-// SPARC Flag Conditions
+// MOS Flag Conditions
 //===----------------------------------------------------------------------===//
 
 // Note that these values must be kept in sync with the CCOp::CondCode enum
@@ -366,7 +366,7 @@ multiclass LoadA<string OpcStr, bits<6> Op3Val, bits<6> LoadAOp3Val,
 
 // The LDSTUB instruction is supported for asm only.
 // It is unlikely that general-purpose code could make use of it.
-// CAS is preferred for sparc v9.
+// CAS is preferred for mos v9.
 def LDSTUBrr : F3_1<3, 0b001101, (outs IntRegs:$dst), (ins MEMrr:$addr),
                     "ldstub [$addr], $dst", []>;
 def LDSTUBri : F3_2<3, 0b001101, (outs IntRegs:$dst), (ins MEMri:$addr),
@@ -980,7 +980,7 @@ let isReturn = 1, isTerminator = 1, hasDelaySlot = 1,
 
 // Section B.27 - Trap on Integer Condition Codes Instruction
 // conditional branch class:
-let DecoderNamespace = "SparcV8", DecoderMethod = "DecodeTRAP", hasSideEffects = 1, Uses = [ICC], cc = 0b00 in
+let DecoderNamespace = "MOSV8", DecoderMethod = "DecodeTRAP", hasSideEffects = 1, Uses = [ICC], cc = 0b00 in
 {
   def TRAPrr : TRAPSPrr<0b111010,
                         (outs), (ins IntRegs:$rs1, IntRegs:$rs2, CCOp:$cond),
@@ -1003,7 +1003,7 @@ multiclass TRAP<string regStr> {
                     []>;
 }
 
-let DecoderNamespace = "SparcV9", DecoderMethod = "DecodeTRAP", Predicates = [HasV9], hasSideEffects = 1, Uses = [ICC], cc = 0b00 in
+let DecoderNamespace = "MOSV9", DecoderMethod = "DecodeTRAP", Predicates = [HasV9], hasSideEffects = 1, Uses = [ICC], cc = 0b00 in
   defm TICC : TRAP<"%icc">;
 
 
@@ -1019,7 +1019,7 @@ let rs2 = 0 in
                  (outs IntRegs:$rd), (ins ASRRegs:$rs1),
                  "rd $rs1, $rd", []>;
 
-// PSR, WIM, and TBR don't exist on the SparcV9, only the V8.
+// PSR, WIM, and TBR don't exist on the MOSV9, only the V8.
 let Predicates = [HasNoV9] in {
   let rs2 = 0, rs1 = 0, Uses=[PSR] in
     def RDPSR : F3_1<2, 0b101001,
@@ -1045,7 +1045,7 @@ def WRASRri : F3_2<2, 0b110000,
                  (outs ASRRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                  "wr $rs1, $simm13, $rd", []>;
 
-// PSR, WIM, and TBR don't exist on the SparcV9, only the V8.
+// PSR, WIM, and TBR don't exist on the MOSV9, only the V8.
 let Predicates = [HasNoV9] in {
   let Defs = [PSR], rd=0 in {
     def WRPSRrr : F3_1<2, 0b110001,
@@ -1292,7 +1292,7 @@ def FDIVQ  : F3_3<2, 0b110100, 0b001001111,
 // Floating-point Compare Instructions, p. 148
 // Note: the 2nd template arg is different for these guys.
 // Note 2: the result of a FCMP is not available until the 2nd cycle
-// after the instr is retired, but there is no interlock in Sparc V8.
+// after the instr is retired, but there is no interlock in MOS V8.
 // This behavior is modeled with a forced noop after the instruction in
 // DelaySlotFiller.
 
@@ -1517,7 +1517,7 @@ let Predicates = [HasV9], hasSideEffects = 1, rd = 0, rs1 = 0b01111 in
 
 // The CAS instruction, unlike other instructions, only comes in a 
 // form which requires an ASI be provided. The ASI value hardcoded 
-// here is ASI_PRIMARY, the default unprivileged ASI for SparcV9.
+// here is ASI_PRIMARY, the default unprivileged ASI for MOSV9.
 let Predicates = [HasV9], Constraints = "$swap = $rd", asi = 0b10000000 in
   def CASrr: F3_1_asi<3, 0b111100,
                 (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2,
@@ -1707,6 +1707,6 @@ def : Pat<(build_vector (i32 IntRegs:$a1), (i32 IntRegs:$a2)),
             (i32 IntRegs:$a2), sub_odd)>;
 
 
-include "SparcInstr64Bit.td"
-include "SparcInstrVIS.td"
-include "SparcInstrAliases.td"
+include "MOSInstr64Bit.td"
+include "MOSInstrVIS.td"
+include "MOSInstrAliases.td"

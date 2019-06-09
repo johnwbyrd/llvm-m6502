@@ -1,4 +1,4 @@
-//===-- SparcMCTargetDesc.h - Sparc Target Descriptions ---------*- C++ -*-===//
+//===-- MOSMCTargetDesc.h - MOS Target Descriptions ---------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides Sparc specific target descriptions.
+// This file provides MOS specific target descriptions.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCTARGETDESC_H
-#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSMCTARGETDESC_H
+#define LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSMCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -32,28 +32,28 @@ class StringRef;
 class raw_pwrite_stream;
 class raw_ostream;
 
-MCCodeEmitter *createSparcMCCodeEmitter(const MCInstrInfo &MCII,
+MCCodeEmitter *createMOSMCCodeEmitter(const MCInstrInfo &MCII,
                                         const MCRegisterInfo &MRI,
                                         MCContext &Ctx);
-MCAsmBackend *createSparcAsmBackend(const Target &T, const MCSubtargetInfo &STI,
+MCAsmBackend *createMOSAsmBackend(const Target &T, const MCSubtargetInfo &STI,
                                     const MCRegisterInfo &MRI,
                                     const MCTargetOptions &Options);
-std::unique_ptr<MCObjectTargetWriter> createSparcELFObjectWriter(bool Is64Bit,
+std::unique_ptr<MCObjectTargetWriter> createMOSELFObjectWriter(bool Is64Bit,
                                                                  uint8_t OSABI);
 } // End llvm namespace
 
-// Defines symbolic names for Sparc registers.  This defines a mapping from
+// Defines symbolic names for MOS registers.  This defines a mapping from
 // register name to register number.
 //
 #define GET_REGINFO_ENUM
-#include "SparcGenRegisterInfo.inc"
+#include "MOSGenRegisterInfo.inc"
 
-// Defines symbolic names for the Sparc instructions.
+// Defines symbolic names for the MOS instructions.
 //
 #define GET_INSTRINFO_ENUM
-#include "SparcGenInstrInfo.inc"
+#include "MOSGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM
-#include "SparcGenSubtargetInfo.inc"
+#include "MOSGenSubtargetInfo.inc"
 
 #endif

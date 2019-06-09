@@ -1,4 +1,4 @@
-//===-- Sparc.h - Top-level interface for Sparc representation --*- C++ -*-===//
+//===-- MOS.h - Top-level interface for MOS representation --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,35 +7,35 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains the entry points for global functions defined in the LLVM
-// Sparc back-end.
+// MOS back-end.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_SPARC_H
-#define LLVM_LIB_TARGET_SPARC_SPARC_H
+#ifndef LLVM_LIB_TARGET_MOS_MOS_H
+#define LLVM_LIB_TARGET_MOS_MOS_H
 
-#include "MCTargetDesc/SparcMCTargetDesc.h"
+#include "MCTargetDesc/MOSMCTargetDesc.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
   class FunctionPass;
-  class SparcTargetMachine;
+  class MOSTargetMachine;
   class formatted_raw_ostream;
   class AsmPrinter;
   class MCInst;
   class MachineInstr;
 
-  FunctionPass *createSparcISelDag(SparcTargetMachine &TM);
-  FunctionPass *createSparcDelaySlotFillerPass();
+  FunctionPass *createMOSISelDag(MOSTargetMachine &TM);
+  FunctionPass *createMOSDelaySlotFillerPass();
 
-  void LowerSparcMachineInstrToMCInst(const MachineInstr *MI,
+  void LowerMOSMachineInstrToMCInst(const MachineInstr *MI,
                                       MCInst &OutMI,
                                       AsmPrinter &AP);
 } // end namespace llvm;
 
 namespace llvm {
-  // Enums corresponding to Sparc condition codes, both icc's and fcc's.  These
+  // Enums corresponding to MOS condition codes, both icc's and fcc's.  These
   // values must be kept in sync with the ones in the .td file.
   namespace SPCC {
     enum CondCodes {
@@ -92,7 +92,7 @@ namespace llvm {
     };
   }
 
-  inline static const char *SPARCCondCodeToString(SPCC::CondCodes CC) {
+  inline static const char *MOSCondCodeToString(SPCC::CondCodes CC) {
     switch (CC) {
     case SPCC::ICC_A:   return "a";
     case SPCC::ICC_N:   return "n";

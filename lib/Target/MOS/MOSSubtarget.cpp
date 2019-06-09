@@ -1,4 +1,4 @@
-//===-- SparcSubtarget.cpp - SPARC Subtarget Information ------------------===//
+//===-- MOSSubtarget.cpp - MOS Subtarget Information ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,26 +6,26 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the SPARC specific subclass of TargetSubtargetInfo.
+// This file implements the MOS specific subclass of TargetSubtargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcSubtarget.h"
-#include "Sparc.h"
+#include "MOSSubtarget.h"
+#include "MOS.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
-#define DEBUG_TYPE "sparc-subtarget"
+#define DEBUG_TYPE "mos-subtarget"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
-#include "SparcGenSubtargetInfo.inc"
+#include "MOSGenSubtargetInfo.inc"
 
-void SparcSubtarget::anchor() { }
+void MOSSubtarget::anchor() { }
 
-SparcSubtarget &SparcSubtarget::initializeSubtargetDependencies(StringRef CPU,
+MOSSubtarget &MOSSubtarget::initializeSubtargetDependencies(StringRef CPU,
                                                                 StringRef FS) {
   UseSoftMulDiv = false;
   IsV9 = false;
@@ -64,14 +64,14 @@ SparcSubtarget &SparcSubtarget::initializeSubtargetDependencies(StringRef CPU,
   return *this;
 }
 
-SparcSubtarget::SparcSubtarget(const Triple &TT, const std::string &CPU,
+MOSSubtarget::MOSSubtarget(const Triple &TT, const std::string &CPU,
                                const std::string &FS, const TargetMachine &TM,
                                bool is64Bit)
-    : SparcGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT), Is64Bit(is64Bit),
+    : MOSGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT), Is64Bit(is64Bit),
       InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM, *this),
       FrameLowering(*this) {}
 
-int SparcSubtarget::getAdjustedFrameSize(int frameSize) const {
+int MOSSubtarget::getAdjustedFrameSize(int frameSize) const {
 
   if (is64Bit()) {
     // All 64-bit stack frames must be 16-byte aligned, and must reserve space
@@ -97,6 +97,6 @@ int SparcSubtarget::getAdjustedFrameSize(int frameSize) const {
   return frameSize;
 }
 
-bool SparcSubtarget::enableMachineScheduler() const {
+bool MOSSubtarget::enableMachineScheduler() const {
   return true;
 }

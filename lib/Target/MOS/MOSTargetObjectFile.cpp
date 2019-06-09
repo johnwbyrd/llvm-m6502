@@ -1,4 +1,4 @@
-//===------- SparcTargetObjectFile.cpp - Sparc Object Info Impl -----------===//
+//===------- MOSTargetObjectFile.cpp - MOS Object Info Impl -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,21 +6,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcTargetObjectFile.h"
-#include "MCTargetDesc/SparcMCExpr.h"
+#include "MOSTargetObjectFile.h"
+#include "MCTargetDesc/MOSMCExpr.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 using namespace llvm;
 
-void SparcELFTargetObjectFile::Initialize(MCContext &Ctx,
+void MOSELFTargetObjectFile::Initialize(MCContext &Ctx,
                                           const TargetMachine &TM) {
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
   InitializeELF(TM.Options.UseInitArray);
 }
 
-const MCExpr *SparcELFTargetObjectFile::getTTypeGlobalReference(
+const MCExpr *MOSELFTargetObjectFile::getTTypeGlobalReference(
     const GlobalValue *GV, unsigned Encoding, const TargetMachine &TM,
     MachineModuleInfo *MMI, MCStreamer &Streamer) const {
 
@@ -38,7 +38,7 @@ const MCExpr *SparcELFTargetObjectFile::getTTypeGlobalReference(
     }
 
     MCContext &Ctx = getContext();
-    return SparcMCExpr::create(SparcMCExpr::VK_Sparc_R_DISP32,
+    return MOSMCExpr::create(MOSMCExpr::VK_MOS_R_DISP32,
                                MCSymbolRefExpr::create(SSym, Ctx), Ctx);
   }
 

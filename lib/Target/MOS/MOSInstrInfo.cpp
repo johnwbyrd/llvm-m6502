@@ -1,4 +1,4 @@
-//===-- SparcInstrInfo.cpp - Sparc Instruction Information ----------------===//
+//===-- MOSInstrInfo.cpp - MOS Instruction Information ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the Sparc implementation of the TargetInstrInfo class.
+// This file contains the MOS implementation of the TargetInstrInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcInstrInfo.h"
-#include "Sparc.h"
-#include "SparcMachineFunctionInfo.h"
-#include "SparcSubtarget.h"
+#include "MOSInstrInfo.h"
+#include "MOS.h"
+#include "MOSMachineFunctionInfo.h"
+#include "MOSSubtarget.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -26,13 +26,13 @@
 using namespace llvm;
 
 #define GET_INSTRINFO_CTOR_DTOR
-#include "SparcGenInstrInfo.inc"
+#include "MOSGenInstrInfo.inc"
 
 // Pin the vtable to this file.
-void SparcInstrInfo::anchor() {}
+void MOSInstrInfo::anchor() {}
 
-SparcInstrInfo::SparcInstrInfo(SparcSubtarget &ST)
-    : SparcGenInstrInfo(SP::ADJCALLSTACKDOWN, SP::ADJCALLSTACKUP), RI(),
+MOSInstrInfo::MOSInstrInfo(MOSSubtarget &ST)
+    : MOSGenInstrInfo(SP::ADJCALLSTACKDOWN, SP::ADJCALLSTACKUP), RI(),
       Subtarget(ST) {}
 
 /// isLoadFromStackSlot - If the specified machine instruction is a direct
@@ -40,7 +40,7 @@ SparcInstrInfo::SparcInstrInfo(SparcSubtarget &ST)
 /// the destination along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than loading from the stack slot.
-unsigned SparcInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
+unsigned MOSInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
                                              int &FrameIndex) const {
   if (MI.getOpcode() == SP::LDri || MI.getOpcode() == SP::LDXri ||
       MI.getOpcode() == SP::LDFri || MI.getOpcode() == SP::LDDFri ||
@@ -59,7 +59,7 @@ unsigned SparcInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
 /// the source reg along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than storing to the stack slot.
-unsigned SparcInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
+unsigned MOSInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                             int &FrameIndex) const {
   if (MI.getOpcode() == SP::STri || MI.getOpcode() == SP::STXri ||
       MI.getOpcode() == SP::STFri || MI.getOpcode() == SP::STDFri ||
@@ -156,7 +156,7 @@ static void parseCondBranch(MachineInstr *LastInst, MachineBasicBlock *&Target,
   Target = LastInst->getOperand(0).getMBB();
 }
 
-bool SparcInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
+bool MOSInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                    MachineBasicBlock *&TBB,
                                    MachineBasicBlock *&FBB,
                                    SmallVectorImpl<MachineOperand> &Cond,
@@ -239,7 +239,7 @@ bool SparcInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   return true;
 }
 
-unsigned SparcInstrInfo::insertBranch(MachineBasicBlock &MBB,
+unsigned MOSInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                       MachineBasicBlock *TBB,
                                       MachineBasicBlock *FBB,
                                       ArrayRef<MachineOperand> Cond,
@@ -247,7 +247,7 @@ unsigned SparcInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                       int *BytesAdded) const {
   assert(TBB && "insertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 1 || Cond.size() == 0) &&
-         "Sparc branch conditions should have one component!");
+         "MOS branch conditions should have one component!");
   assert(!BytesAdded && "code size not handled");
 
   if (Cond.empty()) {
@@ -270,7 +270,7 @@ unsigned SparcInstrInfo::insertBranch(MachineBasicBlock &MBB,
   return 2;
 }
 
-unsigned SparcInstrInfo::removeBranch(MachineBasicBlock &MBB,
+unsigned MOSInstrInfo::removeBranch(MachineBasicBlock &MBB,
                                       int *BytesRemoved) const {
   assert(!BytesRemoved && "code size not handled");
 
@@ -294,7 +294,7 @@ unsigned SparcInstrInfo::removeBranch(MachineBasicBlock &MBB,
   return Count;
 }
 
-bool SparcInstrInfo::reverseBranchCondition(
+bool MOSInstrInfo::reverseBranchCondition(
     SmallVectorImpl<MachineOperand> &Cond) const {
   assert(Cond.size() == 1);
   SPCC::CondCodes CC = static_cast<SPCC::CondCodes>(Cond[0].getImm());
@@ -302,7 +302,7 @@ bool SparcInstrInfo::reverseBranchCondition(
   return false;
 }
 
-void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+void MOSInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I,
                                  const DebugLoc &DL, unsigned DestReg,
                                  unsigned SrcReg, bool KillSrc) const {
@@ -391,7 +391,7 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     MovMI->addRegisterKilled(SrcReg, TRI);
 }
 
-void SparcInstrInfo::
+void MOSInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI,
                     const TargetRegisterClass *RC,
@@ -430,7 +430,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     llvm_unreachable("Can't store this register to stack slot");
 }
 
-void SparcInstrInfo::
+void MOSInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
                      const TargetRegisterClass *RC,
@@ -468,10 +468,10 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     llvm_unreachable("Can't load this register from stack slot");
 }
 
-unsigned SparcInstrInfo::getGlobalBaseReg(MachineFunction *MF) const
+unsigned MOSInstrInfo::getGlobalBaseReg(MachineFunction *MF) const
 {
-  SparcMachineFunctionInfo *SparcFI = MF->getInfo<SparcMachineFunctionInfo>();
-  unsigned GlobalBaseReg = SparcFI->getGlobalBaseReg();
+  MOSMachineFunctionInfo *MOSFI = MF->getInfo<MOSMachineFunctionInfo>();
+  unsigned GlobalBaseReg = MOSFI->getGlobalBaseReg();
   if (GlobalBaseReg != 0)
     return GlobalBaseReg;
 
@@ -487,16 +487,16 @@ unsigned SparcInstrInfo::getGlobalBaseReg(MachineFunction *MF) const
   DebugLoc dl;
 
   BuildMI(FirstMBB, MBBI, dl, get(SP::GETPCX), GlobalBaseReg);
-  SparcFI->setGlobalBaseReg(GlobalBaseReg);
+  MOSFI->setGlobalBaseReg(GlobalBaseReg);
   return GlobalBaseReg;
 }
 
-bool SparcInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
+bool MOSInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   switch (MI.getOpcode()) {
   case TargetOpcode::LOAD_STACK_GUARD: {
     assert(Subtarget.isTargetLinux() &&
            "Only Linux target is expected to contain LOAD_STACK_GUARD");
-    // offsetof(tcbhead_t, stack_guard) from sysdeps/sparc/nptl/tls.h in glibc.
+    // offsetof(tcbhead_t, stack_guard) from sysdeps/mos/nptl/tls.h in glibc.
     const int64_t Offset = Subtarget.is64Bit() ? 0x28 : 0x14;
     MI.setDesc(get(Subtarget.is64Bit() ? SP::LDXri : SP::LDri));
     MachineInstrBuilder(*MI.getParent()->getParent(), MI)

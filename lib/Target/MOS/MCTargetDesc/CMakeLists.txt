@@ -1,10 +1,10 @@
-add_llvm_library(LLVMSparcDesc
-  SparcAsmBackend.cpp
-  SparcELFObjectWriter.cpp
-  SparcInstPrinter.cpp
-  SparcMCAsmInfo.cpp
-  SparcMCCodeEmitter.cpp
-  SparcMCTargetDesc.cpp
-  SparcMCExpr.cpp
-  SparcTargetStreamer.cpp
+add_llvm_library(LLVMMOSDesc
+  MOSAsmBackend.cpp
+  MOSELFObjectWriter.cpp
+  MOSInstPrinter.cpp
+  MOSMCAsmInfo.cpp
+  MOSMCCodeEmitter.cpp
+  MOSMCTargetDesc.cpp
+  MOSMCExpr.cpp
+  MOSTargetStreamer.cpp
   )

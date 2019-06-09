@@ -1,4 +1,4 @@
-//===-- SparcTargetMachine.h - Define TargetMachine for Sparc ---*- C++ -*-===//
+//===-- MOSTargetMachine.h - Define TargetMachine for MOS ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,33 +6,33 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares the Sparc specific subclass of TargetMachine.
+// This file declares the MOS specific subclass of TargetMachine.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_SPARCTARGETMACHINE_H
-#define LLVM_LIB_TARGET_SPARC_SPARCTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSTARGETMACHINE_H
+#define LLVM_LIB_TARGET_MOS_MOSTARGETMACHINE_H
 
-#include "SparcInstrInfo.h"
-#include "SparcSubtarget.h"
+#include "MOSInstrInfo.h"
+#include "MOSSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
-class SparcTargetMachine : public LLVMTargetMachine {
+class MOSTargetMachine : public LLVMTargetMachine {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  SparcSubtarget Subtarget;
+  MOSSubtarget Subtarget;
   bool is64Bit;
-  mutable StringMap<std::unique_ptr<SparcSubtarget>> SubtargetMap;
+  mutable StringMap<std::unique_ptr<MOSSubtarget>> SubtargetMap;
 public:
-  SparcTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  MOSTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                      StringRef FS, const TargetOptions &Options,
                      Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
                      CodeGenOpt::Level OL, bool JIT, bool is64bit);
-  ~SparcTargetMachine() override;
+  ~MOSTargetMachine() override;
 
-  const SparcSubtarget *getSubtargetImpl() const { return &Subtarget; }
-  const SparcSubtarget *getSubtargetImpl(const Function &) const override;
+  const MOSSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  const MOSSubtarget *getSubtargetImpl(const Function &) const override;
 
   // Pass Pipeline Configuration
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
@@ -41,33 +41,33 @@ public:
   }
 };
 
-/// Sparc 32-bit target machine
+/// MOS 32-bit target machine
 ///
-class SparcV8TargetMachine : public SparcTargetMachine {
+class MOSV8TargetMachine : public MOSTargetMachine {
   virtual void anchor();
 public:
-  SparcV8TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  MOSV8TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
                        CodeGenOpt::Level OL, bool JIT);
 };
 
-/// Sparc 64-bit target machine
+/// MOS 64-bit target machine
 ///
-class SparcV9TargetMachine : public SparcTargetMachine {
+class MOSV9TargetMachine : public MOSTargetMachine {
   virtual void anchor();
 public:
-  SparcV9TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  MOSV9TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
                        CodeGenOpt::Level OL, bool JIT);
 };
 
-class SparcelTargetMachine : public SparcTargetMachine {
+class MOSelTargetMachine : public MOSTargetMachine {
   virtual void anchor();
 
 public:
-  SparcelTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  MOSelTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
                        CodeGenOpt::Level OL, bool JIT);

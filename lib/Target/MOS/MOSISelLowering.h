@@ -1,4 +1,4 @@
-//===-- SparcISelLowering.h - Sparc DAG Lowering Interface ------*- C++ -*-===//
+//===-- MOSISelLowering.h - MOS DAG Lowering Interface ------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,19 +6,19 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the interfaces that Sparc uses to lower LLVM code into a
+// This file defines the interfaces that MOS uses to lower LLVM code into a
 // selection DAG.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_SPARCISELLOWERING_H
-#define LLVM_LIB_TARGET_SPARC_SPARCISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSISELLOWERING_H
+#define LLVM_LIB_TARGET_MOS_MOSISELLOWERING_H
 
-#include "Sparc.h"
+#include "MOS.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 namespace llvm {
-  class SparcSubtarget;
+  class MOSSubtarget;
 
   namespace SPISD {
     enum NodeType : unsigned {
@@ -50,10 +50,10 @@ namespace llvm {
     };
   }
 
-  class SparcTargetLowering : public TargetLowering {
-    const SparcSubtarget *Subtarget;
+  class MOSTargetLowering : public TargetLowering {
+    const MOSSubtarget *Subtarget;
   public:
-    SparcTargetLowering(const TargetMachine &TM, const SparcSubtarget &STI);
+    MOSTargetLowering(const TargetMachine &TM, const MOSSubtarget &STI);
     SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
     bool useSoftFloat() const override;
@@ -213,4 +213,4 @@ namespace llvm {
   };
 } // end namespace llvm
 
-#endif    // SPARC_ISELLOWERING_H
+#endif    // MOS_ISELLOWERING_H

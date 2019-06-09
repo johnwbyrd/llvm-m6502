@@ -1,4 +1,4 @@
-//===-- SparcInstPrinter.cpp - Convert Sparc MCInst to assembly syntax -----==//
+//===-- MOSInstPrinter.cpp - Convert MOS MCInst to assembly syntax -----==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This class prints an Sparc MCInst to a .s file.
+// This class prints an MOS MCInst to a .s file.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcInstPrinter.h"
-#include "Sparc.h"
+#include "MOSInstPrinter.h"
+#include "MOS.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -22,35 +22,35 @@ using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
 
-// The generated AsmMatcher SparcGenAsmWriter uses "Sparc" as the target
-// namespace. But SPARC backend uses "SP" as its namespace.
+// The generated AsmMatcher MOSGenAsmWriter uses "MOS" as the target
+// namespace. But MOS backend uses "SP" as its namespace.
 namespace llvm {
-namespace Sparc {
+namespace MOS {
   using namespace SP;
 }
 }
 
 #define GET_INSTRUCTION_NAME
 #define PRINT_ALIAS_INSTR
-#include "SparcGenAsmWriter.inc"
+#include "MOSGenAsmWriter.inc"
 
-bool SparcInstPrinter::isV9(const MCSubtargetInfo &STI) const {
-  return (STI.getFeatureBits()[Sparc::FeatureV9]) != 0;
+bool MOSInstPrinter::isV9(const MCSubtargetInfo &STI) const {
+  return (STI.getFeatureBits()[MOS::FeatureV9]) != 0;
 }
 
-void SparcInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const
+void MOSInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const
 {
   OS << '%' << StringRef(getRegisterName(RegNo)).lower();
 }
 
-void SparcInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
+void MOSInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
                                  StringRef Annot, const MCSubtargetInfo &STI) {
-  if (!printAliasInstr(MI, STI, O) && !printSparcAliasInstr(MI, STI, O))
+  if (!printAliasInstr(MI, STI, O) && !printMOSAliasInstr(MI, STI, O))
     printInstruction(MI, STI, O);
   printAnnotation(O, Annot);
 }
 
-bool SparcInstPrinter::printSparcAliasInstr(const MCInst *MI,
+bool MOSInstPrinter::printMOSAliasInstr(const MCInst *MI,
                                             const MCSubtargetInfo &STI,
                                             raw_ostream &O) {
   switch (MI->getOpcode()) {
@@ -104,7 +104,7 @@ bool SparcInstPrinter::printSparcAliasInstr(const MCInst *MI,
   }
 }
 
-void SparcInstPrinter::printOperand(const MCInst *MI, int opNum,
+void MOSInstPrinter::printOperand(const MCInst *MI, int opNum,
                                     const MCSubtargetInfo &STI,
                                     raw_ostream &O) {
   const MCOperand &MO = MI->getOperand (opNum);
@@ -136,7 +136,7 @@ void SparcInstPrinter::printOperand(const MCInst *MI, int opNum,
   MO.getExpr()->print(O, &MAI);
 }
 
-void SparcInstPrinter::printMemOperand(const MCInst *MI, int opNum,
+void MOSInstPrinter::printMemOperand(const MCInst *MI, int opNum,
                                        const MCSubtargetInfo &STI,
                                        raw_ostream &O, const char *Modifier) {
   printOperand(MI, opNum, STI, O);
@@ -159,7 +159,7 @@ void SparcInstPrinter::printMemOperand(const MCInst *MI, int opNum,
   printOperand(MI, opNum+1, STI, O);
 }
 
-void SparcInstPrinter::printCCOperand(const MCInst *MI, int opNum,
+void MOSInstPrinter::printCCOperand(const MCInst *MI, int opNum,
                                       const MCSubtargetInfo &STI,
                                       raw_ostream &O) {
   int CC = (int)MI->getOperand(opNum).getImm();
@@ -185,17 +185,17 @@ void SparcInstPrinter::printCCOperand(const MCInst *MI, int opNum,
     CC = (CC < 32) ? (CC + 32) : CC;
     break;
   }
-  O << SPARCCondCodeToString((SPCC::CondCodes)CC);
+  O << MOSCondCodeToString((SPCC::CondCodes)CC);
 }
 
-bool SparcInstPrinter::printGetPCX(const MCInst *MI, unsigned opNum,
+bool MOSInstPrinter::printGetPCX(const MCInst *MI, unsigned opNum,
                                    const MCSubtargetInfo &STI,
                                    raw_ostream &O) {
-  llvm_unreachable("FIXME: Implement SparcInstPrinter::printGetPCX.");
+  llvm_unreachable("FIXME: Implement MOSInstPrinter::printGetPCX.");
   return true;
 }
 
-void SparcInstPrinter::printMembarTag(const MCInst *MI, int opNum,
+void MOSInstPrinter::printMembarTag(const MCInst *MI, int opNum,
                                       const MCSubtargetInfo &STI,
                                       raw_ostream &O) {
   static const char *const TagNames[] = {

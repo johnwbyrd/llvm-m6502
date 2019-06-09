@@ -1,4 +1,4 @@
-//===-- SparcMCInstLower.cpp - Convert Sparc MachineInstr to MCInst -------===//
+//===-- MOSMCInstLower.cpp - Convert MOS MachineInstr to MCInst -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains code to lower Sparc MachineInstrs to their corresponding
+// This file contains code to lower MOS MachineInstrs to their corresponding
 // MCInst records.
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SparcMCExpr.h"
-#include "Sparc.h"
+#include "MCTargetDesc/MOSMCExpr.h"
+#include "MOS.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -30,8 +30,8 @@ static MCOperand LowerSymbolOperand(const MachineInstr *MI,
                                     const MachineOperand &MO,
                                     AsmPrinter &AP) {
 
-  SparcMCExpr::VariantKind Kind =
-    (SparcMCExpr::VariantKind)MO.getTargetFlags();
+  MOSMCExpr::VariantKind Kind =
+    (MOSMCExpr::VariantKind)MO.getTargetFlags();
   const MCSymbol *Symbol = nullptr;
 
   switch(MO.getType()) {
@@ -59,7 +59,7 @@ static MCOperand LowerSymbolOperand(const MachineInstr *MI,
 
   const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol,
                                                          AP.OutContext);
-  const SparcMCExpr *expr = SparcMCExpr::create(Kind, MCSym,
+  const MOSMCExpr *expr = MOSMCExpr::create(Kind, MCSym,
                                                 AP.OutContext);
   return MCOperand::createExpr(expr);
 }
@@ -90,7 +90,7 @@ static MCOperand LowerOperand(const MachineInstr *MI,
   return MCOperand();
 }
 
-void llvm::LowerSparcMachineInstrToMCInst(const MachineInstr *MI,
+void llvm::LowerMOSMachineInstrToMCInst(const MachineInstr *MI,
                                           MCInst &OutMI,
                                           AsmPrinter &AP)
 {

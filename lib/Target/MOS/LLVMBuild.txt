@@ -1,4 +1,4 @@
-;===- ./lib/Target/Sparc/LLVMBuild.txt -------------------------*- Conf -*--===;
+;===- ./lib/Target/MOS/LLVMBuild.txt -------------------------*- Conf -*--===;
 ;
 ; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 ; See https://llvm.org/LICENSE.txt for license information.
@@ -19,7 +19,7 @@ subdirectories = AsmParser Disassembler MCTargetDesc TargetInfo
 
 [component_0]
 type = TargetGroup
-name = Sparc
+name = MOS
 parent = Target
 has_asmparser = 1
 has_asmprinter = 1
@@ -28,8 +28,8 @@ has_jit = 1
 
 [component_1]
 type = Library
-name = SparcCodeGen
-parent = Sparc
+name = MOSCodeGen
+parent = MOS
 required_libraries = AsmPrinter CodeGen Core MC SelectionDAG
-                     SparcDesc SparcInfo Support Target
-add_to_library_groups = Sparc
+                     MOSDesc MOSInfo Support Target
+add_to_library_groups = MOS

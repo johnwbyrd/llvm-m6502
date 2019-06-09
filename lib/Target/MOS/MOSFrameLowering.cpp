@@ -1,4 +1,4 @@
-//===-- SparcFrameLowering.cpp - Sparc Frame Information ------------------===//
+//===-- MOSFrameLowering.cpp - MOS Frame Information ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the Sparc implementation of TargetFrameLowering class.
+// This file contains the MOS implementation of TargetFrameLowering class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcFrameLowering.h"
-#include "SparcInstrInfo.h"
-#include "SparcMachineFunctionInfo.h"
-#include "SparcSubtarget.h"
+#include "MOSFrameLowering.h"
+#include "MOSInstrInfo.h"
+#include "MOSMachineFunctionInfo.h"
+#include "MOSSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -27,16 +27,16 @@
 using namespace llvm;
 
 static cl::opt<bool>
-DisableLeafProc("disable-sparc-leaf-proc",
+DisableLeafProc("disable-mos-leaf-proc",
                 cl::init(false),
-                cl::desc("Disable Sparc leaf procedure optimization."),
+                cl::desc("Disable MOS leaf procedure optimization."),
                 cl::Hidden);
 
-SparcFrameLowering::SparcFrameLowering(const SparcSubtarget &ST)
+MOSFrameLowering::MOSFrameLowering(const MOSSubtarget &ST)
     : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
                           ST.is64Bit() ? 16 : 8, 0, ST.is64Bit() ? 16 : 8) {}
 
-void SparcFrameLowering::emitSPAdjustment(MachineFunction &MF,
+void MOSFrameLowering::emitSPAdjustment(MachineFunction &MF,
                                           MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MBBI,
                                           int NumBytes,
@@ -44,8 +44,8 @@ void SparcFrameLowering::emitSPAdjustment(MachineFunction &MF,
                                           unsigned ADDri) const {
 
   DebugLoc dl;
-  const SparcInstrInfo &TII =
-      *static_cast<const SparcInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const MOSInstrInfo &TII =
+      *static_cast<const MOSInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
   if (NumBytes >= -4096 && NumBytes < 4096) {
     BuildMI(MBB, MBBI, dl, TII.get(ADDri), SP::O6)
@@ -81,17 +81,17 @@ void SparcFrameLowering::emitSPAdjustment(MachineFunction &MF,
     .addReg(SP::O6).addReg(SP::G1);
 }
 
-void SparcFrameLowering::emitPrologue(MachineFunction &MF,
+void MOSFrameLowering::emitPrologue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
-  SparcMachineFunctionInfo *FuncInfo = MF.getInfo<SparcMachineFunctionInfo>();
+  MOSMachineFunctionInfo *FuncInfo = MF.getInfo<MOSMachineFunctionInfo>();
 
   assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
   MachineFrameInfo &MFI = MF.getFrameInfo();
-  const SparcSubtarget &Subtarget = MF.getSubtarget<SparcSubtarget>();
-  const SparcInstrInfo &TII =
-      *static_cast<const SparcInstrInfo *>(Subtarget.getInstrInfo());
-  const SparcRegisterInfo &RegInfo =
-      *static_cast<const SparcRegisterInfo *>(Subtarget.getRegisterInfo());
+  const MOSSubtarget &Subtarget = MF.getSubtarget<MOSSubtarget>();
+  const MOSInstrInfo &TII =
+      *static_cast<const MOSInstrInfo *>(Subtarget.getInstrInfo());
+  const MOSRegisterInfo &RegInfo =
+      *static_cast<const MOSRegisterInfo *>(Subtarget.getRegisterInfo());
   MachineBasicBlock::iterator MBBI = MBB.begin();
   // Debug location must be unknown since the first debug location is used
   // to determine the end of the prologue.
@@ -120,7 +120,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF,
     SAVErr = SP::ADDrr;
   }
 
-  // The SPARC ABI is a bit odd in that it requires a reserved 92-byte
+  // The MOS ABI is a bit odd in that it requires a reserved 92-byte
   // (128 in v9) area in the user's stack, starting at %sp. Thus, the
   // first part of the stack that can actually be used is located at
   // %sp + 92.
@@ -139,7 +139,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF,
   if (MFI.adjustsStack() && hasReservedCallFrame(MF))
     NumBytes += MFI.getMaxCallFrameSize();
 
-  // Adds the SPARC subtarget-specific spill area to the stack
+  // Adds the MOS subtarget-specific spill area to the stack
   // size. Also ensures target-required alignment.
   NumBytes = Subtarget.getAdjustedFrameSize(NumBytes);
 
@@ -200,7 +200,7 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF,
   }
 }
 
-MachineBasicBlock::iterator SparcFrameLowering::
+MachineBasicBlock::iterator MOSFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
   if (!hasReservedCallFrame(MF)) {
@@ -216,12 +216,12 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 }
 
 
-void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
+void MOSFrameLowering::emitEpilogue(MachineFunction &MF,
                                   MachineBasicBlock &MBB) const {
-  SparcMachineFunctionInfo *FuncInfo = MF.getInfo<SparcMachineFunctionInfo>();
+  MOSMachineFunctionInfo *FuncInfo = MF.getInfo<MOSMachineFunctionInfo>();
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-  const SparcInstrInfo &TII =
-      *static_cast<const SparcInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const MOSInstrInfo &TII =
+      *static_cast<const MOSInstrInfo *>(MF.getSubtarget().getInstrInfo());
   DebugLoc dl = MBBI->getDebugLoc();
   assert(MBBI->getOpcode() == SP::RETL &&
          "Can only put epilog before 'retl' instruction!");
@@ -239,7 +239,7 @@ void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
   emitSPAdjustment(MF, MBB, MBBI, NumBytes, SP::ADDrr, SP::ADDri);
 }
 
-bool SparcFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
+bool MOSFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
   // Reserve call frame if there are no variable sized objects on the stack.
   return !MF.getFrameInfo().hasVarSizedObjects();
 }
@@ -247,7 +247,7 @@ bool SparcFrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
 // hasFP - Return true if the specified function should have a dedicated frame
 // pointer register.  This is true if the function has variable sized allocas or
 // if frame pointer elimination is disabled.
-bool SparcFrameLowering::hasFP(const MachineFunction &MF) const {
+bool MOSFrameLowering::hasFP(const MachineFunction &MF) const {
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
 
   const MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -258,19 +258,19 @@ bool SparcFrameLowering::hasFP(const MachineFunction &MF) const {
 }
 
 
-int SparcFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
+int MOSFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                                unsigned &FrameReg) const {
-  const SparcSubtarget &Subtarget = MF.getSubtarget<SparcSubtarget>();
+  const MOSSubtarget &Subtarget = MF.getSubtarget<MOSSubtarget>();
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const SparcRegisterInfo *RegInfo = Subtarget.getRegisterInfo();
-  const SparcMachineFunctionInfo *FuncInfo = MF.getInfo<SparcMachineFunctionInfo>();
+  const MOSRegisterInfo *RegInfo = Subtarget.getRegisterInfo();
+  const MOSMachineFunctionInfo *FuncInfo = MF.getInfo<MOSMachineFunctionInfo>();
   bool isFixed = MFI.isFixedObjectIndex(FI);
 
   // Addressable stack objects are accessed using neg. offsets from
   // %fp, or positive offsets from %sp.
   bool UseFP;
 
-  // Sparc uses FP-based references in general, even when "hasFP" is
+  // MOS uses FP-based references in general, even when "hasFP" is
   // false. That function is rather a misnomer, because %fp is
   // actually always available, unless isLeafProc.
   if (FuncInfo->isLeafProc()) {
@@ -316,7 +316,7 @@ static bool LLVM_ATTRIBUTE_UNUSED verifyLeafProcRegUse(MachineRegisterInfo *MRI)
   return true;
 }
 
-bool SparcFrameLowering::isLeafProc(MachineFunction &MF) const
+bool MOSFrameLowering::isLeafProc(MachineFunction &MF) const
 {
 
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -328,7 +328,7 @@ bool SparcFrameLowering::isLeafProc(MachineFunction &MF) const
            || hasFP(MF));                  // need %fp
 }
 
-void SparcFrameLowering::remapRegsForLeafProc(MachineFunction &MF) const {
+void MOSFrameLowering::remapRegsForLeafProc(MachineFunction &MF) const {
   MachineRegisterInfo &MRI = MF.getRegInfo();
   // Remap %i[0-7] to %o[0-7].
   for (unsigned reg = SP::I0; reg <= SP::I7; ++reg) {
@@ -371,12 +371,12 @@ void SparcFrameLowering::remapRegsForLeafProc(MachineFunction &MF) const {
 #endif
 }
 
-void SparcFrameLowering::determineCalleeSaves(MachineFunction &MF,
+void MOSFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                               BitVector &SavedRegs,
                                               RegScavenger *RS) const {
   TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
   if (!DisableLeafProc && isLeafProc(MF)) {
-    SparcMachineFunctionInfo *MFI = MF.getInfo<SparcMachineFunctionInfo>();
+    MOSMachineFunctionInfo *MFI = MF.getInfo<MOSMachineFunctionInfo>();
     MFI->setLeafProc(true);
 
     remapRegsForLeafProc(MF);

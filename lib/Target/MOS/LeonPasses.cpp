@@ -38,7 +38,7 @@ char InsertNOPLoad::ID = 0;
 InsertNOPLoad::InsertNOPLoad() : LEONMachineFunctionPass(ID) {}
 
 bool InsertNOPLoad::runOnMachineFunction(MachineFunction &MF) {
-  Subtarget = &MF.getSubtarget<SparcSubtarget>();
+  Subtarget = &MF.getSubtarget<MOSSubtarget>();
   const TargetInstrInfo &TII = *Subtarget->getInstrInfo();
   DebugLoc DL = DebugLoc();
 
@@ -75,7 +75,7 @@ char DetectRoundChange::ID = 0;
 DetectRoundChange::DetectRoundChange() : LEONMachineFunctionPass(ID) {}
 
 bool DetectRoundChange::runOnMachineFunction(MachineFunction &MF) {
-  Subtarget = &MF.getSubtarget<SparcSubtarget>();
+  Subtarget = &MF.getSubtarget<MOSSubtarget>();
 
   bool Modified = false;
   for (auto MFI = MF.begin(), E = MF.end(); MFI != E; ++MFI) {
@@ -125,7 +125,7 @@ char FixAllFDIVSQRT::ID = 0;
 FixAllFDIVSQRT::FixAllFDIVSQRT() : LEONMachineFunctionPass(ID) {}
 
 bool FixAllFDIVSQRT::runOnMachineFunction(MachineFunction &MF) {
-  Subtarget = &MF.getSubtarget<SparcSubtarget>();
+  Subtarget = &MF.getSubtarget<MOSSubtarget>();
   const TargetInstrInfo &TII = *Subtarget->getInstrInfo();
   DebugLoc DL = DebugLoc();
 

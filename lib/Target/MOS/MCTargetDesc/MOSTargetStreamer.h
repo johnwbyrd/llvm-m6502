@@ -1,4 +1,4 @@
-//===-- SparcTargetStreamer.h - Sparc Target Streamer ----------*- C++ -*--===//
+//===-- MOSTargetStreamer.h - MOS Target Streamer ----------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,41 +6,41 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCTARGETSTREAMER_H
-#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCTARGETSTREAMER_H
+#ifndef LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSTARGETSTREAMER_H
+#define LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSTARGETSTREAMER_H
 
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCStreamer.h"
 
 namespace llvm {
-class SparcTargetStreamer : public MCTargetStreamer {
+class MOSTargetStreamer : public MCTargetStreamer {
   virtual void anchor();
 
 public:
-  SparcTargetStreamer(MCStreamer &S);
+  MOSTargetStreamer(MCStreamer &S);
   /// Emit ".register <reg>, #ignore".
-  virtual void emitSparcRegisterIgnore(unsigned reg) = 0;
+  virtual void emitMOSRegisterIgnore(unsigned reg) = 0;
   /// Emit ".register <reg>, #scratch".
-  virtual void emitSparcRegisterScratch(unsigned reg) = 0;
+  virtual void emitMOSRegisterScratch(unsigned reg) = 0;
 };
 
 // This part is for ascii assembly output
-class SparcTargetAsmStreamer : public SparcTargetStreamer {
+class MOSTargetAsmStreamer : public MOSTargetStreamer {
   formatted_raw_ostream &OS;
 
 public:
-  SparcTargetAsmStreamer(MCStreamer &S, formatted_raw_ostream &OS);
-  void emitSparcRegisterIgnore(unsigned reg) override;
-  void emitSparcRegisterScratch(unsigned reg) override;
+  MOSTargetAsmStreamer(MCStreamer &S, formatted_raw_ostream &OS);
+  void emitMOSRegisterIgnore(unsigned reg) override;
+  void emitMOSRegisterScratch(unsigned reg) override;
 };
 
 // This part is for ELF object output
-class SparcTargetELFStreamer : public SparcTargetStreamer {
+class MOSTargetELFStreamer : public MOSTargetStreamer {
 public:
-  SparcTargetELFStreamer(MCStreamer &S);
+  MOSTargetELFStreamer(MCStreamer &S);
   MCELFStreamer &getStreamer();
-  void emitSparcRegisterIgnore(unsigned reg) override {}
-  void emitSparcRegisterScratch(unsigned reg) override {}
+  void emitMOSRegisterIgnore(unsigned reg) override {}
+  void emitMOSRegisterScratch(unsigned reg) override {}
 };
 } // end namespace llvm
 

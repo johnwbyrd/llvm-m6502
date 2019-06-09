@@ -1,4 +1,4 @@
-//===-- SparcInstrAliases.td - Instruction Aliases for Sparc Target -------===//
+//===-- MOSInstrAliases.td - Instruction Aliases for MOS Target -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains instruction aliases for Sparc.
+// This file contains instruction aliases for MOS.
 //===----------------------------------------------------------------------===//
 
 // Instruction aliases for conditional moves.
@@ -338,9 +338,9 @@ let EmitPriority = 0 in defm : cp_cond_alias<"",      0b1000>; // same as a; gnu
 // non-alias form, except for the most obvious and clarifying aliases: cmp, jmp,
 // call, tst, ret, retl.
 
-// Note: cmp is handled in SparcInstrInfo.
+// Note: cmp is handled in MOSInstrInfo.
 //       jmp/call/ret/retl have special case handling for output in
-//       SparcInstPrinter.cpp
+//       MOSInstPrinter.cpp
 
 // jmp addr -> jmpl addr, %g0
 def : InstAlias<"jmp $addr", (JMPLrr G0, MEMrr:$addr), 0>;

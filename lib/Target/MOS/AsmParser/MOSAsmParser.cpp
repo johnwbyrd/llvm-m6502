@@ -1,4 +1,4 @@
-//===-- SparcAsmParser.cpp - Parse Sparc assembly to MCInst instructions --===//
+//===-- MOSAsmParser.cpp - Parse MOS assembly to MCInst instructions --===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SparcMCExpr.h"
-#include "MCTargetDesc/SparcMCTargetDesc.h"
-#include "TargetInfo/SparcTargetInfo.h"
+#include "MCTargetDesc/MOSMCExpr.h"
+#include "MCTargetDesc/MOSMCTargetDesc.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -37,28 +37,28 @@
 
 using namespace llvm;
 
-// The generated AsmMatcher SparcGenAsmMatcher uses "Sparc" as the target
-// namespace. But SPARC backend uses "SP" as its namespace.
+// The generated AsmMatcher MOSGenAsmMatcher uses "MOS" as the target
+// namespace. But MOS backend uses "SP" as its namespace.
 namespace llvm {
-namespace Sparc {
+namespace MOS {
 
     using namespace SP;
 
-} // end namespace Sparc
+} // end namespace MOS
 } // end namespace llvm
 
 namespace {
 
-class SparcOperand;
+class MOSOperand;
 
-class SparcAsmParser : public MCTargetAsmParser {
+class MOSAsmParser : public MCTargetAsmParser {
   MCAsmParser &Parser;
 
   /// @name Auto-generated Match Functions
   /// {
 
 #define GET_ASSEMBLER_HEADER
-#include "SparcGenAsmMatcher.inc"
+#include "MOSGenAsmMatcher.inc"
 
   /// }
 
@@ -75,7 +75,7 @@ class SparcAsmParser : public MCTargetAsmParser {
   unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
                                       unsigned Kind) override;
 
-  // Custom parse functions for Sparc specific operands.
+  // Custom parse functions for MOS specific operands.
   OperandMatchResultTy parseMEMOperand(OperandVector &Operands);
 
   OperandMatchResultTy parseMembarTag(OperandVector &Operands);
@@ -83,30 +83,30 @@ class SparcAsmParser : public MCTargetAsmParser {
   OperandMatchResultTy parseOperand(OperandVector &Operands, StringRef Name);
 
   OperandMatchResultTy
-  parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Operand,
+  parseMOSAsmOperand(std::unique_ptr<MOSOperand> &Operand,
                        bool isCall = false);
 
   OperandMatchResultTy parseBranchModifiers(OperandVector &Operands);
 
   // Helper function for dealing with %lo / %hi in PIC mode.
-  const SparcMCExpr *adjustPICRelocation(SparcMCExpr::VariantKind VK,
+  const MOSMCExpr *adjustPICRelocation(MOSMCExpr::VariantKind VK,
                                          const MCExpr *subExpr);
 
   // returns true if Tok is matched to a register and returns register in RegNo.
   bool matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
                          unsigned &RegKind);
 
-  bool matchSparcAsmModifiers(const MCExpr *&EVal, SMLoc &EndLoc);
+  bool matchMOSAsmModifiers(const MCExpr *&EVal, SMLoc &EndLoc);
 
   bool is64Bit() const {
-    return getSTI().getTargetTriple().getArch() == Triple::sparcv9;
+    return getSTI().getTargetTriple().getArch() == Triple::mosv9;
   }
 
   bool expandSET(MCInst &Inst, SMLoc IDLoc,
                  SmallVectorImpl<MCInst> &Instructions);
 
 public:
-  SparcAsmParser(const MCSubtargetInfo &sti, MCAsmParser &parser,
+  MOSAsmParser(const MCSubtargetInfo &sti, MCAsmParser &parser,
                 const MCInstrInfo &MII,
                 const MCTargetOptions &Options)
       : MCTargetAsmParser(Options, sti, MII), Parser(parser) {
@@ -126,40 +126,40 @@ public:
 } // end anonymous namespace
 
   static const MCPhysReg IntRegs[32] = {
-    Sparc::G0, Sparc::G1, Sparc::G2, Sparc::G3,
-    Sparc::G4, Sparc::G5, Sparc::G6, Sparc::G7,
-    Sparc::O0, Sparc::O1, Sparc::O2, Sparc::O3,
-    Sparc::O4, Sparc::O5, Sparc::O6, Sparc::O7,
-    Sparc::L0, Sparc::L1, Sparc::L2, Sparc::L3,
-    Sparc::L4, Sparc::L5, Sparc::L6, Sparc::L7,
-    Sparc::I0, Sparc::I1, Sparc::I2, Sparc::I3,
-    Sparc::I4, Sparc::I5, Sparc::I6, Sparc::I7 };
+    MOS::G0, MOS::G1, MOS::G2, MOS::G3,
+    MOS::G4, MOS::G5, MOS::G6, MOS::G7,
+    MOS::O0, MOS::O1, MOS::O2, MOS::O3,
+    MOS::O4, MOS::O5, MOS::O6, MOS::O7,
+    MOS::L0, MOS::L1, MOS::L2, MOS::L3,
+    MOS::L4, MOS::L5, MOS::L6, MOS::L7,
+    MOS::I0, MOS::I1, MOS::I2, MOS::I3,
+    MOS::I4, MOS::I5, MOS::I6, MOS::I7 };
 
   static const MCPhysReg FloatRegs[32] = {
-    Sparc::F0,  Sparc::F1,  Sparc::F2,  Sparc::F3,
-    Sparc::F4,  Sparc::F5,  Sparc::F6,  Sparc::F7,
-    Sparc::F8,  Sparc::F9,  Sparc::F10, Sparc::F11,
-    Sparc::F12, Sparc::F13, Sparc::F14, Sparc::F15,
-    Sparc::F16, Sparc::F17, Sparc::F18, Sparc::F19,
-    Sparc::F20, Sparc::F21, Sparc::F22, Sparc::F23,
-    Sparc::F24, Sparc::F25, Sparc::F26, Sparc::F27,
-    Sparc::F28, Sparc::F29, Sparc::F30, Sparc::F31 };
+    MOS::F0,  MOS::F1,  MOS::F2,  MOS::F3,
+    MOS::F4,  MOS::F5,  MOS::F6,  MOS::F7,
+    MOS::F8,  MOS::F9,  MOS::F10, MOS::F11,
+    MOS::F12, MOS::F13, MOS::F14, MOS::F15,
+    MOS::F16, MOS::F17, MOS::F18, MOS::F19,
+    MOS::F20, MOS::F21, MOS::F22, MOS::F23,
+    MOS::F24, MOS::F25, MOS::F26, MOS::F27,
+    MOS::F28, MOS::F29, MOS::F30, MOS::F31 };
 
   static const MCPhysReg DoubleRegs[32] = {
-    Sparc::D0,  Sparc::D1,  Sparc::D2,  Sparc::D3,
-    Sparc::D4,  Sparc::D5,  Sparc::D6,  Sparc::D7,
-    Sparc::D8,  Sparc::D9,  Sparc::D10, Sparc::D11,
-    Sparc::D12, Sparc::D13, Sparc::D14, Sparc::D15,
-    Sparc::D16, Sparc::D17, Sparc::D18, Sparc::D19,
-    Sparc::D20, Sparc::D21, Sparc::D22, Sparc::D23,
-    Sparc::D24, Sparc::D25, Sparc::D26, Sparc::D27,
-    Sparc::D28, Sparc::D29, Sparc::D30, Sparc::D31 };
+    MOS::D0,  MOS::D1,  MOS::D2,  MOS::D3,
+    MOS::D4,  MOS::D5,  MOS::D6,  MOS::D7,
+    MOS::D8,  MOS::D9,  MOS::D10, MOS::D11,
+    MOS::D12, MOS::D13, MOS::D14, MOS::D15,
+    MOS::D16, MOS::D17, MOS::D18, MOS::D19,
+    MOS::D20, MOS::D21, MOS::D22, MOS::D23,
+    MOS::D24, MOS::D25, MOS::D26, MOS::D27,
+    MOS::D28, MOS::D29, MOS::D30, MOS::D31 };
 
   static const MCPhysReg QuadFPRegs[32] = {
-    Sparc::Q0,  Sparc::Q1,  Sparc::Q2,  Sparc::Q3,
-    Sparc::Q4,  Sparc::Q5,  Sparc::Q6,  Sparc::Q7,
-    Sparc::Q8,  Sparc::Q9,  Sparc::Q10, Sparc::Q11,
-    Sparc::Q12, Sparc::Q13, Sparc::Q14, Sparc::Q15 };
+    MOS::Q0,  MOS::Q1,  MOS::Q2,  MOS::Q3,
+    MOS::Q4,  MOS::Q5,  MOS::Q6,  MOS::Q7,
+    MOS::Q8,  MOS::Q9,  MOS::Q10, MOS::Q11,
+    MOS::Q12, MOS::Q13, MOS::Q14, MOS::Q15 };
 
   static const MCPhysReg ASRRegs[32] = {
     SP::Y,     SP::ASR1,  SP::ASR2,  SP::ASR3,
@@ -172,32 +172,32 @@ public:
     SP::ASR28, SP::ASR29, SP::ASR30, SP::ASR31};
 
   static const MCPhysReg IntPairRegs[] = {
-    Sparc::G0_G1, Sparc::G2_G3, Sparc::G4_G5, Sparc::G6_G7,
-    Sparc::O0_O1, Sparc::O2_O3, Sparc::O4_O5, Sparc::O6_O7,
-    Sparc::L0_L1, Sparc::L2_L3, Sparc::L4_L5, Sparc::L6_L7,
-    Sparc::I0_I1, Sparc::I2_I3, Sparc::I4_I5, Sparc::I6_I7};
+    MOS::G0_G1, MOS::G2_G3, MOS::G4_G5, MOS::G6_G7,
+    MOS::O0_O1, MOS::O2_O3, MOS::O4_O5, MOS::O6_O7,
+    MOS::L0_L1, MOS::L2_L3, MOS::L4_L5, MOS::L6_L7,
+    MOS::I0_I1, MOS::I2_I3, MOS::I4_I5, MOS::I6_I7};
 
   static const MCPhysReg CoprocRegs[32] = {
-    Sparc::C0,  Sparc::C1,  Sparc::C2,  Sparc::C3,
-    Sparc::C4,  Sparc::C5,  Sparc::C6,  Sparc::C7,
-    Sparc::C8,  Sparc::C9,  Sparc::C10, Sparc::C11,
-    Sparc::C12, Sparc::C13, Sparc::C14, Sparc::C15,
-    Sparc::C16, Sparc::C17, Sparc::C18, Sparc::C19,
-    Sparc::C20, Sparc::C21, Sparc::C22, Sparc::C23,
-    Sparc::C24, Sparc::C25, Sparc::C26, Sparc::C27,
-    Sparc::C28, Sparc::C29, Sparc::C30, Sparc::C31 };
+    MOS::C0,  MOS::C1,  MOS::C2,  MOS::C3,
+    MOS::C4,  MOS::C5,  MOS::C6,  MOS::C7,
+    MOS::C8,  MOS::C9,  MOS::C10, MOS::C11,
+    MOS::C12, MOS::C13, MOS::C14, MOS::C15,
+    MOS::C16, MOS::C17, MOS::C18, MOS::C19,
+    MOS::C20, MOS::C21, MOS::C22, MOS::C23,
+    MOS::C24, MOS::C25, MOS::C26, MOS::C27,
+    MOS::C28, MOS::C29, MOS::C30, MOS::C31 };
 
   static const MCPhysReg CoprocPairRegs[] = {
-    Sparc::C0_C1,   Sparc::C2_C3,   Sparc::C4_C5,   Sparc::C6_C7,
-    Sparc::C8_C9,   Sparc::C10_C11, Sparc::C12_C13, Sparc::C14_C15,
-    Sparc::C16_C17, Sparc::C18_C19, Sparc::C20_C21, Sparc::C22_C23,
-    Sparc::C24_C25, Sparc::C26_C27, Sparc::C28_C29, Sparc::C30_C31};
+    MOS::C0_C1,   MOS::C2_C3,   MOS::C4_C5,   MOS::C6_C7,
+    MOS::C8_C9,   MOS::C10_C11, MOS::C12_C13, MOS::C14_C15,
+    MOS::C16_C17, MOS::C18_C19, MOS::C20_C21, MOS::C22_C23,
+    MOS::C24_C25, MOS::C26_C27, MOS::C28_C29, MOS::C30_C31};
 
 namespace {
 
-/// SparcOperand - Instances of this class represent a parsed Sparc machine
+/// MOSOperand - Instances of this class represent a parsed MOS machine
 /// instruction.
-class SparcOperand : public MCParsedAsmOperand {
+class MOSOperand : public MCParsedAsmOperand {
 public:
   enum RegisterKind {
     rk_None,
@@ -250,7 +250,7 @@ private:
   };
 
 public:
-  SparcOperand(KindTy K) : MCParsedAsmOperand(), Kind(K) {}
+  MOSOperand(KindTy K) : MCParsedAsmOperand(), Kind(K) {}
 
   bool isToken() const override { return Kind == k_Token; }
   bool isReg() const override { return Kind == k_Register; }
@@ -375,8 +375,8 @@ public:
     addExpr(Inst, Expr);
   }
 
-  static std::unique_ptr<SparcOperand> CreateToken(StringRef Str, SMLoc S) {
-    auto Op = make_unique<SparcOperand>(k_Token);
+  static std::unique_ptr<MOSOperand> CreateToken(StringRef Str, SMLoc S) {
+    auto Op = make_unique<MOSOperand>(k_Token);
     Op->Tok.Data = Str.data();
     Op->Tok.Length = Str.size();
     Op->StartLoc = S;
@@ -384,37 +384,37 @@ public:
     return Op;
   }
 
-  static std::unique_ptr<SparcOperand> CreateReg(unsigned RegNum, unsigned Kind,
+  static std::unique_ptr<MOSOperand> CreateReg(unsigned RegNum, unsigned Kind,
                                                  SMLoc S, SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_Register);
+    auto Op = make_unique<MOSOperand>(k_Register);
     Op->Reg.RegNum = RegNum;
-    Op->Reg.Kind   = (SparcOperand::RegisterKind)Kind;
+    Op->Reg.Kind   = (MOSOperand::RegisterKind)Kind;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return Op;
   }
 
-  static std::unique_ptr<SparcOperand> CreateImm(const MCExpr *Val, SMLoc S,
+  static std::unique_ptr<MOSOperand> CreateImm(const MCExpr *Val, SMLoc S,
                                                  SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_Immediate);
+    auto Op = make_unique<MOSOperand>(k_Immediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return Op;
   }
 
-  static bool MorphToIntPairReg(SparcOperand &Op) {
+  static bool MorphToIntPairReg(MOSOperand &Op) {
     unsigned Reg = Op.getReg();
     assert(Op.Reg.Kind == rk_IntReg);
     unsigned regIdx = 32;
-    if (Reg >= Sparc::G0 && Reg <= Sparc::G7)
-      regIdx = Reg - Sparc::G0;
-    else if (Reg >= Sparc::O0 && Reg <= Sparc::O7)
-      regIdx = Reg - Sparc::O0 + 8;
-    else if (Reg >= Sparc::L0 && Reg <= Sparc::L7)
-      regIdx = Reg - Sparc::L0 + 16;
-    else if (Reg >= Sparc::I0 && Reg <= Sparc::I7)
-      regIdx = Reg - Sparc::I0 + 24;
+    if (Reg >= MOS::G0 && Reg <= MOS::G7)
+      regIdx = Reg - MOS::G0;
+    else if (Reg >= MOS::O0 && Reg <= MOS::O7)
+      regIdx = Reg - MOS::O0 + 8;
+    else if (Reg >= MOS::L0 && Reg <= MOS::L7)
+      regIdx = Reg - MOS::L0 + 16;
+    else if (Reg >= MOS::I0 && Reg <= MOS::I7)
+      regIdx = Reg - MOS::I0 + 24;
     if (regIdx % 2 || regIdx > 31)
       return false;
     Op.Reg.RegNum = IntPairRegs[regIdx / 2];
@@ -422,10 +422,10 @@ public:
     return true;
   }
 
-  static bool MorphToDoubleReg(SparcOperand &Op) {
+  static bool MorphToDoubleReg(MOSOperand &Op) {
     unsigned Reg = Op.getReg();
     assert(Op.Reg.Kind == rk_FloatReg);
-    unsigned regIdx = Reg - Sparc::F0;
+    unsigned regIdx = Reg - MOS::F0;
     if (regIdx % 2 || regIdx > 31)
       return false;
     Op.Reg.RegNum = DoubleRegs[regIdx / 2];
@@ -433,19 +433,19 @@ public:
     return true;
   }
 
-  static bool MorphToQuadReg(SparcOperand &Op) {
+  static bool MorphToQuadReg(MOSOperand &Op) {
     unsigned Reg = Op.getReg();
     unsigned regIdx = 0;
     switch (Op.Reg.Kind) {
     default: llvm_unreachable("Unexpected register kind!");
     case rk_FloatReg:
-      regIdx = Reg - Sparc::F0;
+      regIdx = Reg - MOS::F0;
       if (regIdx % 4 || regIdx > 31)
         return false;
       Reg = QuadFPRegs[regIdx / 4];
       break;
     case rk_DoubleReg:
-      regIdx =  Reg - Sparc::D0;
+      regIdx =  Reg - MOS::D0;
       if (regIdx % 2 || regIdx > 31)
         return false;
       Reg = QuadFPRegs[regIdx / 2];
@@ -456,12 +456,12 @@ public:
     return true;
   }
 
-  static bool MorphToCoprocPairReg(SparcOperand &Op) {
+  static bool MorphToCoprocPairReg(MOSOperand &Op) {
     unsigned Reg = Op.getReg();
     assert(Op.Reg.Kind == rk_CoprocReg);
     unsigned regIdx = 32;
-    if (Reg >= Sparc::C0 && Reg <= Sparc::C31)
-      regIdx = Reg - Sparc::C0;
+    if (Reg >= MOS::C0 && Reg <= MOS::C31)
+      regIdx = Reg - MOS::C0;
     if (regIdx % 2 || regIdx > 31)
       return false;
     Op.Reg.RegNum = CoprocPairRegs[regIdx / 2];
@@ -469,8 +469,8 @@ public:
     return true;
   }
 
-  static std::unique_ptr<SparcOperand>
-  MorphToMEMrr(unsigned Base, std::unique_ptr<SparcOperand> Op) {
+  static std::unique_ptr<MOSOperand>
+  MorphToMEMrr(unsigned Base, std::unique_ptr<MOSOperand> Op) {
     unsigned offsetReg = Op->getReg();
     Op->Kind = k_MemoryReg;
     Op->Mem.Base = Base;
@@ -479,19 +479,19 @@ public:
     return Op;
   }
 
-  static std::unique_ptr<SparcOperand>
+  static std::unique_ptr<MOSOperand>
   CreateMEMr(unsigned Base, SMLoc S, SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_MemoryReg);
+    auto Op = make_unique<MOSOperand>(k_MemoryReg);
     Op->Mem.Base = Base;
-    Op->Mem.OffsetReg = Sparc::G0;  // always 0
+    Op->Mem.OffsetReg = MOS::G0;  // always 0
     Op->Mem.Off = nullptr;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return Op;
   }
 
-  static std::unique_ptr<SparcOperand>
-  MorphToMEMri(unsigned Base, std::unique_ptr<SparcOperand> Op) {
+  static std::unique_ptr<MOSOperand>
+  MorphToMEMri(unsigned Base, std::unique_ptr<MOSOperand> Op) {
     const MCExpr *Imm  = Op->getImm();
     Op->Kind = k_MemoryImm;
     Op->Mem.Base = Base;
@@ -503,7 +503,7 @@ public:
 
 } // end anonymous namespace
 
-bool SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
+bool MOSAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
                                SmallVectorImpl<MCInst> &Instructions) {
   MCOperand MCRegOp = Inst.getOperand(0);
   MCOperand MCValOp = Inst.getOperand(1);
@@ -534,14 +534,14 @@ bool SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
   else
     ValExpr = MCValOp.getExpr();
 
-  MCOperand PrevReg = MCOperand::createReg(Sparc::G0);
+  MCOperand PrevReg = MCOperand::createReg(MOS::G0);
 
   // If not just a signed imm13 value, then either we use a 'sethi' with a
   // following 'or', or a 'sethi' by itself if there are no more 1 bits.
   // In either case, start with the 'sethi'.
   if (!IsEffectivelyImm13) {
     MCInst TmpInst;
-    const MCExpr *Expr = adjustPICRelocation(SparcMCExpr::VK_Sparc_HI, ValExpr);
+    const MCExpr *Expr = adjustPICRelocation(MOSMCExpr::VK_MOS_HI, ValExpr);
     TmpInst.setLoc(IDLoc);
     TmpInst.setOpcode(SP::SETHIi);
     TmpInst.addOperand(MCRegOp);
@@ -566,7 +566,7 @@ bool SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
     if (IsEffectivelyImm13)
       Expr = ValExpr;
     else
-      Expr = adjustPICRelocation(SparcMCExpr::VK_Sparc_LO, ValExpr);
+      Expr = adjustPICRelocation(MOSMCExpr::VK_MOS_LO, ValExpr);
     TmpInst.setLoc(IDLoc);
     TmpInst.setOpcode(SP::ORri);
     TmpInst.addOperand(MCRegOp);
@@ -577,7 +577,7 @@ bool SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
   return false;
 }
 
-bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+bool MOSAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                              OperandVector &Operands,
                                              MCStreamer &Out,
                                              uint64_t &ErrorInfo,
@@ -615,7 +615,7 @@ bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
       if (ErrorInfo >= Operands.size())
         return Error(IDLoc, "too few operands for instruction");
 
-      ErrorLoc = ((SparcOperand &)*Operands[ErrorInfo]).getStartLoc();
+      ErrorLoc = ((MOSOperand &)*Operands[ErrorInfo]).getStartLoc();
       if (ErrorLoc == SMLoc())
         ErrorLoc = IDLoc;
     }
@@ -628,7 +628,7 @@ bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   llvm_unreachable("Implement any new match types added!");
 }
 
-bool SparcAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
+bool MOSAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                    SMLoc &EndLoc) {
   const AsmToken &Tok = Parser.getTok();
   StartLoc = Tok.getLoc();
@@ -637,7 +637,7 @@ bool SparcAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
   if (getLexer().getKind() != AsmToken::Percent)
     return false;
   Parser.Lex();
-  unsigned regKind = SparcOperand::rk_None;
+  unsigned regKind = MOSOperand::rk_None;
   if (matchRegisterName(Tok, RegNo, regKind)) {
     Parser.Lex();
     return false;
@@ -650,12 +650,12 @@ static void applyMnemonicAliases(StringRef &Mnemonic,
                                  const FeatureBitset &Features,
                                  unsigned VariantID);
 
-bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
+bool MOSAsmParser::ParseInstruction(ParseInstructionInfo &Info,
                                       StringRef Name, SMLoc NameLoc,
                                       OperandVector &Operands) {
 
   // First operand in MCInst is instruction mnemonic.
-  Operands.push_back(SparcOperand::CreateToken(Name, NameLoc));
+  Operands.push_back(MOSOperand::CreateToken(Name, NameLoc));
 
   // apply mnemonic aliases, if any, so that we can parse operands correctly.
   applyMnemonicAliases(Name, getAvailableFeatures(), 0);
@@ -675,8 +675,8 @@ bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
 
     while (getLexer().is(AsmToken::Comma) || getLexer().is(AsmToken::Plus)) {
       if (getLexer().is(AsmToken::Plus)) {
-      // Plus tokens are significant in software_traps (p83, sparcv8.pdf). We must capture them.
-        Operands.push_back(SparcOperand::CreateToken("+", Parser.getTok().getLoc()));
+      // Plus tokens are significant in software_traps (p83, mosv8.pdf). We must capture them.
+        Operands.push_back(MOSOperand::CreateToken("+", Parser.getTok().getLoc()));
       }
       Parser.Lex(); // Eat the comma or plus.
       // Parse and remember the operand.
@@ -694,7 +694,7 @@ bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   return false;
 }
 
-bool SparcAsmParser::
+bool MOSAsmParser::
 ParseDirective(AsmToken DirectiveID)
 {
   StringRef IDVal = DirectiveID.getString();
@@ -716,7 +716,7 @@ ParseDirective(AsmToken DirectiveID)
 }
 
 OperandMatchResultTy
-SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
+MOSAsmParser::parseMEMOperand(OperandVector &Operands) {
   SMLoc S, E;
   unsigned BaseReg = 0;
 
@@ -730,7 +730,7 @@ SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
   case AsmToken::Comma:
   case AsmToken::RBrac:
   case AsmToken::EndOfStatement:
-    Operands.push_back(SparcOperand::CreateMEMr(BaseReg, S, E));
+    Operands.push_back(MOSOperand::CreateMEMr(BaseReg, S, E));
     return MatchOperand_Success;
 
   case AsmToken:: Plus:
@@ -740,25 +740,25 @@ SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
     break;
   }
 
-  std::unique_ptr<SparcOperand> Offset;
-  OperandMatchResultTy ResTy = parseSparcAsmOperand(Offset);
+  std::unique_ptr<MOSOperand> Offset;
+  OperandMatchResultTy ResTy = parseMOSAsmOperand(Offset);
   if (ResTy != MatchOperand_Success || !Offset)
     return MatchOperand_NoMatch;
 
   Operands.push_back(
-      Offset->isImm() ? SparcOperand::MorphToMEMri(BaseReg, std::move(Offset))
-                      : SparcOperand::MorphToMEMrr(BaseReg, std::move(Offset)));
+      Offset->isImm() ? MOSOperand::MorphToMEMri(BaseReg, std::move(Offset))
+                      : MOSOperand::MorphToMEMrr(BaseReg, std::move(Offset)));
 
   return MatchOperand_Success;
 }
 
-OperandMatchResultTy SparcAsmParser::parseMembarTag(OperandVector &Operands) {
+OperandMatchResultTy MOSAsmParser::parseMembarTag(OperandVector &Operands) {
   SMLoc S = Parser.getTok().getLoc();
   const MCExpr *EVal;
   int64_t ImmVal = 0;
 
-  std::unique_ptr<SparcOperand> Mask;
-  if (parseSparcAsmOperand(Mask) == MatchOperand_Success) {
+  std::unique_ptr<MOSOperand> Mask;
+  if (parseMOSAsmOperand(Mask) == MatchOperand_Success) {
     if (!Mask->isImm() || !Mask->getImm()->evaluateAsAbsolute(ImmVal) ||
         ImmVal < 0 || ImmVal > 127) {
       Error(S, "invalid membar mask number");
@@ -794,12 +794,12 @@ OperandMatchResultTy SparcAsmParser::parseMembarTag(OperandVector &Operands) {
 
   EVal = MCConstantExpr::create(ImmVal, getContext());
   SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
-  Operands.push_back(SparcOperand::CreateImm(EVal, S, E));
+  Operands.push_back(MOSOperand::CreateImm(EVal, S, E));
   return MatchOperand_Success;
 }
 
 OperandMatchResultTy
-SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
+MOSAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
   OperandMatchResultTy ResTy = MatchOperandParserImpl(Operands, Mnemonic);
 
@@ -811,7 +811,7 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
   if (getLexer().is(AsmToken::LBrac)) {
     // Memory operand
-    Operands.push_back(SparcOperand::CreateToken("[",
+    Operands.push_back(MOSOperand::CreateToken("[",
                                                  Parser.getTok().getLoc()));
     Parser.Lex(); // Eat the [
 
@@ -827,7 +827,7 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
       Parser.Lex(); // Eat the identifier token.
       SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer()-1);
-      Operands.push_back(SparcOperand::CreateReg(RegNo, RegKind, S, E));
+      Operands.push_back(MOSOperand::CreateReg(RegNo, RegKind, S, E));
       ResTy = MatchOperand_Success;
     } else {
       ResTy = parseMEMOperand(Operands);
@@ -839,14 +839,14 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     if (!getLexer().is(AsmToken::RBrac))
       return MatchOperand_ParseFail;
 
-    Operands.push_back(SparcOperand::CreateToken("]",
+    Operands.push_back(MOSOperand::CreateToken("]",
                                                  Parser.getTok().getLoc()));
     Parser.Lex(); // Eat the ]
 
     // Parse an optional address-space identifier after the address.
     if (getLexer().is(AsmToken::Integer)) {
-      std::unique_ptr<SparcOperand> Op;
-      ResTy = parseSparcAsmOperand(Op, false);
+      std::unique_ptr<MOSOperand> Op;
+      ResTy = parseMOSAsmOperand(Op, false);
       if (ResTy != MatchOperand_Success || !Op)
         return MatchOperand_ParseFail;
       Operands.push_back(std::move(Op));
@@ -854,9 +854,9 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     return MatchOperand_Success;
   }
 
-  std::unique_ptr<SparcOperand> Op;
+  std::unique_ptr<MOSOperand> Op;
 
-  ResTy = parseSparcAsmOperand(Op, (Mnemonic == "call"));
+  ResTy = parseMOSAsmOperand(Op, (Mnemonic == "call"));
   if (ResTy != MatchOperand_Success || !Op)
     return MatchOperand_ParseFail;
 
@@ -867,7 +867,7 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 }
 
 OperandMatchResultTy
-SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
+MOSAsmParser::parseMOSAsmOperand(std::unique_ptr<MOSOperand> &Op,
                                      bool isCall) {
   SMLoc S = Parser.getTok().getLoc();
   SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
@@ -887,41 +887,41 @@ SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
       E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
       switch (RegNo) {
       default:
-        Op = SparcOperand::CreateReg(RegNo, RegKind, S, E);
+        Op = MOSOperand::CreateReg(RegNo, RegKind, S, E);
         break;
-      case Sparc::PSR:
-        Op = SparcOperand::CreateToken("%psr", S);
+      case MOS::PSR:
+        Op = MOSOperand::CreateToken("%psr", S);
         break;
-      case Sparc::FSR:
-        Op = SparcOperand::CreateToken("%fsr", S);
+      case MOS::FSR:
+        Op = MOSOperand::CreateToken("%fsr", S);
         break;
-      case Sparc::FQ:
-        Op = SparcOperand::CreateToken("%fq", S);
+      case MOS::FQ:
+        Op = MOSOperand::CreateToken("%fq", S);
         break;
-      case Sparc::CPSR:
-        Op = SparcOperand::CreateToken("%csr", S);
+      case MOS::CPSR:
+        Op = MOSOperand::CreateToken("%csr", S);
         break;
-      case Sparc::CPQ:
-        Op = SparcOperand::CreateToken("%cq", S);
+      case MOS::CPQ:
+        Op = MOSOperand::CreateToken("%cq", S);
         break;
-      case Sparc::WIM:
-        Op = SparcOperand::CreateToken("%wim", S);
+      case MOS::WIM:
+        Op = MOSOperand::CreateToken("%wim", S);
         break;
-      case Sparc::TBR:
-        Op = SparcOperand::CreateToken("%tbr", S);
+      case MOS::TBR:
+        Op = MOSOperand::CreateToken("%tbr", S);
         break;
-      case Sparc::ICC:
+      case MOS::ICC:
         if (name == "xcc")
-          Op = SparcOperand::CreateToken("%xcc", S);
+          Op = MOSOperand::CreateToken("%xcc", S);
         else
-          Op = SparcOperand::CreateToken("%icc", S);
+          Op = MOSOperand::CreateToken("%icc", S);
         break;
       }
       break;
     }
-    if (matchSparcAsmModifiers(EVal, E)) {
+    if (matchMOSAsmModifiers(EVal, E)) {
       E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
-      Op = SparcOperand::CreateImm(EVal, S, E);
+      Op = MOSOperand::CreateImm(EVal, S, E);
     }
     break;
 
@@ -930,7 +930,7 @@ SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
   case AsmToken::LParen:
   case AsmToken::Dot:
     if (!getParser().parseExpression(EVal, E))
-      Op = SparcOperand::CreateImm(EVal, S, E);
+      Op = MOSOperand::CreateImm(EVal, S, E);
     break;
 
   case AsmToken::Identifier: {
@@ -941,18 +941,18 @@ SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
 
       const MCExpr *Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None,
                                                   getContext());
-      SparcMCExpr::VariantKind Kind = SparcMCExpr::VK_Sparc_13;
+      MOSMCExpr::VariantKind Kind = MOSMCExpr::VK_MOS_13;
 
       if (getContext().getObjectFileInfo()->isPositionIndependent()) {
         if (isCall)
-          Kind = SparcMCExpr::VK_Sparc_WPLT30;
+          Kind = MOSMCExpr::VK_MOS_WPLT30;
         else
-          Kind = SparcMCExpr::VK_Sparc_GOT13;
+          Kind = MOSMCExpr::VK_MOS_GOT13;
       }
 
-      Res = SparcMCExpr::create(Kind, Res, getContext());
+      Res = MOSMCExpr::create(Kind, Res, getContext());
 
-      Op = SparcOperand::CreateImm(Res, S, E);
+      Op = MOSOperand::CreateImm(Res, S, E);
     }
     break;
   }
@@ -961,7 +961,7 @@ SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
 }
 
 OperandMatchResultTy
-SparcAsmParser::parseBranchModifiers(OperandVector &Operands) {
+MOSAsmParser::parseBranchModifiers(OperandVector &Operands) {
   // parse (,a|,pn|,pt)+
 
   while (getLexer().is(AsmToken::Comma)) {
@@ -971,7 +971,7 @@ SparcAsmParser::parseBranchModifiers(OperandVector &Operands) {
       return MatchOperand_ParseFail;
     StringRef modName = Parser.getTok().getString();
     if (modName == "a" || modName == "pn" || modName == "pt") {
-      Operands.push_back(SparcOperand::CreateToken(modName,
+      Operands.push_back(MOSOperand::CreateToken(modName,
                                                    Parser.getTok().getLoc()));
       Parser.Lex(); // eat the identifier.
     }
@@ -979,30 +979,30 @@ SparcAsmParser::parseBranchModifiers(OperandVector &Operands) {
   return MatchOperand_Success;
 }
 
-bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
+bool MOSAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
                                        unsigned &RegKind) {
   int64_t intVal = 0;
   RegNo = 0;
-  RegKind = SparcOperand::rk_None;
+  RegKind = MOSOperand::rk_None;
   if (Tok.is(AsmToken::Identifier)) {
     StringRef name = Tok.getString();
 
     // %fp
     if (name.equals("fp")) {
-      RegNo = Sparc::I6;
-      RegKind = SparcOperand::rk_IntReg;
+      RegNo = MOS::I6;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
     // %sp
     if (name.equals("sp")) {
-      RegNo = Sparc::O6;
-      RegKind = SparcOperand::rk_IntReg;
+      RegNo = MOS::O6;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
 
     if (name.equals("y")) {
-      RegNo = Sparc::Y;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::Y;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
@@ -1010,69 +1010,69 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && !name.substr(3).getAsInteger(10, intVal)
         && intVal > 0 && intVal < 32) {
       RegNo = ASRRegs[intVal];
-      RegKind = SparcOperand::rk_Special;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     // %fprs is an alias of %asr6.
     if (name.equals("fprs")) {
       RegNo = ASRRegs[6];
-      RegKind = SparcOperand::rk_Special;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("icc")) {
-      RegNo = Sparc::ICC;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::ICC;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("psr")) {
-      RegNo = Sparc::PSR;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::PSR;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("fsr")) {
-      RegNo = Sparc::FSR;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::FSR;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("fq")) {
-      RegNo = Sparc::FQ;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::FQ;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("csr")) {
-      RegNo = Sparc::CPSR;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CPSR;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("cq")) {
-      RegNo = Sparc::CPQ;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CPQ;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("wim")) {
-      RegNo = Sparc::WIM;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::WIM;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("tbr")) {
-      RegNo = Sparc::TBR;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TBR;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
     if (name.equals("xcc")) {
       // FIXME:: check 64bit.
-      RegNo = Sparc::ICC;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::ICC;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
@@ -1081,8 +1081,8 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && !name.substr(3).getAsInteger(10, intVal)
         && intVal < 4) {
       // FIXME: check 64bit and  handle %fcc1 - %fcc3
-      RegNo = Sparc::FCC0 + intVal;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::FCC0 + intVal;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
 
@@ -1091,7 +1091,7 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && !name.substr(1).getAsInteger(10, intVal)
         && intVal < 8) {
       RegNo = IntRegs[intVal];
-      RegKind = SparcOperand::rk_IntReg;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
     // %o0 - %o7
@@ -1099,28 +1099,28 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && !name.substr(1).getAsInteger(10, intVal)
         && intVal < 8) {
       RegNo = IntRegs[8 + intVal];
-      RegKind = SparcOperand::rk_IntReg;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
     if (name.substr(0, 1).equals_lower("l")
         && !name.substr(1).getAsInteger(10, intVal)
         && intVal < 8) {
       RegNo = IntRegs[16 + intVal];
-      RegKind = SparcOperand::rk_IntReg;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
     if (name.substr(0, 1).equals_lower("i")
         && !name.substr(1).getAsInteger(10, intVal)
         && intVal < 8) {
       RegNo = IntRegs[24 + intVal];
-      RegKind = SparcOperand::rk_IntReg;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
     // %f0 - %f31
     if (name.substr(0, 1).equals_lower("f")
         && !name.substr(1, 2).getAsInteger(10, intVal) && intVal < 32) {
       RegNo = FloatRegs[intVal];
-      RegKind = SparcOperand::rk_FloatReg;
+      RegKind = MOSOperand::rk_FloatReg;
       return true;
     }
     // %f32 - %f62
@@ -1129,7 +1129,7 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && intVal >= 32 && intVal <= 62 && (intVal % 2 == 0)) {
       // FIXME: Check V9
       RegNo = DoubleRegs[intVal/2];
-      RegKind = SparcOperand::rk_DoubleReg;
+      RegKind = MOSOperand::rk_DoubleReg;
       return true;
     }
 
@@ -1137,7 +1137,7 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
     if (name.substr(0, 1).equals_lower("r")
         && !name.substr(1, 2).getAsInteger(10, intVal) && intVal < 31) {
       RegNo = IntRegs[intVal];
-      RegKind = SparcOperand::rk_IntReg;
+      RegKind = MOSOperand::rk_IntReg;
       return true;
     }
 
@@ -1146,83 +1146,83 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
         && !name.substr(1).getAsInteger(10, intVal)
         && intVal < 32) {
       RegNo = CoprocRegs[intVal];
-      RegKind = SparcOperand::rk_CoprocReg;
+      RegKind = MOSOperand::rk_CoprocReg;
       return true;
     }
 
     if (name.equals("tpc")) {
-      RegNo = Sparc::TPC;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TPC;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tnpc")) {
-      RegNo = Sparc::TNPC;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TNPC;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tstate")) {
-      RegNo = Sparc::TSTATE;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TSTATE;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tt")) {
-      RegNo = Sparc::TT;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TT;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tick")) {
-      RegNo = Sparc::TICK;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TICK;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tba")) {
-      RegNo = Sparc::TBA;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TBA;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("pstate")) {
-      RegNo = Sparc::PSTATE;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::PSTATE;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("tl")) {
-      RegNo = Sparc::TL;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::TL;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("pil")) {
-      RegNo = Sparc::PIL;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::PIL;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("cwp")) {
-      RegNo = Sparc::CWP;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CWP;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("cansave")) {
-      RegNo = Sparc::CANSAVE;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CANSAVE;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("canrestore")) {
-      RegNo = Sparc::CANRESTORE;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CANRESTORE;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("cleanwin")) {
-      RegNo = Sparc::CLEANWIN;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::CLEANWIN;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("otherwin")) {
-      RegNo = Sparc::OTHERWIN;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::OTHERWIN;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
     if (name.equals("wstate")) {
-      RegNo = Sparc::WSTATE;
-      RegKind = SparcOperand::rk_Special;
+      RegNo = MOS::WSTATE;
+      RegKind = MOSOperand::rk_Special;
       return true;
     }
   }
@@ -1234,7 +1234,7 @@ bool SparcAsmParser::matchRegisterName(const AsmToken &Tok, unsigned &RegNo,
 static bool hasGOTReference(const MCExpr *Expr) {
   switch (Expr->getKind()) {
   case MCExpr::Target:
-    if (const SparcMCExpr *SE = dyn_cast<SparcMCExpr>(Expr))
+    if (const MOSMCExpr *SE = dyn_cast<MOSMCExpr>(Expr))
       return hasGOTReference(SE->getSubExpr());
     break;
 
@@ -1257,8 +1257,8 @@ static bool hasGOTReference(const MCExpr *Expr) {
   return false;
 }
 
-const SparcMCExpr *
-SparcAsmParser::adjustPICRelocation(SparcMCExpr::VariantKind VK,
+const MOSMCExpr *
+MOSAsmParser::adjustPICRelocation(MOSMCExpr::VariantKind VK,
                                     const MCExpr *subExpr) {
   // When in PIC mode, "%lo(...)" and "%hi(...)" behave differently.
   // If the expression refers contains _GLOBAL_OFFSETE_TABLE, it is
@@ -1268,21 +1268,21 @@ SparcAsmParser::adjustPICRelocation(SparcMCExpr::VariantKind VK,
   if (getContext().getObjectFileInfo()->isPositionIndependent()) {
     switch(VK) {
     default: break;
-    case SparcMCExpr::VK_Sparc_LO:
-      VK = (hasGOTReference(subExpr) ? SparcMCExpr::VK_Sparc_PC10
-                                     : SparcMCExpr::VK_Sparc_GOT10);
+    case MOSMCExpr::VK_MOS_LO:
+      VK = (hasGOTReference(subExpr) ? MOSMCExpr::VK_MOS_PC10
+                                     : MOSMCExpr::VK_MOS_GOT10);
       break;
-    case SparcMCExpr::VK_Sparc_HI:
-      VK = (hasGOTReference(subExpr) ? SparcMCExpr::VK_Sparc_PC22
-                                     : SparcMCExpr::VK_Sparc_GOT22);
+    case MOSMCExpr::VK_MOS_HI:
+      VK = (hasGOTReference(subExpr) ? MOSMCExpr::VK_MOS_PC22
+                                     : MOSMCExpr::VK_MOS_GOT22);
       break;
     }
   }
 
-  return SparcMCExpr::create(VK, subExpr, getContext());
+  return MOSMCExpr::create(VK, subExpr, getContext());
 }
 
-bool SparcAsmParser::matchSparcAsmModifiers(const MCExpr *&EVal,
+bool MOSAsmParser::matchMOSAsmModifiers(const MCExpr *&EVal,
                                             SMLoc &EndLoc) {
   AsmToken Tok = Parser.getTok();
   if (!Tok.is(AsmToken::Identifier))
@@ -1290,9 +1290,9 @@ bool SparcAsmParser::matchSparcAsmModifiers(const MCExpr *&EVal,
 
   StringRef name = Tok.getString();
 
-  SparcMCExpr::VariantKind VK = SparcMCExpr::parseVariantKind(name);
+  MOSMCExpr::VariantKind VK = MOSMCExpr::parseVariantKind(name);
 
-  if (VK == SparcMCExpr::VK_Sparc_None)
+  if (VK == MOSMCExpr::VK_MOS_None)
     return false;
 
   Parser.Lex(); // Eat the identifier.
@@ -1308,38 +1308,38 @@ bool SparcAsmParser::matchSparcAsmModifiers(const MCExpr *&EVal,
   return true;
 }
 
-extern "C" void LLVMInitializeSparcAsmParser() {
-  RegisterMCAsmParser<SparcAsmParser> A(getTheSparcTarget());
-  RegisterMCAsmParser<SparcAsmParser> B(getTheSparcV9Target());
-  RegisterMCAsmParser<SparcAsmParser> C(getTheSparcelTarget());
+extern "C" void LLVMInitializeMOSAsmParser() {
+  RegisterMCAsmParser<MOSAsmParser> A(getTheMOSTarget());
+  RegisterMCAsmParser<MOSAsmParser> B(getTheMOSV9Target());
+  RegisterMCAsmParser<MOSAsmParser> C(getTheMOSelTarget());
 }
 
 #define GET_REGISTER_MATCHER
 #define GET_MATCHER_IMPLEMENTATION
-#include "SparcGenAsmMatcher.inc"
+#include "MOSGenAsmMatcher.inc"
 
-unsigned SparcAsmParser::validateTargetOperandClass(MCParsedAsmOperand &GOp,
+unsigned MOSAsmParser::validateTargetOperandClass(MCParsedAsmOperand &GOp,
                                                     unsigned Kind) {
-  SparcOperand &Op = (SparcOperand &)GOp;
+  MOSOperand &Op = (MOSOperand &)GOp;
   if (Op.isFloatOrDoubleReg()) {
     switch (Kind) {
     default: break;
     case MCK_DFPRegs:
-      if (!Op.isFloatReg() || SparcOperand::MorphToDoubleReg(Op))
+      if (!Op.isFloatReg() || MOSOperand::MorphToDoubleReg(Op))
         return MCTargetAsmParser::Match_Success;
       break;
     case MCK_QFPRegs:
-      if (SparcOperand::MorphToQuadReg(Op))
+      if (MOSOperand::MorphToQuadReg(Op))
         return MCTargetAsmParser::Match_Success;
       break;
     }
   }
   if (Op.isIntReg() && Kind == MCK_IntPair) {
-    if (SparcOperand::MorphToIntPairReg(Op))
+    if (MOSOperand::MorphToIntPairReg(Op))
       return MCTargetAsmParser::Match_Success;
   }
   if (Op.isCoprocReg() && Kind == MCK_CoprocPair) {
-     if (SparcOperand::MorphToCoprocPairReg(Op))
+     if (MOSOperand::MorphToCoprocPairReg(Op))
        return MCTargetAsmParser::Match_Success;
    }
   return Match_InvalidOperand;

@@ -1,4 +1,4 @@
-//===- SparcMCAsmInfo.cpp - Sparc asm properties --------------------------===//
+//===- MOSMCAsmInfo.cpp - MOS asm properties --------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the declarations of the SparcMCAsmInfo properties.
+// This file contains the declarations of the MOSMCAsmInfo properties.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcMCAsmInfo.h"
-#include "SparcMCExpr.h"
+#include "MOSMCAsmInfo.h"
+#include "MOSMCExpr.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/MC/MCExpr.h"
@@ -20,11 +20,11 @@
 
 using namespace llvm;
 
-void SparcELFMCAsmInfo::anchor() {}
+void MOSELFMCAsmInfo::anchor() {}
 
-SparcELFMCAsmInfo::SparcELFMCAsmInfo(const Triple &TheTriple) {
-  bool isV9 = (TheTriple.getArch() == Triple::sparcv9);
-  IsLittleEndian = (TheTriple.getArch() == Triple::sparcel);
+MOSELFMCAsmInfo::MOSELFMCAsmInfo(const Triple &TheTriple) {
+  bool isV9 = (TheTriple.getArch() == Triple::mosv9);
+  IsLittleEndian = (TheTriple.getArch() == Triple::mosel);
 
   if (isV9) {
     CodePointerSize = CalleeSaveStackSlotSize = 8;
@@ -47,12 +47,12 @@ SparcELFMCAsmInfo::SparcELFMCAsmInfo(const Triple &TheTriple) {
 }
 
 const MCExpr*
-SparcELFMCAsmInfo::getExprForPersonalitySymbol(const MCSymbol *Sym,
+MOSELFMCAsmInfo::getExprForPersonalitySymbol(const MCSymbol *Sym,
                                                unsigned Encoding,
                                                MCStreamer &Streamer) const {
   if (Encoding & dwarf::DW_EH_PE_pcrel) {
     MCContext &Ctx = Streamer.getContext();
-    return SparcMCExpr::create(SparcMCExpr::VK_Sparc_R_DISP32,
+    return MOSMCExpr::create(MOSMCExpr::VK_MOS_R_DISP32,
                                MCSymbolRefExpr::create(Sym, Ctx), Ctx);
   }
 
@@ -60,12 +60,12 @@ SparcELFMCAsmInfo::getExprForPersonalitySymbol(const MCSymbol *Sym,
 }
 
 const MCExpr*
-SparcELFMCAsmInfo::getExprForFDESymbol(const MCSymbol *Sym,
+MOSELFMCAsmInfo::getExprForFDESymbol(const MCSymbol *Sym,
                                        unsigned Encoding,
                                        MCStreamer &Streamer) const {
   if (Encoding & dwarf::DW_EH_PE_pcrel) {
     MCContext &Ctx = Streamer.getContext();
-    return SparcMCExpr::create(SparcMCExpr::VK_Sparc_R_DISP32,
+    return MOSMCExpr::create(MOSMCExpr::VK_MOS_R_DISP32,
                                MCSymbolRefExpr::create(Sym, Ctx), Ctx);
   }
   return MCAsmInfo::getExprForFDESymbol(Sym, Encoding, Streamer);

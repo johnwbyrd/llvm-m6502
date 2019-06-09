@@ -1,4 +1,4 @@
-//===-- SparcFrameLowering.h - Define frame lowering for Sparc --*- C++ -*-===//
+//===-- MOSFrameLowering.h - Define frame lowering for MOS --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,18 +10,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_SPARCFRAMELOWERING_H
-#define LLVM_LIB_TARGET_SPARC_SPARCFRAMELOWERING_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSFRAMELOWERING_H
+#define LLVM_LIB_TARGET_MOS_MOSFRAMELOWERING_H
 
-#include "Sparc.h"
+#include "MOS.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
 
-class SparcSubtarget;
-class SparcFrameLowering : public TargetFrameLowering {
+class MOSSubtarget;
+class MOSFrameLowering : public TargetFrameLowering {
 public:
-  explicit SparcFrameLowering(const SparcSubtarget &ST);
+  explicit MOSFrameLowering(const MOSSubtarget &ST);
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.

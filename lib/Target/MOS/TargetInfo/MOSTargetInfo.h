@@ -1,4 +1,4 @@
-//===-- SparcTargetInfo.h - Sparc Target Implementation ---------*- C++ -*-===//
+//===-- MOSTargetInfo.h - MOS Target Implementation ---------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,17 +6,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_TARGETINFO_SPARCTARGETINFO_H
-#define LLVM_LIB_TARGET_SPARC_TARGETINFO_SPARCTARGETINFO_H
+#ifndef LLVM_LIB_TARGET_MOS_TARGETINFO_MOSTARGETINFO_H
+#define LLVM_LIB_TARGET_MOS_TARGETINFO_MOSTARGETINFO_H
 
 namespace llvm {
 
 class Target;
 
-Target &getTheSparcTarget();
-Target &getTheSparcV9Target();
-Target &getTheSparcelTarget();
+Target &getTheMOSTarget();
+Target &getTheMOSV9Target();
+Target &getTheMOSelTarget();
 
 } // namespace llvm
 
-#endif // LLVM_LIB_TARGET_SPARC_TARGETINFO_SPARCTARGETINFO_H
+#endif // LLVM_LIB_TARGET_MOS_TARGETINFO_MOSTARGETINFO_H

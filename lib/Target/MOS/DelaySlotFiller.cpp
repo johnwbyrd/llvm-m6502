@@ -1,4 +1,4 @@
-//===-- DelaySlotFiller.cpp - SPARC delay slot filler ---------------------===//
+//===-- DelaySlotFiller.cpp - MOS delay slot filler ---------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 // NOP is placed.
 //===----------------------------------------------------------------------===//
 
-#include "Sparc.h"
-#include "SparcSubtarget.h"
+#include "MOS.h"
+#include "MOSSubtarget.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -30,24 +30,24 @@ using namespace llvm;
 STATISTIC(FilledSlots, "Number of delay slots filled");
 
 static cl::opt<bool> DisableDelaySlotFiller(
-  "disable-sparc-delay-filler",
+  "disable-mos-delay-filler",
   cl::init(false),
-  cl::desc("Disable the Sparc delay slot filler."),
+  cl::desc("Disable the MOS delay slot filler."),
   cl::Hidden);
 
 namespace {
   struct Filler : public MachineFunctionPass {
-    const SparcSubtarget *Subtarget;
+    const MOSSubtarget *Subtarget;
 
     static char ID;
     Filler() : MachineFunctionPass(ID) {}
 
-    StringRef getPassName() const override { return "SPARC Delay Slot Filler"; }
+    StringRef getPassName() const override { return "MOS Delay Slot Filler"; }
 
     bool runOnMachineBasicBlock(MachineBasicBlock &MBB);
     bool runOnMachineFunction(MachineFunction &F) override {
       bool Changed = false;
-      Subtarget = &F.getSubtarget<SparcSubtarget>();
+      Subtarget = &F.getSubtarget<MOSSubtarget>();
 
       // This pass invalidates liveness information when it reorders
       // instructions to fill delay slot.
@@ -92,10 +92,10 @@ namespace {
   char Filler::ID = 0;
 } // end of anonymous namespace
 
-/// createSparcDelaySlotFillerPass - Returns a pass that fills in delay
-/// slots in Sparc MachineFunctions
+/// createMOSDelaySlotFillerPass - Returns a pass that fills in delay
+/// slots in MOS MachineFunctions
 ///
-FunctionPass *llvm::createSparcDelaySlotFillerPass() {
+FunctionPass *llvm::createMOSDelaySlotFillerPass() {
   return new Filler;
 }
 
@@ -105,7 +105,7 @@ FunctionPass *llvm::createSparcDelaySlotFillerPass() {
 ///
 bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool Changed = false;
-  Subtarget = &MBB.getParent()->getSubtarget<SparcSubtarget>();
+  Subtarget = &MBB.getParent()->getSubtarget<MOSSubtarget>();
   const TargetInstrInfo *TII = Subtarget->getInstrInfo();
 
   for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ) {

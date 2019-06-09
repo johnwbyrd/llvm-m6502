@@ -1,4 +1,4 @@
-//===-- SparcInstr64Bit.td - 64-bit instructions for Sparc Target ---------===//
+//===-- MOSInstr64Bit.td - 64-bit instructions for MOS Target ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,10 +7,10 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains instruction definitions and patterns needed for 64-bit
-// code generation on SPARC v9.
+// code generation on MOS v9.
 //
-// Some SPARC v9 instructions are defined in SparcInstrInfo.td because they can
-// also be used in 32-bit code running on a SPARC v9 CPU.
+// Some MOS v9 instructions are defined in MOSInstrInfo.td because they can
+// also be used in 32-bit code running on a MOS v9 CPU.
 //
 //===----------------------------------------------------------------------===//
 
@@ -227,10 +227,10 @@ def UDIVXri : F3_2<2, 0b001101,
 //
 // All the 32-bit loads and stores are available. The extending loads are sign
 // or zero-extending to 64 bits. The LDrr and LDri instructions load 32 bits
-// zero-extended to i64. Their mnemonic is lduw in SPARC v9 (Load Unsigned
+// zero-extended to i64. Their mnemonic is lduw in MOS v9 (Load Unsigned
 // Word).
 //
-// SPARC v9 adds 64-bit loads as well as a sign-extending ldsw i32 loads.
+// MOS v9 adds 64-bit loads as well as a sign-extending ldsw i32 loads.
 
 let Predicates = [Is64Bit] in {
 
@@ -270,7 +270,7 @@ def : Pat<(i64 (zextloadi32 ADDRri:$addr)), (LDri ADDRri:$addr)>;
 def : Pat<(i64 (extloadi32 ADDRrr:$addr)),  (LDrr ADDRrr:$addr)>;
 def : Pat<(i64 (extloadi32 ADDRri:$addr)),  (LDri ADDRri:$addr)>;
 
-// Sign-extending load of i32 into i64 is a new SPARC v9 instruction.
+// Sign-extending load of i32 into i64 is a new MOS v9 instruction.
 let DecoderMethod = "DecodeLoadInt" in
   defm LDSW   : Load<"ldsw", 0b001000, sextloadi32, I64Regs, i64>;
 

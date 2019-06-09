@@ -1,4 +1,4 @@
-//===-- SparcMCTargetDesc.cpp - Sparc Target Descriptions -----------------===//
+//===-- MOSMCTargetDesc.cpp - MOS Target Descriptions -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides Sparc specific target descriptions.
+// This file provides MOS specific target descriptions.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcMCTargetDesc.h"
-#include "SparcInstPrinter.h"
-#include "SparcMCAsmInfo.h"
-#include "SparcTargetStreamer.h"
-#include "TargetInfo/SparcTargetInfo.h"
+#include "MOSMCTargetDesc.h"
+#include "MOSInstPrinter.h"
+#include "MOSMCAsmInfo.h"
+#include "MOSTargetStreamer.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -24,93 +24,93 @@
 using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
-#include "SparcGenInstrInfo.inc"
+#include "MOSGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_MC_DESC
-#include "SparcGenSubtargetInfo.inc"
+#include "MOSGenSubtargetInfo.inc"
 
 #define GET_REGINFO_MC_DESC
-#include "SparcGenRegisterInfo.inc"
+#include "MOSGenRegisterInfo.inc"
 
-static MCAsmInfo *createSparcMCAsmInfo(const MCRegisterInfo &MRI,
+static MCAsmInfo *createMOSMCAsmInfo(const MCRegisterInfo &MRI,
                                        const Triple &TT) {
-  MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
+  MCAsmInfo *MAI = new MOSELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
   MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);
   MAI->addInitialFrameState(Inst);
   return MAI;
 }
 
-static MCAsmInfo *createSparcV9MCAsmInfo(const MCRegisterInfo &MRI,
+static MCAsmInfo *createMOSV9MCAsmInfo(const MCRegisterInfo &MRI,
                                          const Triple &TT) {
-  MCAsmInfo *MAI = new SparcELFMCAsmInfo(TT);
+  MCAsmInfo *MAI = new MOSELFMCAsmInfo(TT);
   unsigned Reg = MRI.getDwarfRegNum(SP::O6, true);
   MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 2047);
   MAI->addInitialFrameState(Inst);
   return MAI;
 }
 
-static MCInstrInfo *createSparcMCInstrInfo() {
+static MCInstrInfo *createMOSMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
-  InitSparcMCInstrInfo(X);
+  InitMOSMCInstrInfo(X);
   return X;
 }
 
-static MCRegisterInfo *createSparcMCRegisterInfo(const Triple &TT) {
+static MCRegisterInfo *createMOSMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitSparcMCRegisterInfo(X, SP::O7);
+  InitMOSMCRegisterInfo(X, SP::O7);
   return X;
 }
 
 static MCSubtargetInfo *
-createSparcMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
+createMOSMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   if (CPU.empty())
-    CPU = (TT.getArch() == Triple::sparcv9) ? "v9" : "v8";
-  return createSparcMCSubtargetInfoImpl(TT, CPU, FS);
+    CPU = (TT.getArch() == Triple::mosv9) ? "v9" : "v8";
+  return createMOSMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
 static MCTargetStreamer *
 createObjectTargetStreamer(MCStreamer &S, const MCSubtargetInfo &STI) {
-  return new SparcTargetELFStreamer(S);
+  return new MOSTargetELFStreamer(S);
 }
 
 static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
                                                  formatted_raw_ostream &OS,
                                                  MCInstPrinter *InstPrint,
                                                  bool isVerboseAsm) {
-  return new SparcTargetAsmStreamer(S, OS);
+  return new MOSTargetAsmStreamer(S, OS);
 }
 
-static MCInstPrinter *createSparcMCInstPrinter(const Triple &T,
+static MCInstPrinter *createMOSMCInstPrinter(const Triple &T,
                                                unsigned SyntaxVariant,
                                                const MCAsmInfo &MAI,
                                                const MCInstrInfo &MII,
                                                const MCRegisterInfo &MRI) {
-  return new SparcInstPrinter(MAI, MII, MRI);
+  return new MOSInstPrinter(MAI, MII, MRI);
 }
 
-extern "C" void LLVMInitializeSparcTargetMC() {
+extern "C" void LLVMInitializeMOSTargetMC() {
   // Register the MC asm info.
-  RegisterMCAsmInfoFn X(getTheSparcTarget(), createSparcMCAsmInfo);
-  RegisterMCAsmInfoFn Y(getTheSparcV9Target(), createSparcV9MCAsmInfo);
-  RegisterMCAsmInfoFn Z(getTheSparcelTarget(), createSparcMCAsmInfo);
+  RegisterMCAsmInfoFn X(getTheMOSTarget(), createMOSMCAsmInfo);
+  RegisterMCAsmInfoFn Y(getTheMOSV9Target(), createMOSV9MCAsmInfo);
+  RegisterMCAsmInfoFn Z(getTheMOSelTarget(), createMOSMCAsmInfo);
 
   for (Target *T :
-       {&getTheSparcTarget(), &getTheSparcV9Target(), &getTheSparcelTarget()}) {
+       {&getTheMOSTarget(), &getTheMOSV9Target(), &getTheMOSelTarget()}) {
     // Register the MC instruction info.
-    TargetRegistry::RegisterMCInstrInfo(*T, createSparcMCInstrInfo);
+    TargetRegistry::RegisterMCInstrInfo(*T, createMOSMCInstrInfo);
 
     // Register the MC register info.
-    TargetRegistry::RegisterMCRegInfo(*T, createSparcMCRegisterInfo);
+    TargetRegistry::RegisterMCRegInfo(*T, createMOSMCRegisterInfo);
 
     // Register the MC subtarget info.
-    TargetRegistry::RegisterMCSubtargetInfo(*T, createSparcMCSubtargetInfo);
+    TargetRegistry::RegisterMCSubtargetInfo(*T, createMOSMCSubtargetInfo);
 
     // Register the MC Code Emitter.
-    TargetRegistry::RegisterMCCodeEmitter(*T, createSparcMCCodeEmitter);
+    TargetRegistry::RegisterMCCodeEmitter(*T, createMOSMCCodeEmitter);
 
     // Register the asm backend.
-    TargetRegistry::RegisterMCAsmBackend(*T, createSparcAsmBackend);
+    TargetRegistry::RegisterMCAsmBackend(*T, createMOSAsmBackend);
 
     // Register the object target streamer.
     TargetRegistry::RegisterObjectTargetStreamer(*T,
@@ -120,6 +120,6 @@ extern "C" void LLVMInitializeSparcTargetMC() {
     TargetRegistry::RegisterAsmTargetStreamer(*T, createTargetAsmStreamer);
 
     // Register the MCInstPrinter
-    TargetRegistry::RegisterMCInstPrinter(*T, createSparcMCInstPrinter);
+    TargetRegistry::RegisterMCInstPrinter(*T, createMOSMCInstPrinter);
   }
 }

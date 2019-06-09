@@ -1,4 +1,4 @@
-//===-- SparcTargetStreamer.cpp - Sparc Target Streamer Methods -----------===//
+//===-- MOSTargetStreamer.cpp - MOS Target Streamer Methods -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,40 +6,40 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides Sparc specific target streamer methods.
+// This file provides MOS specific target streamer methods.
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcTargetStreamer.h"
-#include "SparcInstPrinter.h"
+#include "MOSTargetStreamer.h"
+#include "MOSInstPrinter.h"
 #include "llvm/Support/FormattedStream.h"
 
 using namespace llvm;
 
 // pin vtable to this file
-SparcTargetStreamer::SparcTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
+MOSTargetStreamer::MOSTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
 
-void SparcTargetStreamer::anchor() {}
+void MOSTargetStreamer::anchor() {}
 
-SparcTargetAsmStreamer::SparcTargetAsmStreamer(MCStreamer &S,
+MOSTargetAsmStreamer::MOSTargetAsmStreamer(MCStreamer &S,
                                                formatted_raw_ostream &OS)
-    : SparcTargetStreamer(S), OS(OS) {}
+    : MOSTargetStreamer(S), OS(OS) {}
 
-void SparcTargetAsmStreamer::emitSparcRegisterIgnore(unsigned reg) {
+void MOSTargetAsmStreamer::emitMOSRegisterIgnore(unsigned reg) {
   OS << "\t.register "
-     << "%" << StringRef(SparcInstPrinter::getRegisterName(reg)).lower()
+     << "%" << StringRef(MOSInstPrinter::getRegisterName(reg)).lower()
      << ", #ignore\n";
 }
 
-void SparcTargetAsmStreamer::emitSparcRegisterScratch(unsigned reg) {
+void MOSTargetAsmStreamer::emitMOSRegisterScratch(unsigned reg) {
   OS << "\t.register "
-     << "%" << StringRef(SparcInstPrinter::getRegisterName(reg)).lower()
+     << "%" << StringRef(MOSInstPrinter::getRegisterName(reg)).lower()
      << ", #scratch\n";
 }
 
-SparcTargetELFStreamer::SparcTargetELFStreamer(MCStreamer &S)
-    : SparcTargetStreamer(S) {}
+MOSTargetELFStreamer::MOSTargetELFStreamer(MCStreamer &S)
+    : MOSTargetStreamer(S) {}
 
-MCELFStreamer &SparcTargetELFStreamer::getStreamer() {
+MCELFStreamer &MOSTargetELFStreamer::getStreamer() {
   return static_cast<MCELFStreamer &>(Streamer);
 }

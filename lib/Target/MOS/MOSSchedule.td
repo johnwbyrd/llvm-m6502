@@ -1,4 +1,4 @@
-//===-- SparcSchedule.td - Describe the Sparc Itineries ----*- tablegen -*-===//
+//===-- MOSSchedule.td - Describe the MOS Itineries ----*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.

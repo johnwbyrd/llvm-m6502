@@ -1,4 +1,4 @@
-//===- SparcMCAsmInfo.h - Sparc asm properties -----------------*- C++ -*--===//
+//===- MOSMCAsmInfo.h - MOS asm properties -----------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the declaration of the SparcMCAsmInfo class.
+// This file contains the declaration of the MOSMCAsmInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCASMINFO_H
-#define LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCASMINFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSMCASMINFO_H
+#define LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 
@@ -19,11 +19,11 @@ namespace llvm {
 
 class Triple;
 
-class SparcELFMCAsmInfo : public MCAsmInfoELF {
+class MOSELFMCAsmInfo : public MCAsmInfoELF {
   void anchor() override;
 
 public:
-  explicit SparcELFMCAsmInfo(const Triple &TheTriple);
+  explicit MOSELFMCAsmInfo(const Triple &TheTriple);
 
   const MCExpr*
   getExprForPersonalitySymbol(const MCSymbol *Sym, unsigned Encoding,
@@ -36,4 +36,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_SPARC_MCTARGETDESC_SPARCMCASMINFO_H
+#endif // LLVM_LIB_TARGET_MOS_MCTARGETDESC_MOSMCASMINFO_H

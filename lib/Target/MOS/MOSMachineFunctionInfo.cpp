@@ -1,4 +1,4 @@
-//===-- SparcMachineFunctionInfo.cpp - Sparc Machine Function Info --------===//
+//===-- MOSMachineFunctionInfo.cpp - MOS Machine Function Info --------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcMachineFunctionInfo.h"
+#include "MOSMachineFunctionInfo.h"
 
 using namespace llvm;
 
-void SparcMachineFunctionInfo::anchor() { }
+void MOSMachineFunctionInfo::anchor() { }

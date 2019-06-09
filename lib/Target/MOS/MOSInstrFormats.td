@@ -1,4 +1,4 @@
-//===-- SparcInstrFormats.td - Sparc Instruction Formats ---*- tablegen -*-===//
+//===-- MOSInstrFormats.td - MOS Instruction Formats ---*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -22,14 +22,14 @@ class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern,
   let AsmString   = asmstr;
   let Pattern = pattern;
 
-  let DecoderNamespace = "Sparc";
+  let DecoderNamespace = "MOS";
   field bits<32> SoftFail = 0;
   
   let Itinerary = itin;
 }
 
 //===----------------------------------------------------------------------===//
-// Format #2 instruction classes in the Sparc
+// Format #2 instruction classes in the MOS
 //===----------------------------------------------------------------------===//
 
 // Format 2 instructions
@@ -43,7 +43,7 @@ class F2<dag outs, dag ins, string asmstr, list<dag> pattern,
   let Inst{21-0}  = imm22;
 }
 
-// Specific F2 classes: SparcV8 manual, page 44
+// Specific F2 classes: MOSV8 manual, page 44
 //
 class F2_1<bits<3> op2Val, dag outs, dag ins, string asmstr, list<dag> pattern,
            InstrItinClass itin = NoItinerary>
@@ -103,7 +103,7 @@ class F2_4<bits<3> cond, bit annul, bit pred, dag outs, dag ins,
 
 
 //===----------------------------------------------------------------------===//
-// Format #3 instruction classes in the Sparc
+// Format #3 instruction classes in the MOS
 //===----------------------------------------------------------------------===//
 
 class F3<dag outs, dag ins, string asmstr, list<dag> pattern,
@@ -118,7 +118,7 @@ class F3<dag outs, dag ins, string asmstr, list<dag> pattern,
   let Inst{18-14} = rs1;
 }
 
-// Specific F3 classes: SparcV8 manual, page 44
+// Specific F3 classes: MOSV8 manual, page 44
 //
 class F3_1_asi<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
            string asmstr, list<dag> pattern, InstrItinClass itin = NoItinerary>

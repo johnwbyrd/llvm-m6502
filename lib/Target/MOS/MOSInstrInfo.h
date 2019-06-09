@@ -1,4 +1,4 @@
-//===-- SparcInstrInfo.h - Sparc Instruction Information --------*- C++ -*-===//
+//===-- MOSInstrInfo.h - MOS Instruction Information --------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,22 +6,22 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the Sparc implementation of the TargetInstrInfo class.
+// This file contains the MOS implementation of the TargetInstrInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_SPARC_SPARCINSTRINFO_H
-#define LLVM_LIB_TARGET_SPARC_SPARCINSTRINFO_H
+#ifndef LLVM_LIB_TARGET_MOS_MOSINSTRINFO_H
+#define LLVM_LIB_TARGET_MOS_MOSINSTRINFO_H
 
-#include "SparcRegisterInfo.h"
+#include "MOSRegisterInfo.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
-#include "SparcGenInstrInfo.inc"
+#include "MOSGenInstrInfo.inc"
 
 namespace llvm {
 
-class SparcSubtarget;
+class MOSSubtarget;
 
 /// SPII - This namespace holds all of the target specific flags that
 /// instruction info tracks.
@@ -35,18 +35,18 @@ namespace SPII {
   };
 }
 
-class SparcInstrInfo : public SparcGenInstrInfo {
-  const SparcRegisterInfo RI;
-  const SparcSubtarget& Subtarget;
+class MOSInstrInfo : public MOSGenInstrInfo {
+  const MOSRegisterInfo RI;
+  const MOSSubtarget& Subtarget;
   virtual void anchor();
 public:
-  explicit SparcInstrInfo(SparcSubtarget &ST);
+  explicit MOSInstrInfo(MOSSubtarget &ST);
 
   /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
   /// such, whenever a client has an instance of instruction info, it should
   /// always be able to get register info as well (through this method).
   ///
-  const SparcRegisterInfo &getRegisterInfo() const { return RI; }
+  const MOSRegisterInfo &getRegisterInfo() const { return RI; }
 
   /// isLoadFromStackSlot - If the specified machine instruction is a direct
   /// load from a stack slot, return the virtual or physical register number of

@@ -1,4 +1,4 @@
-//===- SparcDisassembler.cpp - Disassembler for Sparc -----------*- C++ -*-===//
+//===- MOSDisassembler.cpp - Disassembler for MOS -----------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file is part of the Sparc Disassembler.
+// This file is part of the MOS Disassembler.
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SparcMCTargetDesc.h"
-#include "TargetInfo/SparcTargetInfo.h"
+#include "MCTargetDesc/MOSMCTargetDesc.h"
+#include "TargetInfo/MOSTargetInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
@@ -21,18 +21,18 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "sparc-disassembler"
+#define DEBUG_TYPE "mos-disassembler"
 
 typedef MCDisassembler::DecodeStatus DecodeStatus;
 
 namespace {
 
-/// A disassembler class for Sparc.
-class SparcDisassembler : public MCDisassembler {
+/// A disassembler class for MOS.
+class MOSDisassembler : public MCDisassembler {
 public:
-  SparcDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
+  MOSDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
       : MCDisassembler(STI, Ctx) {}
-  virtual ~SparcDisassembler() {}
+  virtual ~MOSDisassembler() {}
 
   DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
                               ArrayRef<uint8_t> Bytes, uint64_t Address,
@@ -41,21 +41,21 @@ public:
 };
 }
 
-static MCDisassembler *createSparcDisassembler(const Target &T,
+static MCDisassembler *createMOSDisassembler(const Target &T,
                                                const MCSubtargetInfo &STI,
                                                MCContext &Ctx) {
-  return new SparcDisassembler(STI, Ctx);
+  return new MOSDisassembler(STI, Ctx);
 }
 
 
-extern "C" void LLVMInitializeSparcDisassembler() {
+extern "C" void LLVMInitializeMOSDisassembler() {
   // Register the disassembler.
-  TargetRegistry::RegisterMCDisassembler(getTheSparcTarget(),
-                                         createSparcDisassembler);
-  TargetRegistry::RegisterMCDisassembler(getTheSparcV9Target(),
-                                         createSparcDisassembler);
-  TargetRegistry::RegisterMCDisassembler(getTheSparcelTarget(),
-                                         createSparcDisassembler);
+  TargetRegistry::RegisterMCDisassembler(getTheMOSTarget(),
+                                         createMOSDisassembler);
+  TargetRegistry::RegisterMCDisassembler(getTheMOSV9Target(),
+                                         createMOSDisassembler);
+  TargetRegistry::RegisterMCDisassembler(getTheMOSelTarget(),
+                                         createMOSDisassembler);
 }
 
 static const unsigned IntRegDecoderTable[] = {
@@ -308,7 +308,7 @@ static DecodeStatus DecodeSWAP(MCInst &Inst, unsigned insn, uint64_t Address,
 static DecodeStatus DecodeTRAP(MCInst &Inst, unsigned insn, uint64_t Address,
                                const void *Decoder);
 
-#include "SparcGenDisassemblerTables.inc"
+#include "MOSGenDisassemblerTables.inc"
 
 /// Read four bytes from the ArrayRef and return 32 bit word.
 static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t Address,
@@ -329,7 +329,7 @@ static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t Address,
   return MCDisassembler::Success;
 }
 
-DecodeStatus SparcDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
+DecodeStatus MOSDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
                                                ArrayRef<uint8_t> Bytes,
                                                uint64_t Address,
                                                raw_ostream &VStream,
@@ -343,19 +343,19 @@ DecodeStatus SparcDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
 
   // Calling the auto-generated decoder function.
 
-  if (STI.getFeatureBits()[Sparc::FeatureV9])
+  if (STI.getFeatureBits()[MOS::FeatureV9])
   {
-    Result = decodeInstruction(DecoderTableSparcV932, Instr, Insn, Address, this, STI);
+    Result = decodeInstruction(DecoderTableMOSV932, Instr, Insn, Address, this, STI);
   }
   else
   {
-    Result = decodeInstruction(DecoderTableSparcV832, Instr, Insn, Address, this, STI);
+    Result = decodeInstruction(DecoderTableMOSV832, Instr, Insn, Address, this, STI);
   }
   if (Result != MCDisassembler::Fail)
     return Result;
 
   Result =
-      decodeInstruction(DecoderTableSparc32, Instr, Insn, Address, this, STI);
+      decodeInstruction(DecoderTableMOS32, Instr, Insn, Address, this, STI);
 
   if (Result != MCDisassembler::Fail) {
     Size = 4;
